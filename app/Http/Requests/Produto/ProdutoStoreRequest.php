@@ -35,7 +35,7 @@ class ProdutoStoreRequest extends FormRequest
 
             // Dados do produto
             'tipo' => 'required|in:produto,servico',
-            'nome' => 'required|string|max:255',
+            'nome' => 'required|string|min:3|max:255',
             'imagem' => 'nullable|string|max:500',
             'slug' => 'nullable|string|max:255',
             'descricao' => 'nullable|string|max:1000',
@@ -54,8 +54,8 @@ class ProdutoStoreRequest extends FormRequest
             'largura' => 'nullable|numeric|min:0|max:9999.99',
             'comprimento' => 'nullable|numeric|min:0|max:9999.99',
             'ordem' => 'nullable|integer|min:0|max:999999',
-            'preco_promocional' => 'nullable|numeric|min:0|max:999999.99',
-            'promocao_ate' => 'nullable|date|after:today',
+            'preco_promocional' => 'nullable|numeric|min:0|max:999999.99|required_if:tem_promocao,true',
+            'promocao_ate' => 'nullable|date|after:today|required_if:tem_promocao,true',
             'tem_promocao' => 'nullable|boolean',
             'vende_granel' => 'nullable|boolean',
         ];

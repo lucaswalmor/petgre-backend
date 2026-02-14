@@ -196,6 +196,12 @@ class Produto extends Model
         }
 
         $precoAtual = $this->getPrecoAtual();
+
+        // Evitar divisão por zero
+        if ($this->preco_custo <= 0) {
+            return null;
+        }
+
         return (($precoAtual - $this->preco_custo) / $this->preco_custo) * 100;
     }
 }

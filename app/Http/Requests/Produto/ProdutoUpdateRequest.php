@@ -50,7 +50,7 @@ class ProdutoUpdateRequest extends FormRequest
 
             // Dados do produto (todos opcionais para update)
             'tipo' => 'sometimes|nullable|in:produto,servico',
-            'nome' => 'sometimes|nullable|string|max:255',
+            'nome' => 'sometimes|nullable|string|min:3|max:255',
             'imagem' => 'sometimes|nullable|string|max:500',
             'slug' => 'sometimes|nullable|string|max:255',
             'descricao' => 'sometimes|nullable|string|max:1000',
@@ -69,8 +69,8 @@ class ProdutoUpdateRequest extends FormRequest
             'largura' => 'sometimes|nullable|numeric|min:0|max:9999.99',
             'comprimento' => 'sometimes|nullable|numeric|min:0|max:9999.99',
             'ordem' => 'sometimes|nullable|integer|min:0|max:999999',
-            'preco_promocional' => 'sometimes|nullable|numeric|min:0|max:999999.99',
-            'promocao_ate' => 'sometimes|nullable|date|after:today',
+            'preco_promocional' => 'sometimes|nullable|numeric|min:0|max:999999.99|required_if:tem_promocao,true',
+            'promocao_ate' => 'sometimes|nullable|date|after:today|required_if:tem_promocao,true',
             'tem_promocao' => 'sometimes|nullable|boolean',
             'vende_granel' => 'sometimes|nullable|boolean',
         ];
