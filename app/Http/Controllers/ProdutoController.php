@@ -601,6 +601,62 @@ class ProdutoController extends Controller
     }
 
     /**
+     * Deletar produtos em lote
+     */
+    public function destroyLote(Request $request)
+    {
+        $usuarioAutenticado = Auth::user();
+        $empresasIds = $usuarioAutenticado->empresas->pluck('id')->toArray();
+
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return response()->json([
+                'error' => 'IDs inválidos',
+                'message' => 'Nenhum ID de produto foi fornecido.'
+            ], 400);
+        }
+
+        // Verificar se todos os produtos pertencem às empresas do usuário
+        $produtos = Produto::whereIn('id', $ids)->get();
+
+        foreach ($produtos as $produto) {
+            if (!in_array($produto->empresa_id, $empresasIds)) {
+                return response()->json([
+                    'error' => 'Acesso negado',
+                    'message' => 'Você não tem permissão para deletar alguns dos produtos selecionados.'
+                ], 403);
+            }
+
+            // Verificar se o produto está sendo usado em pedidos
+            if ($produto->itens()->exists()) {
+                return response()->json([
+                    'error' => 'Não é possível deletar produtos em lote',
+                    'message' => "O produto '{$produto->nome}' está sendo usado em pedidos existentes."
+                ], 400);
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            // Soft delete dos produtos
+            Produto::whereIn('id', $ids)->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => count($ids) . ' produto(s) deletado(s) com sucesso'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'error' => 'Erro ao deletar produtos',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Listar unidades de medida
      */
     public function listarUnidadesMedidas()
