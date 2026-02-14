@@ -288,9 +288,32 @@ class EmpresaController extends Controller
                 'usuarios.usuario.permissoes'
             ])->findOrFail($id);
 
+            $additionalData = [];
+
+            // Se cadastro não estiver completo, calcular progresso e itens pendentes
+            if (!$empresa->cadastro_completo) {
+                $progresso = $this->calcularProgressoCadastro($empresa);
+
+                // Adicionar informações de progresso aos dados adicionais
+                $additionalData['cadastro'] = [
+                    'progresso_porcentagem' => $progresso['porcentagem'],
+                    'itens_completos' => $progresso['itens_completos'],
+                    'total_itens' => $progresso['total_itens'],
+                    'itens_pendentes' => $progresso['itens_pendentes'],
+                    'completo' => $progresso['completo']
+                ];
+
+                // Verificar se agora está completo e atualizar se necessário
+                if ($progresso['completo']) {
+                    $this->verificarCadastroCompleto($empresa);
+                    // Recarregar para pegar o status atualizado
+                    $empresa->refresh();
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'empresa' => new EmpresaResource($empresa)
+                'empresa' => new EmpresaResource($empresa, $additionalData)
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
@@ -599,5 +622,60 @@ class EmpresaController extends Controller
         if ($cadastroCompleto) {
             $empresa->update(['cadastro_completo' => true]);
         }
+    }
+
+    /**
+     * Calcula o progresso do cadastro da empresa e identifica itens pendentes
+     */
+    private function calcularProgressoCadastro(Empresa $empresa)
+    {
+        $itensPendentes = [];
+        $itensCompletos = 0;
+        $totalItens = 5; // endereço, configurações, formas de pagamento, horários, bairros
+
+        // Verifica se existe endereço
+        if (!$empresa->endereco) {
+            $itensPendentes[] = 'Endereço da empresa';
+        } else {
+            $itensCompletos++;
+        }
+
+        // Verifica se existe configurações
+        if (!$empresa->configuracoes) {
+            $itensPendentes[] = 'Configurações da empresa';
+        } else {
+            $itensCompletos++;
+        }
+
+        // Verifica se existe pelo menos uma forma de pagamento
+        if ($empresa->formasPagamentos->isEmpty()) {
+            $itensPendentes[] = 'Formas de pagamento';
+        } else {
+            $itensCompletos++;
+        }
+
+        // Verifica se existe pelo menos um horário
+        if ($empresa->horarios->isEmpty()) {
+            $itensPendentes[] = 'Horários de funcionamento';
+        } else {
+            $itensCompletos++;
+        }
+
+        // Verifica se existe pelo menos um bairro de entrega
+        if ($empresa->bairrosEntregas->isEmpty()) {
+            $itensPendentes[] = 'Bairros de entrega';
+        } else {
+            $itensCompletos++;
+        }
+
+        $porcentagem = round(($itensCompletos / $totalItens) * 100);
+
+        return [
+            'porcentagem' => $porcentagem,
+            'itens_completos' => $itensCompletos,
+            'total_itens' => $totalItens,
+            'itens_pendentes' => $itensPendentes,
+            'completo' => $itensCompletos === $totalItens
+        ];
     }
 }

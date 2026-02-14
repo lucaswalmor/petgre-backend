@@ -8,6 +8,20 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class EmpresaResource extends JsonResource
 {
     /**
+     * Dados adicionais para incluir na resposta
+     */
+    private array $additionalData = [];
+
+    /**
+     * Constructor to accept additional data
+     */
+    public function __construct($resource, array $additionalData = [])
+    {
+        parent::__construct($resource);
+        $this->additionalData = $additionalData;
+    }
+
+    /**
      * Transform the resource into an array.
      *
      * @return array<string, mixed>
@@ -26,6 +40,7 @@ class EmpresaResource extends JsonResource
             'path_logo' => $this->path_logo,
             'path_banner' => $this->path_banner,
             'ativo' => $this->ativo,
+            'cadastro_completo' => $this->cadastro_completo,
 
             // Relacionamentos
             'nicho' => $this->whenLoaded('nicho', function () {
@@ -149,6 +164,9 @@ class EmpresaResource extends JsonResource
                     ];
                 });
             }),
+
+            // Incluir dados adicionais se existirem
+            ...$this->additionalData,
         ];
     }
 }

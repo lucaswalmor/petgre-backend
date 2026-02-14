@@ -30,7 +30,6 @@ class PermissoesSeeder extends Seeder
             ['nome' => 'Visualizar Empresa', 'slug' => 'empresas.show'],
             ['nome' => 'Editar Empresas', 'slug' => 'empresas.update'],
             ['nome' => 'Deletar Empresas', 'slug' => 'empresas.destroy'],
-            ['nome' => 'Verificar Cadastro', 'slug' => 'empresas.verificar_cadastro'],
             ['nome' => 'Upload de Imagem', 'slug' => 'empresas.upload_image'],
 
             // Produtos
