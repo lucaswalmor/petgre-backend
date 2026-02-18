@@ -135,6 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rotas especiais
         Route::post('/importar', 'importar')->middleware('check.permission:produtos.store');
         Route::get('/importar/modelo', 'downloadModelo')->middleware('check.permission:produtos.store');
+        Route::get('/importar/erros/download', 'downloadPlanilhaErros')->middleware('check.permission:produtos.store');
 
         Route::get('/{id}', 'show')->middleware('check.permission:produtos.show');
         Route::post('/{id}/duplicar', 'duplicar')->middleware('check.permission:produtos.store');

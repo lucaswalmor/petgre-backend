@@ -9,11 +9,11 @@ use App\Models\UnidadeMedida;
 use App\Models\Empresa;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use OpenSpout\Reader\XLSX\Reader as XLSXReader;
-use OpenSpout\Reader\ODS\Reader as ODSReader;
-use OpenSpout\Common\Exception\IOException;
-use OpenSpout\Common\Exception\UnsupportedTypeException;
+use Rap2hpoutre\FastExcel\FastExcel;
+use Rap2hpoutre\FastExcel\SheetCollection;
+use Illuminate\Support\Facades\Log;
 
 class PetgreImportacaoService implements PlanilhaImportacaoInterface
 {
@@ -25,64 +25,26 @@ class PetgreImportacaoService implements PlanilhaImportacaoInterface
      */
     public function importar(UploadedFile $arquivo): array
     {
+        // Debug: informações do arquivo
+        Log::info('Processando arquivo Excel:', [
+            'nome' => $arquivo->getClientOriginalName(),
+            'extensao' => $arquivo->getClientOriginalExtension(),
+            'mime_type' => $arquivo->getMimeType(),
+            'caminho' => $arquivo->getPathname()
+        ]);
+
         $usuarioAutenticado = Auth::user();
         $empresasIds = $usuarioAutenticado->empresas->pluck('id')->toArray();
 
         $total = 0;
         $importados = 0;
         $erros = [];
+        $linhasComErro = [];
+        $dadosOriginais = [];
 
         DB::beginTransaction();
         try {
-            // Criar reader baseado na extensão
-            $extensao = strtolower($arquivo->getClientOriginalExtension());
-
-            if ($extensao === 'xlsx') {
-                $reader = new XLSXReader();
-            } elseif ($extensao === 'xls') {
-                $reader = new XLSXReader(); // OpenSpout trata XLS como XLSX
-            } else {
-                throw new \Exception('Formato de arquivo não suportado. Use apenas .xlsx ou .xls');
-            }
-
-            $reader->open($arquivo->getPathname());
-
-            foreach ($reader->getSheetIterator() as $sheet) {
-                $linhaIndex = 0;
-
-                foreach ($sheet->getRowIterator() as $row) {
-                    $linhaIndex++;
-
-                    // Pular cabeçalho (linha 1)
-                    if ($linhaIndex === 1) {
-                        continue;
-                    }
-
-                    $dados = $row->toArray();
-                    $total++;
-
-                    // Validar linha não vazia
-                    if (empty(array_filter($dados))) {
-                        continue; // Pular linhas completamente vazias
-                    }
-
-                    try {
-                        $produto = $this->processarLinha($dados, $linhaIndex, $empresasIds);
-
-                        if ($produto) {
-                            $produto->save();
-                            $importados++;
-                        }
-                    } catch (\Exception $e) {
-                        $erros[] = [
-                            'linha' => $linhaIndex,
-                            'mensagem' => $e->getMessage()
-                        ];
-                    }
-                }
-            }
-
-            $reader->close();
+            $this->processarExcel($arquivo, $dadosOriginais, $linhasComErro, $total, $importados, $empresasIds);
 
             DB::commit();
 
@@ -91,23 +53,81 @@ class PetgreImportacaoService implements PlanilhaImportacaoInterface
             throw $e;
         }
 
+        // Gerar planilha de erros se houver erros
+        $planilhaErrosUrl = null;
+        if (!empty($linhasComErro)) {
+            $empresaId = $empresasIds[0] ?? null;
+            if ($empresaId) {
+                $planilhaErrosUrl = $this->gerarPlanilhaErros($dadosOriginais, $linhasComErro, $empresaId);
+            }
+        }
+
+        // Converter erros para formato compatível com resposta anterior
+        foreach ($linhasComErro as $erro) {
+            $erros[] = [
+                'linha' => $erro['linha'],
+                'mensagem' => $erro['motivo']
+            ];
+        }
+
         return [
             'total' => $total,
             'importados' => $importados,
-            'erros' => $erros
+            'erros' => count($linhasComErro),
+            'planilha_erros_url' => $planilhaErrosUrl,
+            'linhas_com_erro' => $linhasComErro
         ];
     }
 
     /**
      * Valida se a estrutura da planilha é compatível com o formato Petgre
+     * Agora aceita planilhas parciais (com apenas alguns campos)
      *
      * @param array $cabecalho
      * @return bool
      */
     public function validarEstrutura(array $cabecalho): bool
     {
-        $cabecalhoEsperado = $this->getCabecalhoEsperado();
-        return $cabecalho === $cabecalhoEsperado;
+        Log::info('Validando estrutura da planilha:', [
+            'cabecalho_recebido' => $cabecalho,
+            'quantidade_colunas' => count($cabecalho)
+        ]);
+
+        // Verificar se tem pelo menos os campos obrigatórios
+        $camposObrigatorios = ['Nome*', 'Preço*'];
+        $cabecalhoNormalizado = array_map(function($coluna) {
+            return trim(strtolower(preg_replace('/["\']/', '', $coluna)));
+        }, $cabecalho);
+
+        $camposObrigatoriosNormalizados = array_map('strtolower', $camposObrigatorios);
+
+        foreach ($camposObrigatoriosNormalizados as $campoObrigatorio) {
+            if (!in_array($campoObrigatorio, $cabecalhoNormalizado)) {
+                Log::warning('Campo obrigatório não encontrado:', [
+                    'campo_procurado' => $campoObrigatorio,
+                    'cabecalho_normalizado' => $cabecalhoNormalizado
+                ]);
+                return false;
+            }
+        }
+
+        // Verificar se não há campos duplicados ou vazios
+        $cabecalhoLimpo = array_filter($cabecalho, function($coluna) {
+            return !empty(trim($coluna));
+        });
+
+        if (count($cabecalhoLimpo) !== count($cabecalho)) {
+            Log::warning('Cabeçalho contém colunas vazias');
+            return false;
+        }
+
+        if (count($cabecalhoLimpo) !== count(array_unique($cabecalhoLimpo))) {
+            Log::warning('Cabeçalho contém colunas duplicadas');
+            return false;
+        }
+
+        Log::info('Estrutura da planilha validada com sucesso - campos obrigatórios presentes');
+        return true;
     }
 
     /**
@@ -144,6 +164,7 @@ class PetgreImportacaoService implements PlanilhaImportacaoInterface
 
     /**
      * Processa uma linha da planilha e cria o produto
+     * Agora suporta planilhas parciais (com menos colunas)
      *
      * @param array $dados
      * @param int $linhaIndex
@@ -152,30 +173,43 @@ class PetgreImportacaoService implements PlanilhaImportacaoInterface
      */
     private function processarLinha(array $dados, int $linhaIndex, array $empresasIds): ?Produto
     {
-        // Mapear dados da planilha para campos do produto
-        $mapeamento = [
-            'nome' => $dados[0] ?? null,
-            'descricao' => $dados[1] ?? null,
-            'categoria_nome' => $dados[2] ?? null,
-            'unidade_medida_nome' => $dados[3] ?? null,
-            'preco' => $dados[4] ?? null,
-            'estoque' => $dados[5] ?? null,
-            'marca' => $dados[6] ?? null,
-            'sku' => $dados[7] ?? null,
-            'preco_custo' => $dados[8] ?? null,
-            'estoque_minimo' => $dados[9] ?? null,
-            'peso' => $dados[10] ?? null,
-            'altura' => $dados[11] ?? null,
-            'largura' => $dados[12] ?? null,
-            'comprimento' => $dados[13] ?? null,
-            'ordem' => $dados[14] ?? null,
-            'preco_promocional' => $dados[15] ?? null,
-            'promocao_ate' => $dados[16] ?? null,
-            'vende_granel' => $dados[17] ?? null,
-            'tipo' => $dados[18] ?? null,
-            'ativo' => $dados[19] ?? null,
-            'destaque' => $dados[20] ?? null,
+        // Usar apenas os campos que existem nos dados
+        $numColunas = count($dados);
+
+        // Mapear baseado no número de colunas disponíveis
+        $mapeamento = [];
+
+        // Sempre assume que as primeiras colunas seguem a ordem padrão até onde houver dados
+        $mapeamentoCampos = [
+            0 => 'nome',
+            1 => 'descricao',
+            2 => 'categoria_nome',
+            3 => 'unidade_medida_nome',
+            4 => 'preco',
+            5 => 'estoque',
+            6 => 'marca',
+            7 => 'sku',
+            8 => 'preco_custo',
+            9 => 'estoque_minimo',
+            10 => 'peso',
+            11 => 'altura',
+            12 => 'largura',
+            13 => 'comprimento',
+            14 => 'ordem',
+            15 => 'preco_promocional',
+            16 => 'promocao_ate',
+            17 => 'vende_granel',
+            18 => 'tipo',
+            19 => 'ativo',
+            20 => 'destaque'
         ];
+
+        // Mapear apenas os campos que existem nos dados
+        for ($i = 0; $i < $numColunas; $i++) {
+            if (isset($mapeamentoCampos[$i])) {
+                $mapeamento[$mapeamentoCampos[$i]] = $dados[$i] ?? null;
+            }
+        }
 
         // Validações obrigatórias
         if (empty($mapeamento['nome'])) {
@@ -270,6 +304,333 @@ class PetgreImportacaoService implements PlanilhaImportacaoInterface
     }
 
     /**
+     * Valida uma linha da planilha e retorna erros detalhados
+     *
+     * @param array $dados
+     * @param int $linhaIndex
+     * @return array
+     */
+    private function validarLinha(array $dados, int $linhaIndex): array
+    {
+        $erros = [];
+        $numColunas = count($dados);
+
+        // Mapeamento dinâmico baseado no número de colunas disponíveis
+        $mapeamentoCampos = [
+            0 => 'Nome*',
+            1 => 'Descrição',
+            2 => 'Categoria',
+            3 => 'Unidade de Medida',
+            4 => 'Preço*',
+            5 => 'Estoque',
+            6 => 'Marca',
+            7 => 'SKU',
+            8 => 'Preço de Custo',
+            9 => 'Estoque Mínimo',
+            10 => 'Peso (kg)',
+            11 => 'Altura (cm)',
+            12 => 'Largura (cm)',
+            13 => 'Comprimento (cm)',
+            14 => 'Ordem',
+            15 => 'Preço Promocional',
+            16 => 'Promoção Até (YYYY-MM-DD)',
+            17 => 'Vende a Granel (S/N)',
+            18 => 'Tipo (produto/serviço)',
+            19 => 'Ativo (S/N)',
+            20 => 'Destaque (S/N)'
+        ];
+
+        // Filtrar apenas os campos que existem na planilha
+        $colunasDisponiveis = [];
+        for ($i = 0; $i < $numColunas; $i++) {
+            if (isset($mapeamentoCampos[$i])) {
+                $colunasDisponiveis[$i] = $mapeamentoCampos[$i];
+            }
+        }
+
+        // 1. Validação de campos obrigatórios
+        // Nome (sempre esperado na primeira coluna se existir)
+        if (isset($dados[0]) && empty(trim($dados[0] ?? ''))) {
+            $nomeColuna = $colunasDisponiveis[0] ?? 'Nome*';
+            $erros[] = [
+                'coluna' => $nomeColuna,
+                'motivo' => 'Campo obrigatório não preenchido',
+                'como_corrigir' => 'Digite o nome do produto (máximo 255 caracteres)'
+            ];
+        }
+
+        // Preço (procurar pela coluna de preço)
+        $indicePreco = array_search('Preço*', $colunasDisponiveis);
+        if ($indicePreco !== false) {
+            $preco = $dados[$indicePreco] ?? null;
+            if (empty($preco) || !is_numeric($preco)) {
+                $erros[] = [
+                    'coluna' => $colunasDisponiveis[$indicePreco],
+                    'motivo' => 'Campo obrigatório deve ser numérico',
+                    'como_corrigir' => 'Digite um preço válido (ex: 29.90). Use ponto como separador decimal'
+                ];
+            }
+        }
+
+        // 2. Validações de formato para campos que existem
+        foreach ($colunasDisponiveis as $indice => $nomeColuna) {
+            $valor = $dados[$indice] ?? null;
+
+            if (empty($valor)) continue;
+
+            switch ($nomeColuna) {
+                case 'Preço*':
+                case 'Preço de Custo':
+                case 'Preço Promocional':
+                    if (!is_numeric($valor)) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Formato de preço inválido',
+                            'como_corrigir' => 'Use apenas números e ponto decimal (ex: 29.90)'
+                        ];
+                    }
+                    break;
+
+                case 'Estoque':
+                case 'Estoque Mínimo':
+                case 'Peso (kg)':
+                case 'Altura (cm)':
+                case 'Largura (cm)':
+                case 'Comprimento (cm)':
+                case 'Ordem':
+                    if (!is_numeric($valor) && $valor !== '0' && $valor !== '') {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Campo deve ser numérico',
+                            'como_corrigir' => 'Digite apenas números (ex: 10 ou 10.5)'
+                        ];
+                    }
+                    break;
+
+                case 'Promoção Até (YYYY-MM-DD)':
+                    $dataValida = $this->validarData($valor);
+                    if (!$dataValida) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Formato de data inválido',
+                            'como_corrigir' => 'Use o formato YYYY-MM-DD (ex: 2024-12-31)'
+                        ];
+                    }
+                    break;
+
+                case 'Categoria':
+                    $categoriaExiste = Categorias::where('nome', 'like', trim($valor))->exists();
+                    if (!$categoriaExiste) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Categoria não encontrada',
+                            'como_corrigir' => 'Use uma categoria existente (ex: Rações, Brinquedos, Higiene)'
+                        ];
+                    }
+                    break;
+
+                case 'Unidade de Medida':
+                    $unidadeExiste = UnidadeMedida::where('nome', 'like', trim($valor))
+                        ->orWhere('sigla', 'like', trim($valor))
+                        ->exists();
+                    if (!$unidadeExiste) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Unidade de medida não encontrada',
+                            'como_corrigir' => 'Use uma unidade existente (ex: Unidade, Pacote, Quilo, Litro)'
+                        ];
+                    }
+                    break;
+
+                case 'Vende a Granel (S/N)':
+                case 'Ativo (S/N)':
+                case 'Destaque (S/N)':
+                    $valorNormalizado = strtolower(trim($valor));
+                    if (!in_array($valorNormalizado, ['s', 'n', 'sim', 'não', 'nao', ''])) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Valor inválido para campo S/N',
+                            'como_corrigir' => 'Digite apenas S (Sim) ou N (Não), ou deixe vazio'
+                        ];
+                    }
+                    break;
+
+                case 'Tipo (produto/serviço)':
+                    $valorNormalizado = strtolower(trim($valor));
+                    if (!in_array($valorNormalizado, ['produto', 'serviço', 'servico', ''])) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Tipo inválido',
+                            'como_corrigir' => 'Digite apenas "produto" ou "serviço", ou deixe vazio'
+                        ];
+                    }
+                    break;
+
+                case 'Nome*':
+                    if (strlen(trim($valor)) > 255) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Nome muito longo',
+                            'como_corrigir' => 'Nome deve ter no máximo 255 caracteres'
+                        ];
+                    }
+                    break;
+
+                case 'Descrição':
+                    if (strlen(trim($valor)) > 1000) {
+                        $erros[] = [
+                            'coluna' => $nomeColuna,
+                            'motivo' => 'Descrição muito longa',
+                            'como_corrigir' => 'Descrição deve ter no máximo 1000 caracteres'
+                        ];
+                    }
+                    break;
+            }
+        }
+
+        return $erros;
+    }
+
+    /**
+     * Valida formato de data
+     *
+     * @param string $data
+     * @return bool
+     */
+    private function validarData(string $data): bool
+    {
+        $data = trim($data);
+        if (empty($data)) return true; // Data vazia é válida
+
+        // Tentar diferentes formatos
+        $formatos = ['Y-m-d', 'd/m/Y', 'd-m-Y'];
+        foreach ($formatos as $formato) {
+            $dateTime = \DateTime::createFromFormat($formato, $data);
+            if ($dateTime && $dateTime->format($formato) === $data) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Gera planilha de erros com duas abas
+     *
+     * @param array $dadosOriginais
+     * @param array $linhasComErro
+     * @param int $empresaId
+     * @return string|null
+     */
+    private function gerarPlanilhaErros(array $dadosOriginais, array $linhasComErro, int $empresaId): ?string
+    {
+        try {
+            // getCabecalhoEsperado() é a fonte única de verdade para os nomes das colunas
+            // dadosOriginais[0] = linha 2 da planilha (linhaIndex=2), [1] = linha 3, etc.
+            // portanto: linha N da planilha → dadosOriginais[N - 2]
+            $cabecalho = $this->getCabecalhoEsperado();
+
+            $linhasErroIndices = array_unique(array_column($linhasComErro, 'linha'));
+            $dadosComErro = collect();
+            foreach ($linhasErroIndices as $linhaErro) {
+                $indice = $linhaErro - 2;
+                if (isset($dadosOriginais[$indice])) {
+                    // array_combine garante que as chaves são os nomes corretos das colunas
+                    $dadosComErro->push(array_combine($cabecalho, $dadosOriginais[$indice]));
+                }
+            }
+
+            $detalhesErros = collect();
+            foreach ($linhasComErro as $erro) {
+                $detalhesErros->push([
+                    'Linha'          => $erro['linha'],
+                    'Coluna'         => $erro['coluna'],
+                    'Motivo do erro' => $erro['motivo'],
+                    'Como corrigir'  => $erro['como_corrigir'],
+                ]);
+            }
+
+            $sheets = new SheetCollection([
+                'Dados com erro'     => $dadosComErro,
+                'Detalhes dos erros' => $detalhesErros,
+            ]);
+
+            $tempFile = tempnam(sys_get_temp_dir(), 'erros_') . '.xlsx';
+            (new FastExcel($sheets))->export($tempFile);
+
+            $path = "planilhas/empresa/{$empresaId}/importacao_produto_empresa_{$empresaId}.xlsx";
+
+            if (Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->delete($path);
+            }
+
+            Storage::disk('local')->put($path, file_get_contents($tempFile));
+            unlink($tempFile);
+
+            return "/api/produtos/importar/erros/download";
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao gerar planilha de erros: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function processarExcel($arquivo, &$dadosOriginais, &$linhasComErro, &$total, &$importados, $empresasIds)
+    {
+        try {
+            // FastExcel pula o cabeçalho automaticamente e retorna arrays associativos
+            $linhas = (new FastExcel)->import($arquivo->getPathname());
+
+            $linhaIndex = 1;
+
+            foreach ($linhas as $linha) {
+                $linhaIndex++;
+
+                // Guardar como array indexado (para validação e para gerarPlanilhaErros)
+                $dados = array_values($linha);
+                $dadosOriginais[] = $dados;
+
+                $total++;
+
+                if (empty(array_filter($dados))) {
+                    continue;
+                }
+
+                try {
+                    $errosValidacao = $this->validarLinha($dados, $linhaIndex);
+                    if (!empty($errosValidacao)) {
+                        foreach ($errosValidacao as $erro) {
+                            $linhasComErro[] = [
+                                'linha'         => $linhaIndex,
+                                'coluna'        => $erro['coluna'],
+                                'motivo'        => $erro['motivo'],
+                                'como_corrigir' => $erro['como_corrigir'],
+                            ];
+                        }
+                        continue;
+                    }
+
+                    $produto = $this->processarLinha($dados, $linhaIndex, $empresasIds);
+                    if ($produto) {
+                        $produto->save();
+                        $importados++;
+                    }
+                } catch (\Exception $e) {
+                    $linhasComErro[] = [
+                        'linha'         => $linhaIndex,
+                        'coluna'        => 'Geral',
+                        'motivo'        => $e->getMessage(),
+                        'como_corrigir' => 'Verifique os dados da linha e tente novamente',
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro ao processar Excel', ['erro' => $e->getMessage()]);
+            throw new \Exception('Erro ao processar o arquivo Excel: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Converte valores string para boolean
      *
      * @param mixed $valor
@@ -285,4 +646,8 @@ class PetgreImportacaoService implements PlanilhaImportacaoInterface
         $valorStr = strtolower(trim($valor));
         return in_array($valorStr, ['s', 'sim', '1', 'true', 'yes']);
     }
+
+    /**
+     * Detecta o formato real do arquivo baseado no conteúdo
+     */
 }

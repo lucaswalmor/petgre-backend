@@ -17,9 +17,8 @@ use App\Models\Empresa;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use OpenSpout\Reader\XLSX\Reader as XLSXReader;
-use OpenSpout\Writer\XLSX\Writer as XLSXWriter;
-use OpenSpout\Common\Entity\Row;
+use Rap2hpoutre\FastExcel\FastExcel;
+use Illuminate\Support\Facades\Log;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Common\Entity\Style\Color;
 
@@ -679,9 +678,19 @@ class ProdutoController extends Controller
      */
     public function importar(Request $request)
     {
+        $arquivo = $request->file('arquivo');
+
         $request->validate([
-            'arquivo' => 'required|file|mimes:xlsx,xls|max:5120', // 5MB máximo
+            'arquivo' => 'required|file|mimes:xlsx,xls|max:5120',
         ]);
+
+        $extensao = strtolower($arquivo->getClientOriginalExtension());
+        if (!in_array($extensao, ['xlsx', 'xls'])) {
+            return response()->json([
+                'error' => 'Formato de arquivo inválido',
+                'message' => 'Apenas arquivos Excel (.xlsx, .xls) são aceitos.'
+            ], 400);
+        }
 
         try {
             $arquivo = $request->file('arquivo');
@@ -722,10 +731,12 @@ class ProdutoController extends Controller
             $resultado = $serviceEncontrado->importar($arquivo);
 
             return response()->json([
-                'message' => 'Importação concluída',
-                'total' => $resultado['total'],
-                'importados' => $resultado['importados'],
-                'erros' => $resultado['erros']
+                'message'            => 'Importação concluída',
+                'total'              => $resultado['total'],
+                'importados'         => $resultado['importados'],
+                'erros'              => $resultado['erros'],
+                'planilha_erros_url' => $resultado['planilha_erros_url'],
+                'linhas_com_erro'    => $resultado['linhas_com_erro'],
             ]);
 
         } catch (\Exception $e) {
@@ -742,41 +753,45 @@ class ProdutoController extends Controller
     public function downloadModelo(Request $request)
     {
         try {
-            $cabecalho = [
-                'Nome*',
-                'Descrição',
-                'Categoria',
-                'Unidade de Medida',
-                'Preço*',
-                'Estoque',
-                'Marca',
-                'SKU',
-                'Preço de Custo',
-                'Estoque Mínimo',
-                'Peso (kg)',
-                'Altura (cm)',
-                'Largura (cm)',
-                'Comprimento (cm)',
-                'Ordem',
-                'Preço Promocional',
-                'Promoção Até (YYYY-MM-DD)',
-                'Vende a Granel (S/N)',
-                'Tipo (produto/serviço)',
-                'Ativo (S/N)',
-                'Destaque (S/N)'
-            ];
+            // FastExcel usa as CHAVES do array associativo como cabeçalho
+            $linhas = collect([
+                [
+                    'Nome*'                     => 'Produto Exemplo',
+                    'Descrição'                  => 'Descrição do produto exemplo',
+                    'Categoria'                  => 'Rações',
+                    'Unidade de Medida'          => 'Unidade',
+                    'Preço*'                     => '29.90',
+                    'Estoque'                    => '100',
+                    'Marca'                      => 'Marca Exemplo',
+                    'SKU'                        => 'PROD001',
+                    'Preço de Custo'             => '20.00',
+                    'Estoque Mínimo'             => '10',
+                    'Peso (kg)'                  => '1.5',
+                    'Altura (cm)'                => '10',
+                    'Largura (cm)'               => '20',
+                    'Comprimento (cm)'           => '30',
+                    'Ordem'                      => '1',
+                    'Preço Promocional'          => '25.90',
+                    'Promoção Até (YYYY-MM-DD)'  => '2024-12-31',
+                    'Vende a Granel (S/N)'       => 'N',
+                    'Tipo (produto/serviço)'     => 'produto',
+                    'Ativo (S/N)'                => 'S',
+                    'Destaque (S/N)'             => 'N',
+                ],
+            ]);
 
-            // Criar HTML formatado que o Excel pode abrir com múltiplas planilhas
-            $htmlContent = $this->criarHtmlParaExcelMultiplasPlanilhas($cabecalho);
+            $headerStyle = (new Style())
+                ->setFontBold()
+                ->setFontSize(14)
+                ->setFontColor(Color::WHITE)
+                ->setBackgroundColor('3B82F6');
 
-            // Criar arquivo temporário
-            $tempFile = tempnam(sys_get_temp_dir(), 'modelo_produtos_') . '.xls';
+            $tempFile = tempnam(sys_get_temp_dir(), 'modelo_') . '.xlsx';
+            (new FastExcel($linhas))->headerStyle($headerStyle)->export($tempFile);
 
-            // Escrever conteúdo no arquivo
-            file_put_contents($tempFile, $htmlContent);
-
-            // Retornar arquivo para download
-            return response()->download($tempFile, 'modelo_produtos_petgre.xls')->deleteFileAfterSend();
+            return response()->download($tempFile, 'modelo_produtos_petgre.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])->deleteFileAfterSend();
 
         } catch (\Exception $e) {
             return response()->json([
@@ -786,273 +801,8 @@ class ProdutoController extends Controller
         }
     }
 
-    /**
-     * Cria HTML formatado para Excel com múltiplas planilhas
-     */
-    private function criarHtmlParaExcelMultiplasPlanilhas(array $cabecalho): string
-    {
-        $html = '<?xml version="1.0"?>';
-        $html .= '<?mso-application progid="Excel.Sheet"?>';
-        $html .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"';
-        $html .= ' xmlns:o="urn:schemas-microsoft-com:office:office"';
-        $html .= ' xmlns:x="urn:schemas-microsoft-com:office:excel"';
-        $html .= ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"';
-        $html .= ' xmlns:html="http://www.w3.org/TR/REC-html40">';
 
-        // Styles
-        $html .= '<Styles>';
-        $html .= '<Style ss:ID="Default" ss:Name="Normal">';
-        $html .= '<Alignment ss:Vertical="Bottom"/>';
-        $html .= '<Borders/>';
-        $html .= '<Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>';
-        $html .= '<Interior/>';
-        $html .= '<NumberFormat/>';
-        $html .= '<Protection/>';
-        $html .= '</Style>';
-        $html .= '<Style ss:ID="HeaderStyle">';
-        $html .= '<Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="14" ss:Color="#FFFFFF" ss:Bold="1"/>';
-        $html .= '<Interior ss:Color="#3b82f6" ss:Pattern="Solid"/>';
-        $html .= '</Style>';
-        $html .= '<Style ss:ID="CellStyle">';
-        $html .= '<Borders>';
-        $html .= '<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/>';
-        $html .= '<Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/>';
-        $html .= '<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/>';
-        $html .= '<Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/>';
-        $html .= '</Borders>';
-        $html .= '</Style>';
-        $html .= '</Styles>';
 
-        // Planilha 1: Modelo
-        $html .= '<Worksheet ss:Name="Modelo">';
-        $html .= '<Table ss:ExpandedColumnCount="' . count($cabecalho) . '" ss:ExpandedRowCount="1" x:FullColumns="1" x:FullRows="1">';
-
-        // Definir larguras das colunas
-        foreach ($cabecalho as $coluna) {
-            $largura = $this->calcularLarguraColuna($coluna);
-            $html .= '<Column ss:Width="' . $largura . '"/>';
-        }
-
-        // Cabeçalho
-        $html .= '<Row>';
-        foreach ($cabecalho as $coluna) {
-            $html .= '<Cell ss:StyleID="HeaderStyle"><Data ss:Type="String">' . htmlspecialchars($coluna) . '</Data></Cell>';
-        }
-        $html .= '</Row>';
-
-        $html .= '</Table>';
-        $html .= '</Worksheet>';
-
-        // Planilha 2: REGRAS
-        $html .= '<Worksheet ss:Name="REGRAS">';
-        $html .= '<Table ss:ExpandedColumnCount="3" ss:ExpandedRowCount="25" x:FullColumns="1" x:FullRows="1">';
-
-        // Definir larguras para a planilha de regras
-        $html .= '<Column ss:Width="200"/>';
-        $html .= '<Column ss:Width="150"/>';
-        $html .= '<Column ss:Width="400"/>';
-
-        // Cabeçalho da planilha de regras
-        $html .= '<Row>';
-        $html .= '<Cell ss:StyleID="HeaderStyle"><Data ss:Type="String">Campo</Data></Cell>';
-        $html .= '<Cell ss:StyleID="HeaderStyle"><Data ss:Type="String">Obrigatório</Data></Cell>';
-        $html .= '<Cell ss:StyleID="HeaderStyle"><Data ss:Type="String">Regras de Preenchimento</Data></Cell>';
-        $html .= '</Row>';
-
-        // Regras para cada campo
-        $regras = $this->getRegrasCampos();
-        foreach ($regras as $regra) {
-            $html .= '<Row>';
-            $html .= '<Cell ss:StyleID="CellStyle"><Data ss:Type="String">' . htmlspecialchars($regra['campo']) . '</Data></Cell>';
-            $html .= '<Cell ss:StyleID="CellStyle"><Data ss:Type="String">' . htmlspecialchars($regra['obrigatorio']) . '</Data></Cell>';
-            $html .= '<Cell ss:StyleID="CellStyle"><Data ss:Type="String">' . htmlspecialchars($regra['regras']) . '</Data></Cell>';
-            $html .= '</Row>';
-        }
-
-        $html .= '</Table>';
-        $html .= '</Worksheet>';
-
-        $html .= '</Workbook>';
-
-        return $html;
-    }
-
-    /**
-     * Retorna as regras de preenchimento para cada campo
-     */
-    private function getRegrasCampos(): array
-    {
-        return [
-            [
-                'campo' => 'Nome*',
-                'obrigatorio' => 'Sim',
-                'regras' => 'Nome do produto. Máximo 255 caracteres. Deve ser único por empresa.'
-            ],
-            [
-                'campo' => 'Descrição',
-                'obrigatorio' => 'Não',
-                'regras' => 'Descrição detalhada do produto. Máximo 1000 caracteres.'
-            ],
-            [
-                'campo' => 'Categoria',
-                'obrigatorio' => 'Não',
-                'regras' => 'Categoria do produto. Deve existir no sistema (ex: Rações, Brinquedos, Higiene).'
-            ],
-            [
-                'campo' => 'Unidade de Medida',
-                'obrigatorio' => 'Não',
-                'regras' => 'Unidade de venda (ex: Unidade, Pacote, Quilo, Litro). Deve existir no sistema.'
-            ],
-            [
-                'campo' => 'Preço*',
-                'obrigatorio' => 'Sim',
-                'regras' => 'Preço de venda. Use ponto como separador decimal (ex: 29.90).'
-            ],
-            [
-                'campo' => 'Estoque',
-                'obrigatorio' => 'Não',
-                'regras' => 'Quantidade em estoque. Para serviços, deixe em branco ou 0.'
-            ],
-            [
-                'campo' => 'Marca',
-                'obrigatorio' => 'Não',
-                'regras' => 'Marca/fabricante do produto.'
-            ],
-            [
-                'campo' => 'SKU',
-                'obrigatorio' => 'Não',
-                'regras' => 'Código único do produto. Deve ser único por empresa.'
-            ],
-            [
-                'campo' => 'Preço de Custo',
-                'obrigatorio' => 'Não',
-                'regras' => 'Preço pago pelo produto. Use ponto como separador decimal.'
-            ],
-            [
-                'campo' => 'Estoque Mínimo',
-                'obrigatorio' => 'Não',
-                'regras' => 'Quantidade mínima para alertar reposição. Padrão: 0.'
-            ],
-            [
-                'campo' => 'Peso (kg)',
-                'obrigatorio' => 'Não',
-                'regras' => 'Peso do produto em quilogramas. Use ponto como separador decimal.'
-            ],
-            [
-                'campo' => 'Altura (cm)',
-                'obrigatorio' => 'Não',
-                'regras' => 'Altura em centímetros. Para cálculo de frete.'
-            ],
-            [
-                'campo' => 'Largura (cm)',
-                'obrigatorio' => 'Não',
-                'regras' => 'Largura em centímetros. Para cálculo de frete.'
-            ],
-            [
-                'campo' => 'Comprimento (cm)',
-                'obrigatorio' => 'Não',
-                'regras' => 'Comprimento em centímetros. Para cálculo de frete.'
-            ],
-            [
-                'campo' => 'Ordem',
-                'obrigatorio' => 'Não',
-                'regras' => 'Ordem de exibição. Número inteiro. Padrão: 0.'
-            ],
-            [
-                'campo' => 'Preço Promocional',
-                'obrigatorio' => 'Não',
-                'regras' => 'Preço em promoção. Use ponto como separador decimal.'
-            ],
-            [
-                'campo' => 'Promoção Até (YYYY-MM-DD)',
-                'obrigatorio' => 'Não',
-                'regras' => 'Data limite da promoção. Formato: YYYY-MM-DD (ex: 2024-12-31).'
-            ],
-            [
-                'campo' => 'Vende a Granel (S/N)',
-                'obrigatorio' => 'Não',
-                'regras' => 'S = Sim, N = Não. Permite venda fracionada.'
-            ],
-            [
-                'campo' => 'Tipo (produto/serviço)',
-                'obrigatorio' => 'Não',
-                'regras' => 'Digite "produto" ou "serviço". Serviços não têm estoque.'
-            ],
-            [
-                'campo' => 'Ativo (S/N)',
-                'obrigatorio' => 'Não',
-                'regras' => 'S = Produto ativo, N = Produto inativo. Padrão: S.'
-            ],
-            [
-                'campo' => 'Destaque (S/N)',
-                'obrigatorio' => 'Não',
-                'regras' => 'S = Produto em destaque, N = Normal. Padrão: N.'
-            ]
-        ];
-    }
-
-    /**
-     * Calcula largura mínima da coluna baseada no texto
-     */
-    private function calcularLarguraColuna(string $texto): int
-    {
-        $comprimento = strlen($texto);
-
-        // Mapeamento de larguras mínimas por tipo de conteúdo
-        $largurasEspeciais = [
-            'Nome*' => 200,
-            'Descrição' => 250,
-            'Categoria' => 120,
-            'Unidade de Medida' => 160,
-            'Preço*' => 100,
-            'Estoque' => 100,
-            'Marca' => 120,
-            'SKU' => 100,
-            'Preço de Custo' => 140,
-            'Estoque Mínimo' => 140,
-            'Peso (kg)' => 100,
-            'Altura (cm)' => 110,
-            'Largura (cm)' => 120,
-            'Comprimento (cm)' => 140,
-            'Ordem' => 80,
-            'Preço Promocional' => 160,
-            'Promoção Até (YYYY-MM-DD)' => 200,
-            'Vende a Granel (S/N)' => 160,
-            'Tipo (produto/serviço)' => 180,
-            'Ativo (S/N)' => 110,
-            'Destaque (S/N)' => 130,
-        ];
-
-        // Retornar largura específica se existir, senão calcular baseada no comprimento
-        if (isset($largurasEspeciais[$texto])) {
-            return $largurasEspeciais[$texto];
-        }
-
-        // Largura mínima baseada no comprimento (aproximadamente 8px por caractere)
-        return max(120, $comprimento * 8);
-    }
-
-    /**
-     * Converte array para CSV
-     */
-    private function arrayToCsv(array $data): string
-    {
-        $output = '';
-
-        foreach ($data as $row) {
-            $escapedRow = array_map(function ($field) {
-                // Escapar campos que contenham vírgulas ou aspas
-                if (strpos($field, ',') !== false || strpos($field, '"') !== false) {
-                    return '"' . str_replace('"', '""', $field) . '"';
-                }
-                return $field;
-            }, $row);
-
-            $output .= implode(',', $escapedRow) . "\n";
-        }
-
-        return $output;
-    }
 
     /**
      * Lê o cabeçalho da planilha
@@ -1061,25 +811,70 @@ class ProdutoController extends Controller
     {
         $extensao = strtolower($arquivo->getClientOriginalExtension());
 
-        if ($extensao === 'xlsx') {
-            $reader = new \OpenSpout\Reader\XLSX\Reader();
-        } elseif ($extensao === 'xls') {
-            $reader = new \OpenSpout\Reader\XLSX\Reader();
-        } else {
-            throw new \Exception('Formato de arquivo não suportado');
-        }
+        Log::info('Tentando ler cabeçalho Excel', [
+            'extensao' => $extensao,
+            'tamanho_arquivo' => filesize($arquivo->getPathname())
+        ]);
 
-        $reader->open($arquivo->getPathname());
+        try {
+            $linhas = (new FastExcel)->import($arquivo->getPathname());
 
-        foreach ($reader->getSheetIterator() as $sheet) {
-            foreach ($sheet->getRowIterator() as $row) {
-                $cabecalho = $row->toArray();
-                $reader->close();
-                return $cabecalho;
+            if ($linhas->isNotEmpty()) {
+                $primeiraLinha = $linhas->first();
+                $cabecalho = array_keys($primeiraLinha);
+
+                // Limpar e normalizar o cabeçalho
+                $cabecalho = array_map('trim', $cabecalho);
+                $cabecalho = array_filter($cabecalho, function($item) {
+                    return $item !== null && $item !== '';
+                });
+
+                Log::info('Cabeçalho lido com FastExcel', ['cabecalho' => $cabecalho, 'quantidade' => count($cabecalho)]);
+                return array_values($cabecalho);
             }
-        }
 
-        $reader->close();
-        return [];
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Erro ao ler cabeçalho com FastExcel', ['erro' => $e->getMessage()]);
+            throw new \Exception('Erro ao ler o cabeçalho do arquivo Excel: ' . $e->getMessage());
+        }
+    }
+
+
+    /**
+     * Download da planilha de erros de importação
+     */
+    public function downloadPlanilhaErros(Request $request)
+    {
+        try {
+            $usuarioAutenticado = Auth::user();
+            $empresaId = $usuarioAutenticado->empresas->first()->id ?? null;
+
+            if (!$empresaId) {
+                return response()->json([
+                    'error' => 'Empresa não encontrada',
+                    'message' => 'Usuário não possui empresa associada'
+                ], 403);
+            }
+
+            $path = "planilhas/empresa/{$empresaId}/importacao_produto_empresa_{$empresaId}.xlsx";
+
+            if (!Storage::disk('local')->exists($path)) {
+                return response()->json([
+                    'error' => 'Arquivo não encontrado',
+                    'message' => 'Não há planilha de erros disponível para download'
+                ], 404);
+            }
+
+            // Retornar arquivo para download
+            $fullPath = Storage::disk('local')->path($path);
+            return response()->download($fullPath, 'erros_importacao_produtos.xlsx');
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erro no download',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }
