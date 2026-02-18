@@ -16,6 +16,15 @@ class UpgestaoImportacaoService implements PlanilhaImportacaoInterface
     public function importar(UploadedFile $arquivo): array
     {
         // TODO: implementar mapeamento de colunas do ERP Upgestao
+
+        // Por enquanto, retorna um resultado vazio válido
+        return [
+            'total' => 0,
+            'importados' => 0,
+            'erros' => 0,
+            'planilha_erros_url' => null,
+            'linhas_com_erro' => []
+        ];
     }
 
     /**
@@ -27,6 +36,9 @@ class UpgestaoImportacaoService implements PlanilhaImportacaoInterface
     public function validarEstrutura(array $cabecalho): bool
     {
         // TODO: implementar mapeamento de colunas do ERP Upgestao
+
+        // Por enquanto, sempre retorna true
+        return true;
     }
 
     /**
@@ -37,5 +49,8 @@ class UpgestaoImportacaoService implements PlanilhaImportacaoInterface
     public function getCabecalhoEsperado(): array
     {
         // TODO: implementar mapeamento de colunas do ERP Upgestao
+
+        // Por enquanto, retorna um array vazio
+        return [];
     }
 }
