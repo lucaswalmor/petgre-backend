@@ -113,7 +113,7 @@ class ProdutoResource extends JsonResource
 
             // URLs úteis
             'url_imagem' => $this->when($this->imagem, function () {
-                return asset('storage/' . $this->imagem);
+                return $this->imagem;
             }),
         ];
     }

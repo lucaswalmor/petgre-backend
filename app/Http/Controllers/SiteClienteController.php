@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\Categorias;
 use App\Models\User;
 use App\Models\UsuarioLog;
+use Illuminate\Support\Facades\Log;
 
 class SiteClienteController extends Controller
 {
@@ -34,6 +35,7 @@ class SiteClienteController extends Controller
      */
     public function getEmpresas(Request $request)
     {
+        Log::info($request->all());
         $query = Empresa::where('ativo', true)
             ->where('cadastro_completo', true)
             ->with(['nicho', 'horarios', 'avaliacoes', 'bairrosEntregas.bairro', 'configuracoes'])
@@ -139,6 +141,8 @@ class SiteClienteController extends Controller
         $empresas = $query->paginate(20);
         $nichos = NichosEmpresa::where('ativo', true)->get(['id', 'nome', 'imagem', 'slug']);
 
+        Log::info($empresas);
+        Log::info($nichos);
         return response()->json([
             'success' => true,
             'empresas' => SiteEmpresaResource::collection($empresas),
