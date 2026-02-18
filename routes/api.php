@@ -131,6 +131,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', 'store')->middleware('check.permission:produtos.store');
         Route::post('/lote', 'storeLote')->middleware('check.permission:produtos.store');
         Route::delete('/lote', 'destroyLote')->middleware('check.permission:produtos.destroy');
+
+        // Rotas especiais
+        Route::post('/importar', 'importar')->middleware('check.permission:produtos.store');
+        Route::get('/importar/modelo', 'downloadModelo')->middleware('check.permission:produtos.store');
+
         Route::get('/{id}', 'show')->middleware('check.permission:produtos.show');
         Route::post('/{id}/duplicar', 'duplicar')->middleware('check.permission:produtos.store');
         Route::put('/{id}', 'update')->middleware('check.permission:produtos.update');
