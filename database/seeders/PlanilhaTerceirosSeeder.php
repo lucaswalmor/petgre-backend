@@ -12,6 +12,16 @@ class PlanilhaTerceirosSeeder extends Seeder
      */
     public function run(): void
     {
-        //
+        \App\Models\PlanilhaTerceiros::create([
+            'nome' => 'upgestao'
+        ]);
+
+        \App\Models\PlanilhaTerceiros::create([
+            'nome' => 'bling'
+        ]);
+
+        \App\Models\PlanilhaTerceiros::create([
+            'nome' => 'tiny'
+        ]);
     }
 }

@@ -21,6 +21,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 use Illuminate\Support\Facades\Log;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Common\Entity\Style\Color;
+use App\Models\PlanilhaTerceiros;
 
 class ProdutoController extends Controller
 {
@@ -678,7 +679,7 @@ class ProdutoController extends Controller
      */
     public function listarTerceiros()
     {
-        $planilhasTerceiros = \App\Models\PlanilhaTerceiros::all();
+        $planilhasTerceiros = PlanilhaTerceiros::all();
 
         return response()->json([
             'success' => true,
@@ -747,7 +748,7 @@ class ProdutoController extends Controller
             }
 
             // Processar importação
-            $resultado = $serviceEncontrado->importar($arquivo);
+            $resultado = $service->importar($arquivo);
 
             return response()->json([
                 'message'            => 'Importação concluída',
