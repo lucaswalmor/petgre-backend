@@ -674,14 +674,29 @@ class ProdutoController extends Controller
     }
 
     /**
+     * Listar ERPs de terceiros disponíveis para importação
+     */
+    public function listarTerceiros()
+    {
+        $planilhasTerceiros = \App\Models\PlanilhaTerceiros::all();
+
+        return response()->json([
+            'success' => true,
+            'planilhas_terceiros' => $planilhasTerceiros,
+        ]);
+    }
+
+    /**
      * Importar produtos via planilha
      */
     public function importar(Request $request)
     {
         $arquivo = $request->file('arquivo');
+        $tipo = $request->input('tipo', 'petgre'); // Default para 'petgre' para manter compatibilidade
 
         $request->validate([
             'arquivo' => 'required|file|mimes:xlsx,xls|max:5120',
+            'tipo' => 'required|string',
         ]);
 
         $extensao = strtolower($arquivo->getClientOriginalExtension());
@@ -703,28 +718,32 @@ class ProdutoController extends Controller
                 ], 400);
             }
 
-            // Ler cabeçalho para identificar o tipo da planilha
-            $cabecalho = $this->lerCabecalhoPlanilha($arquivo);
+            // Resolver dinamicamente o service baseado no tipo
+            if ($tipo === 'petgre') {
+                $serviceClass = \App\Services\Importacao\PetgreImportacaoService::class;
+            } else {
+                // Resolver service de terceiro dinamicamente
+                $serviceClass = 'App\\Services\\Importacao\\Terceiros\\' . Str::studly($tipo) . 'ImportacaoService';
 
-            // Detectar tipo da planilha (por enquanto apenas Petgre)
-            $services = [
-                'petgre' => \App\Services\Importacao\PetgreImportacaoService::class,
-            ];
-
-            $serviceEncontrado = null;
-            foreach ($services as $tipo => $serviceClass) {
-                $service = new $serviceClass();
-                if ($service->validarEstrutura($cabecalho)) {
-                    $serviceEncontrado = $service;
-                    break;
+                if (!class_exists($serviceClass)) {
+                    return response()->json([
+                        'error' => 'Importação para este ERP ainda não implementada',
+                        'message' => 'A importação para o ERP "' . $tipo . '" ainda não está disponível. Entre em contato com o suporte.'
+                    ], 422);
                 }
             }
 
-            if (!$serviceEncontrado) {
-                return response()->json([
-                    'error' => 'Formato de planilha não reconhecido',
-                    'message' => 'A estrutura da planilha não corresponde a nenhum formato suportado. Baixe o modelo correto.'
-                ], 400);
+            $service = new $serviceClass();
+
+            // Validar estrutura da planilha apenas para tipo petgre
+            if ($tipo === 'petgre') {
+                $cabecalho = $this->lerCabecalhoPlanilha($arquivo);
+                if (!$service->validarEstrutura($cabecalho)) {
+                    return response()->json([
+                        'error' => 'Formato de planilha não reconhecido',
+                        'message' => 'A estrutura da planilha não corresponde ao formato Petgre. Baixe o modelo correto.'
+                    ], 400);
+                }
             }
 
             // Processar importação

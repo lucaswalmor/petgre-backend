@@ -133,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/lote', 'destroyLote')->middleware('check.permission:produtos.destroy');
 
         // Rotas especiais
+        Route::get('/importar/terceiros/lista', 'listarTerceiros')->middleware('check.permission:produtos.store');
         Route::post('/importar', 'importar')->middleware('check.permission:produtos.store');
         Route::get('/importar/modelo', 'downloadModelo')->middleware('check.permission:produtos.store');
         Route::get('/importar/erros/download', 'downloadPlanilhaErros')->middleware('check.permission:produtos.store');
