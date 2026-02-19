@@ -322,13 +322,20 @@ class PedidoController extends Controller
                         ]);
                     }
                 } elseif ($statusSlug === 'cancelado') {
-                    // Se o pedido for cancelado, cancelamos o resgate se ele estiver pendente ou aprovado
+                    // Cancelar o resgate da empresa se estiver pendente ou aprovado
                     $resgate = EmpresaResgateCupom::where('pedido_id', $pedido->id)
                         ->whereIn('status', ['pendente', 'aprovado'])
                         ->first();
 
                     if ($resgate) {
                         $resgate->update(['status' => 'cancelado']);
+                    }
+
+                    // Devolver o cupom ao cliente removendo o registro de uso
+                    if ($pedido->cupom_tipo === 'sistema') {
+                        SistemaCupomUsado::where('pedido_id', $pedido->id)->delete();
+                    } elseif ($pedido->cupom_tipo === 'empresa') {
+                        EmpresaCupomUsado::where('pedido_id', $pedido->id)->delete();
                     }
                 }
             }

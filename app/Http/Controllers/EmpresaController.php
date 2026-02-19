@@ -498,6 +498,11 @@ class EmpresaController extends Controller
             // Verifica se existe configurações
             if (!$empresa->configuracoes) {
                 $cadastroCompleto = false;
+            } else {
+                // Verifica se o WhatsApp de pedidos está preenchido (essencial para receber pedidos)
+                if (empty($empresa->configuracoes->whatsapp_pedidos)) {
+                    $cadastroCompleto = false;
+                }
             }
 
             // Verifica se existe pelo menos uma forma de pagamento
@@ -601,6 +606,11 @@ class EmpresaController extends Controller
         // Verifica se existe configurações
         if (!$empresa->configuracoes) {
             $cadastroCompleto = false;
+        } else {
+            // Verifica se o WhatsApp de pedidos está preenchido (essencial para receber pedidos)
+            if (empty($empresa->configuracoes->whatsapp_pedidos)) {
+                $cadastroCompleto = false;
+            }
         }
 
         // Verifica se existe pelo menos uma forma de pagamento
@@ -631,7 +641,7 @@ class EmpresaController extends Controller
     {
         $itensPendentes = [];
         $itensCompletos = 0;
-        $totalItens = 5; // endereço, configurações, formas de pagamento, horários, bairros
+        $totalItens = 6; // endereço, configurações, whatsapp pedidos, formas de pagamento, horários, bairros
 
         // Verifica se existe endereço
         if (!$empresa->endereco) {
@@ -645,6 +655,13 @@ class EmpresaController extends Controller
             $itensPendentes[] = 'Configurações da empresa';
         } else {
             $itensCompletos++;
+
+            // Verifica se o WhatsApp de pedidos está preenchido (essencial para receber pedidos)
+            if (empty($empresa->configuracoes->whatsapp_pedidos)) {
+                $itensPendentes[] = 'Número do WhatsApp para receber pedidos';
+            } else {
+                $itensCompletos++;
+            }
         }
 
         // Verifica se existe pelo menos uma forma de pagamento
