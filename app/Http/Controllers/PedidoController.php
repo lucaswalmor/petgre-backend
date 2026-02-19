@@ -21,9 +21,49 @@ use App\Models\EmpresaResgateCupom;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\VerificaEmpresa;
+use App\Models\EmpresaAvaliacao;
+use Carbon\Carbon;
 
 class PedidoController extends Controller
 {
+    /**
+     * Retorna estatísticas consolidadas para os cards da tela de pedidos.
+     */
+    public function estatisticas(Request $request)
+    {
+        $usuario     = Auth::user();
+        $empresasIds = $usuario->empresas->pluck('id');
+
+        $empresaId      = $request->get('empresa_id', $empresasIds->first());
+        $hoje           = Carbon::today();
+        $primeiroDiaMes = Carbon::now()->startOfMonth();
+
+        $pedidosHoje = Pedido::whereIn('empresa_id', $empresasIds)
+            ->whereDate('created_at', $hoje)
+            ->count();
+
+        $faturamentoMes = Pedido::whereIn('empresa_id', $empresasIds)
+            ->whereBetween('created_at', [$primeiroDiaMes, Carbon::now()])
+            ->whereIn('status_pedido_id', [2, 3, 4, 5])
+            ->sum('total');
+
+        $pedidosPendentes = Pedido::whereIn('empresa_id', $empresasIds)
+            ->where('status_pedido_id', 1)
+            ->count();
+
+        $avaliacaoMedia = EmpresaAvaliacao::where('empresa_id', $empresaId)->avg('nota');
+
+        return response()->json([
+            'success' => true,
+            'estatisticas' => [
+                'pedidos_hoje'      => $pedidosHoje,
+                'faturamento_mes'   => round((float) $faturamentoMes, 2),
+                'pedidos_pendentes' => $pedidosPendentes,
+                'avaliacao_media'   => $avaliacaoMedia ? round((float) $avaliacaoMedia, 1) : null,
+            ],
+        ]);
+    }
+
     /**
      * Display a listing of the resource.
      */

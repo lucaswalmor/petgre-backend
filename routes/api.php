@@ -15,6 +15,7 @@ use App\Http\Controllers\UsuarioEnderecosController;
 use App\Http\Controllers\EmpresaFavoritoController;
 use App\Http\Controllers\UsuarioLogController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\DashboardController;
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -52,6 +53,9 @@ Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->grou
 // Rotas protegidas (precisam de autenticação)
 Route::middleware('auth:sanctum')->group(function () {
     
+    // Dashboard lojista — retorna todos os dados em uma única requisição
+    Route::get('/dashboard', [DashboardController::class, 'getDados'])->middleware('check.permission:pedidos.index');
+
     // Rota para listar permissões
     Route::get('/permissoes', [PermissaoController::class, 'index']);
 
@@ -64,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas de pedidos
     Route::controller(PedidoController::class)->prefix('pedidos')->group(function () {
+        Route::get('/estatisticas', 'estatisticas')->middleware('check.permission:pedidos.index');
         Route::get('/', 'index')->middleware('check.permission:pedidos.index'); // Dashboard empresa
         Route::post('/', 'store'); // Usuários criam pedidos
         Route::get('/{id}', 'show'); // Usuários/empresas veem pedidos específicos

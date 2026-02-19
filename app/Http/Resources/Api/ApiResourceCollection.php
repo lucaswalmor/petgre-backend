@@ -28,12 +28,15 @@ class ApiResourceCollection extends ResourceCollection
      */
     public function toArray(Request $request): array
     {
-        $resourceClass = get_class($this->collection->first());
-        $resourceName = strtolower(substr($resourceClass, strrpos($resourceClass, '\\') + 1));
+        $first = $this->collection->first();
+        $resourceName = 'data';
 
-        // Se não conseguir determinar o nome, usa 'data' como padrão
-        if (!$resourceName || !is_string($resourceName)) {
-            $resourceName = 'data';
+        if ($first !== null) {
+            $resourceClass = get_class($first);
+            $extracted = strtolower(substr($resourceClass, strrpos($resourceClass, '\\') + 1));
+            if ($extracted) {
+                $resourceName = $extracted;
+            }
         }
 
         return [
