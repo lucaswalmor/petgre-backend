@@ -34,6 +34,11 @@ class PermissoesSeeder extends Seeder
             ['nome' => 'Visualizar Pedido',      'slug' => 'pedidos.show'],
             ['nome' => 'Editar Pedidos',         'slug' => 'pedidos.update'],
             ['nome' => 'Deletar Pedidos',        'slug' => 'pedidos.destroy'],
+            ['nome' => 'Cancelar Pedidos',       'slug' => 'pedidos.cancelar'],
+
+            // Painel de Pedidos
+            ['nome' => 'Acessar Painel de Pedidos', 'slug' => 'painel.pedidos'],
+            ['nome' => 'Mover Pedidos no Painel',   'slug' => 'painel.mover_pedido'],
 
             // Cupons
             ['nome' => 'Listar Cupons',          'slug' => 'cupons.index'],
