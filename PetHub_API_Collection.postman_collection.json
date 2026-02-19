@@ -2103,7 +2103,7 @@
 					}
 				},
 				{
-					"name": "Recuperação de Senha - Enviar Código",
+					"name": "🔓 Recuperação de Senha - Enviar Código (Público)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -2128,11 +2128,11 @@
 								"send-code"
 							]
 						},
-						"description": "Inicia o processo de recuperação de senha enviando um código de 6 dígitos para o email informado"
+						"description": "🚪 ROTA PÚBLICA - Inicia o processo de recuperação de senha enviando um código de 6 dígitos para o email informado. Não requer autenticação."
 					}
 				},
 				{
-					"name": "Recuperação de Senha - Verificar Código",
+					"name": "🔓 Recuperação de Senha - Verificar Código (Público)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -2157,11 +2157,11 @@
 								"verify-code"
 							]
 						},
-						"description": "Verifica se o código de 6 dígitos informado é válido para o email especificado"
+						"description": "🚪 ROTA PÚBLICA - Verifica se o código de 6 dígitos informado é válido para o email especificado. Não requer autenticação."
 					}
 				},
 				{
-					"name": "Recuperação de Senha - Alterar Senha",
+					"name": "🔓 Recuperação de Senha - Alterar Senha (Público)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -2185,7 +2185,7 @@
 								"change-password"
 							]
 						},
-						"description": "Finaliza o processo de recuperação de senha alterando a senha do usuário após validação do código"
+						"description": "🚪 ROTA PÚBLICA - Finaliza o processo de recuperação de senha alterando a senha do usuário após validação do código. Não requer autenticação."
 					}
 				}
 			]

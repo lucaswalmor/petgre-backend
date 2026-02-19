@@ -179,6 +179,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/trocar-loja', 'salvarLogTrocarLoja');
     });
 
+});
+
+// Rotas Públicas (sem autenticação)
+Route::middleware([])->group(function () {
     // Recuperação de Senha
     Route::post('/change-password', [UsuarioController::class, 'alterarSenhaPublico']);
     Route::post('/change-password/send-code', [UsuarioController::class, 'enviarCodigoRecuperacao']);

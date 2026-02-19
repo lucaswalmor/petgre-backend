@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\EmailService;
 use App\Mail\NovoLojistaMail;
+use App\Mail\NovoClienteMail;
+use App\Mail\NovoFuncionarioMail;
 use App\Models\User;
 use App\Models\Empresa;
 use App\Models\NichosEmpresa;
