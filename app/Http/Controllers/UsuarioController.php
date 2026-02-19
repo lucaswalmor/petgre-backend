@@ -16,6 +16,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\VerificaEmpresa;
 use Illuminate\Support\Facades\Auth;
+use App\Models\PasswordReset;
+use App\Mail\PasswordResetMail;
+use App\Mail\PasswordChangedMail;
+use App\Mail\NovoFuncionarioMail;
+use App\Mail\NovoClienteMail;
+use App\Services\EmailService;
 
 class UsuarioController extends Controller
 {
@@ -88,10 +94,13 @@ class UsuarioController extends Controller
             $isFuncionario = $request->has('empresa_id') && $request->empresa_id && $request->has('permissoes') && is_array($request->permissoes);
             $tipoCadastro = $isFuncionario ? 0 : 1; // 0 = Funcionário, 1 = Cliente
 
+            // Para funcionários, gerar senha aleatória; para clientes, usar a senha enviada
+            $senha = $isFuncionario ? \Illuminate\Support\Str::random(12) : $request->password;
+
             $usuario = User::create([
                 'nome' => $request->nome,
                 'email' => $request->email,
-                'password' => Hash::make($request->password),
+                'password' => Hash::make($senha),
                 'telefone' => $request->telefone,
                 'ativo' => true,
                 'is_master' => false,
@@ -164,6 +173,23 @@ class UsuarioController extends Controller
             }
 
             DB::commit();
+
+            // Enviar email de boas-vindas
+            try {
+                $emailService = app(EmailService::class);
+
+                if ($isFuncionario) {
+                    // Email para funcionário com senha gerada
+                    $empresa = Empresa::find($request->empresa_id);
+                    $emailService->sendMailable($usuario->email, new NovoFuncionarioMail($usuario, $empresa, $senha));
+                } else {
+                    // Email para cliente
+                    $emailService->sendMailable($usuario->email, new NovoClienteMail($usuario));
+                }
+            } catch (\Exception $emailException) {
+                // Log do erro mas não falha a criação do usuário
+                \Log::error('Erro ao enviar email de boas-vindas: ' . $emailException->getMessage());
+            }
 
             // Retornar usuário criado com relações
             $usuario->load(['permissoes', 'enderecos', 'empresas']);
@@ -307,6 +333,127 @@ class UsuarioController extends Controller
 
         return response()->json([
             'message' => 'Usuário deletado com sucesso'
+        ]);
+    }
+
+    /**
+     * Enviar código de recuperação de senha
+     */
+    public function enviarCodigoRecuperacao(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:usuarios,email'
+        ]);
+
+        $usuario = User::where('email', $request->email)->first();
+
+        // Gerar código único de 6 dígitos
+        $token = PasswordReset::generateUniqueToken($request->email);
+
+        // Criar ou atualizar registro de reset
+        PasswordReset::updateOrCreate(
+            ['email' => $request->email],
+            [
+                'token' => $token,
+                'expires_at' => now()->addMinutes(15),
+                'used_at' => null,
+            ]
+        );
+
+        // Enviar email com código
+        try {
+            $emailService = app(EmailService::class);
+            $emailService->sendMailable($usuario->email, new PasswordResetMail($usuario, $token));
+
+            return response()->json([
+                'message' => 'Código de recuperação enviado para seu email'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Erro ao enviar email',
+                'message' => 'Não foi possível enviar o código de recuperação. Tente novamente.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar código de recuperação
+     */
+    public function verificarCodigoRecuperacao(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string|size:6'
+        ]);
+
+        $reset = PasswordReset::where('email', $request->email)
+                             ->where('token', $request->token)
+                             ->valid()
+                             ->first();
+
+        if (!$reset) {
+            return response()->json([
+                'error' => 'Código inválido ou expirado',
+                'message' => 'Verifique o código ou solicite um novo.'
+            ], 400);
+        }
+
+        return response()->json([
+            'message' => 'Código verificado com sucesso',
+            'valid' => true
+        ]);
+    }
+
+    /**
+     * Alterar senha usando código de recuperação
+     */
+    public function alterarSenhaPublico(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string|size:6',
+            'senha' => 'required|string|min:8|confirmed',
+        ]);
+
+        $reset = PasswordReset::where('email', $request->email)
+                             ->where('token', $request->token)
+                             ->valid()
+                             ->first();
+
+        if (!$reset) {
+            return response()->json([
+                'error' => 'Código inválido ou expirado',
+                'message' => 'Solicite um novo código de recuperação.'
+            ], 400);
+        }
+
+        $usuario = User::where('email', $request->email)->first();
+
+        if (!$usuario) {
+            return response()->json([
+                'error' => 'Usuário não encontrado'
+            ], 404);
+        }
+
+        // Atualizar senha
+        $usuario->update([
+            'password' => Hash::make($request->senha)
+        ]);
+
+        // Marcar token como usado
+        $reset->markAsUsed();
+
+        // Enviar email de confirmação
+        try {
+            $emailService = app(EmailService::class);
+            $emailService->sendMailable($usuario->email, new PasswordChangedMail($usuario));
+        } catch (\Exception $e) {
+            // Não falhar a operação se o email der erro
+            \Log::error('Erro ao enviar email de confirmação de senha: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Senha alterada com sucesso'
         ]);
     }
 }

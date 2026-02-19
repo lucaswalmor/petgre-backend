@@ -53,7 +53,8 @@ class UsuarioStoreRequest extends FormRequest
                     }
                 },
             ],
-            'password' => 'required|string|min:8',
+            // Senha obrigatória apenas para clientes, funcionários recebem senha automática
+            'password' => $isFuncionario ? 'nullable|string|min:8' : 'required|string|min:8',
             'telefone' => 'required|string|max:20',
             'permissoes' => 'sometimes|nullable|array',
             'permissoes.*' => 'exists:permissoes,id',

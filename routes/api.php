@@ -179,10 +179,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/trocar-loja', 'salvarLogTrocarLoja');
     });
 
+    // Recuperação de Senha
+    Route::post('/change-password', [UsuarioController::class, 'alterarSenhaPublico']);
+    Route::post('/change-password/send-code', [UsuarioController::class, 'enviarCodigoRecuperacao']);
+    Route::post('/change-password/verify-code', [UsuarioController::class, 'verificarCodigoRecuperacao']);
+
     // Teste de Email (desenvolvimento)
     Route::controller(EmailTestController::class)->prefix('email')->group(function () {
-        Route::get('/test', 'test');
         Route::get('/test-bem-vindo', 'testBemVindo');
-        Route::get('/status', 'status');
+        Route::get('/test-bem-vindo-funcionario', 'testBemVindoFuncionario');
+        Route::get('/test-bem-vindo-cliente', 'testBemVindoCliente');
     });
 });

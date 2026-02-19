@@ -113,4 +113,81 @@ class EmailTestController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Teste de email de boas-vindas para funcionário
+     */
+    public function testBemVindoFuncionario(Request $request): JsonResponse
+    {
+        $to = $request->query('to', 'test@example.com');
+
+        try {
+            // Criar dados fake para teste
+            $usuarioFake = (object) [
+                'nome' => 'João Silva',
+                'email' => $to,
+                'telefone' => '(34) 99999-9999'
+            ];
+
+            $empresaFake = (object) [
+                'nome_fantasia' => 'PetShop do João',
+                'razao_social' => 'João Silva ME',
+                'nicho' => (object) ['nome' => 'Petshop']
+            ];
+
+            $senhaFake = 'AbCdEf123456';
+
+            $this->emailService->sendMailable($to, new NovoFuncionarioMail($usuarioFake, $empresaFake, $senhaFake));
+
+            return response()->json([
+                'message' => 'Email de boas-vindas para funcionário enviado com sucesso!',
+                'to' => $to,
+                'type' => 'bem-vindo-funcionario',
+                'empresa' => $empresaFake->nome_fantasia,
+                'usuario' => $usuarioFake->nome,
+                'template' => 'NovoFuncionarioMail'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao enviar email de boas-vindas para funcionário',
+                'error' => $e->getMessage(),
+                'to' => $to
+            ], 500);
+        }
+    }
+
+    /**
+     * Teste de email de boas-vindas para cliente
+     */
+    public function testBemVindoCliente(Request $request): JsonResponse
+    {
+        $to = $request->query('to', 'test@example.com');
+
+        try {
+            // Criar dados fake para teste
+            $usuarioFake = (object) [
+                'nome' => 'Maria Santos',
+                'email' => $to,
+                'telefone' => '(34) 88888-8888'
+            ];
+
+            $this->emailService->sendMailable($to, new NovoClienteMail($usuarioFake));
+
+            return response()->json([
+                'message' => 'Email de boas-vindas para cliente enviado com sucesso!',
+                'to' => $to,
+                'type' => 'bem-vindo-cliente',
+                'usuario' => $usuarioFake->nome,
+                'template' => 'NovoClienteMail'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao enviar email de boas-vindas para cliente',
+                'error' => $e->getMessage(),
+                'to' => $to
+            ], 500);
+        }
+    }
 }

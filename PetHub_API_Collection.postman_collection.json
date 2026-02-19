@@ -2037,6 +2037,156 @@
 						},
 						"description": "Simula o envio do email de boas-vindas enviado quando uma empresa é cadastrada com sucesso"
 					}
+				},
+				{
+					"name": "Email - Teste Boas-Vindas Funcionário",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/email/test-bem-vindo-funcionario?to={{email_teste}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"email",
+								"test-bem-vindo-funcionario"
+							],
+							"query": [
+								{
+									"key": "to",
+									"value": "{{email_teste}}",
+									"description": "Email destinatário para teste de boas-vindas de funcionário"
+								}
+							]
+						},
+						"description": "Simula o envio do email de boas-vindas enviado quando um funcionário é criado com senha automática"
+					}
+				},
+				{
+					"name": "Email - Teste Boas-Vindas Cliente",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/email/test-bem-vindo-cliente?to={{email_teste}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"email",
+								"test-bem-vindo-cliente"
+							],
+							"query": [
+								{
+									"key": "to",
+									"value": "{{email_teste}}",
+									"description": "Email destinatário para teste de boas-vindas de cliente"
+								}
+							]
+						},
+						"description": "Simula o envio do email de boas-vindas enviado quando um cliente se cadastra na plataforma"
+					}
+				},
+				{
+					"name": "Recuperação de Senha - Enviar Código",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{email_teste}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/change-password/send-code",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"change-password",
+								"send-code"
+							]
+						},
+						"description": "Inicia o processo de recuperação de senha enviando um código de 6 dígitos para o email informado"
+					}
+				},
+				{
+					"name": "Recuperação de Senha - Verificar Código",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{email_teste}}\",\n    \"token\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/change-password/verify-code",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"change-password",
+								"verify-code"
+							]
+						},
+						"description": "Verifica se o código de 6 dígitos informado é válido para o email especificado"
+					}
+				},
+				{
+					"name": "Recuperação de Senha - Alterar Senha",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{email_teste}}\",\n    \"token\": \"123456\",\n    \"senha\": \"nova_senha_123\",\n    \"senha_confirmation\": \"nova_senha_123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/change-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"change-password"
+							]
+						},
+						"description": "Finaliza o processo de recuperação de senha alterando a senha do usuário após validação do código"
+					}
 				}
 			]
 		}
