@@ -40,6 +40,14 @@ class EmpresaAvaliacao extends Model
     }
 
     /**
+     * Relacionamento com solicitação de moderação (opcional)
+     */
+    public function moderacao()
+    {
+        return $this->hasOne(AvaliacaoModeracao::class, 'avaliacao_id');
+    }
+
+    /**
      * Relacionamento com pedido (opcional)
      */
     public function pedido()

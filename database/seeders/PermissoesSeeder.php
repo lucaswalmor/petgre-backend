@@ -14,58 +14,61 @@ class PermissoesSeeder extends Seeder
     {
         $timestamp = now();
 
-        // Array de permissões - adicionar novas aqui conforme necessário
         $permissoes = [
             // Sistema
-            ['nome' => 'Acesso Total', 'slug' => 'sistema.acesso_total'],
+            ['nome' => 'Acesso Total',           'slug' => 'sistema.acesso_total'],
 
-            // Usuários
-            ['nome' => 'Listar Usuários', 'slug' => 'usuarios.index'],
-            ['nome' => 'Criar Usuários', 'slug' => 'usuarios.store'],
-            ['nome' => 'Visualizar Usuário', 'slug' => 'usuarios.show'],
-            ['nome' => 'Editar Usuários', 'slug' => 'usuarios.update'],
-            ['nome' => 'Deletar Usuários', 'slug' => 'usuarios.destroy'],
-
-            // Empresas
-            ['nome' => 'Visualizar Empresa', 'slug' => 'empresas.show'],
-            ['nome' => 'Editar Empresas', 'slug' => 'empresas.update'],
-            ['nome' => 'Upload de Imagem', 'slug' => 'empresas.upload_image'],
+            // Dashboard
+            ['nome' => 'Ver Dashboard',          'slug' => 'dashboard.index'],
 
             // Produtos
-            ['nome' => 'Listar Produtos', 'slug' => 'produtos.index'],
-            ['nome' => 'Criar Produtos', 'slug' => 'produtos.store'],
-            ['nome' => 'Visualizar Produto', 'slug' => 'produtos.show'],
-            ['nome' => 'Editar Produtos', 'slug' => 'produtos.update'],
-            ['nome' => 'Deletar Produtos', 'slug' => 'produtos.destroy'],
-            ['nome' => 'Upload Imagem Produto', 'slug' => 'produtos.upload_image'],
-
-            // Avaliações
-            ['nome' => 'Listar Avaliações', 'slug' => 'avaliacoes.index'],
-            ['nome' => 'Criar Avaliações', 'slug' => 'avaliacoes.store'],
-            ['nome' => 'Visualizar Avaliação', 'slug' => 'avaliacoes.show'],
-            ['nome' => 'Avaliações por Empresa', 'slug' => 'avaliacoes.empresa'],
+            ['nome' => 'Listar Produtos',        'slug' => 'produtos.index'],
+            ['nome' => 'Criar Produtos',         'slug' => 'produtos.store'],
+            ['nome' => 'Visualizar Produto',     'slug' => 'produtos.show'],
+            ['nome' => 'Editar Produtos',        'slug' => 'produtos.update'],
+            ['nome' => 'Deletar Produtos',       'slug' => 'produtos.destroy'],
+            ['nome' => 'Upload Imagem Produto',  'slug' => 'produtos.upload_image'],
 
             // Pedidos
-            ['nome' => 'Listar Pedidos', 'slug' => 'pedidos.index'],
-            ['nome' => 'Criar Pedidos', 'slug' => 'pedidos.store'],
-            ['nome' => 'Visualizar Pedido', 'slug' => 'pedidos.show'],
-            ['nome' => 'Editar Pedidos', 'slug' => 'pedidos.update'],
-            ['nome' => 'Deletar Pedidos', 'slug' => 'pedidos.destroy'],
+            ['nome' => 'Listar Pedidos',         'slug' => 'pedidos.index'],
+            ['nome' => 'Visualizar Pedido',      'slug' => 'pedidos.show'],
+            ['nome' => 'Editar Pedidos',         'slug' => 'pedidos.update'],
+            ['nome' => 'Deletar Pedidos',        'slug' => 'pedidos.destroy'],
+
+            // Cupons
+            ['nome' => 'Listar Cupons',          'slug' => 'cupons.index'],
+            ['nome' => 'Criar Cupons',           'slug' => 'cupons.store'],
+            ['nome' => 'Visualizar Cupom',       'slug' => 'cupons.show'],
+            ['nome' => 'Editar Cupons',          'slug' => 'cupons.update'],
+            ['nome' => 'Deletar Cupons',         'slug' => 'cupons.destroy'],
+
+            // Avaliações
+            ['nome' => 'Listar Avaliações',      'slug' => 'avaliacoes.index'],
+            ['nome' => 'Visualizar Avaliação',   'slug' => 'avaliacoes.show'],
+
+            // Empresa
+            ['nome' => 'Visualizar Empresa',     'slug' => 'empresas.show'],
+            ['nome' => 'Editar Empresa',         'slug' => 'empresas.update'],
+            ['nome' => 'Upload Imagem Empresa',  'slug' => 'empresas.upload_image'],
+
+            // Usuários / Funcionários
+            ['nome' => 'Listar Funcionários',    'slug' => 'usuarios.index'],
+            ['nome' => 'Criar Funcionários',     'slug' => 'usuarios.store'],
+            ['nome' => 'Visualizar Funcionário', 'slug' => 'usuarios.show'],
+            ['nome' => 'Editar Funcionários',    'slug' => 'usuarios.update'],
         ];
 
         foreach ($permissoes as $permissao) {
-            // Verifica se a permissão já existe
             $existe = DB::table('permissoes')->where('slug', $permissao['slug'])->exists();
 
             if (!$existe) {
                 DB::table('permissoes')->insert([
-                    'nome' => $permissao['nome'],
-                    'slug' => $permissao['slug'],
-                    'ativo' => true,
+                    'nome'       => $permissao['nome'],
+                    'slug'       => $permissao['slug'],
+                    'ativo'      => true,
                     'created_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ]);
-
                 $this->command->info("Permissão criada: {$permissao['nome']}");
             } else {
                 $this->command->info("Permissão já existe: {$permissao['nome']}");

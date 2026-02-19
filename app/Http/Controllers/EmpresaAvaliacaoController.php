@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\EmpresaAvaliacao\EmpresaAvaliacaoStoreRequest;
 use App\Http\Resources\EmpresaAvaliacao\EmpresaAvaliacaoResource;
 use App\Models\EmpresaAvaliacao;
+use App\Models\AvaliacaoModeracao;
 use App\Models\Pedido;
 use Illuminate\Support\Facades\Auth;
 use App\Helpers\VerificaEmpresa;
@@ -13,172 +14,199 @@ use App\Helpers\VerificaEmpresa;
 class EmpresaAvaliacaoController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Lista avaliações da empresa autenticada (sem dados identificadores do cliente).
      */
     public function index(Request $request)
     {
-        $usuarioAutenticado = Auth::user();
+        $usuario     = Auth::user();
+        $empresasIds = $usuario->empresas->pluck('id');
 
-        // Filtrar avaliações apenas das empresas que o usuário tem acesso
-        $empresasIds = $usuarioAutenticado->empresas->pluck('id');
-        $query = EmpresaAvaliacao::whereHas('empresa', function ($q) use ($empresasIds) {
-            $q->whereIn('empresas.id', $empresasIds);
-        })->with(['empresa', 'usuario', 'pedido']);
+        $query = EmpresaAvaliacao::whereIn('empresa_id', $empresasIds)
+            ->with(['pedido', 'moderacao']);
 
-        // Filtros opcionais adicionais
         if ($request->has('empresa_id') && $request->empresa_id) {
-            // Verificar se usuário tem acesso à empresa específica
-            if (VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int)$request->empresa_id)) {
+            if (VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int) $request->empresa_id)) {
                 $query->where('empresa_id', $request->empresa_id);
             }
         }
 
-        if ($request->has('usuario_id') && $request->usuario_id) {
-            $query->where('usuario_id', $request->usuario_id);
+        if ($request->has('nota') && $request->nota) {
+            $query->where('nota', $request->nota);
         }
 
-        // Ordenação
-        $orderBy = $request->get('order_by', 'created_at');
+        $orderBy        = $request->get('order_by', 'created_at');
         $orderDirection = $request->get('order_direction', 'desc');
         $query->orderBy($orderBy, $orderDirection);
 
-        // Paginação
-        $perPage = $request->get('per_page', 15);
+        $perPage    = $request->get('per_page', 15);
         $avaliacoes = $query->paginate($perPage);
 
         return response()->json([
             'avaliacoes' => EmpresaAvaliacaoResource::collection($avaliacoes),
-            'paginacao' => [
-                'total' => $avaliacoes->total(),
-                'per_page' => $avaliacoes->perPage(),
-                'current_page' => $avaliacoes->currentPage(),
-                'last_page' => $avaliacoes->lastPage(),
-                'from' => $avaliacoes->firstItem(),
-                'to' => $avaliacoes->lastItem(),
-                'has_more_pages' => $avaliacoes->hasMorePages(),
-            ]
+            'paginacao'  => [
+                'total'         => $avaliacoes->total(),
+                'per_page'      => $avaliacoes->perPage(),
+                'current_page'  => $avaliacoes->currentPage(),
+                'last_page'     => $avaliacoes->lastPage(),
+                'from'          => $avaliacoes->firstItem(),
+                'to'            => $avaliacoes->lastItem(),
+                'has_more_pages'=> $avaliacoes->hasMorePages(),
+            ],
         ]);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Cliente cria uma avaliação para um pedido entregue.
      */
     public function store(EmpresaAvaliacaoStoreRequest $request)
     {
-        $usuario = Auth::user();
-
-        // Verificar se usuário pode avaliar o pedido
+        $usuario   = Auth::user();
         $validacao = EmpresaAvaliacao::usuarioPodeAvaliarPedido($usuario->id, $request->pedido_id);
 
         if (!$validacao['pode']) {
             return response()->json([
                 'success' => false,
-                'error' => 'Não é possível avaliar este pedido',
-                'message' => $validacao['motivo']
+                'error'   => 'Não é possível avaliar este pedido',
+                'message' => $validacao['motivo'],
             ], 400);
         }
 
         $pedido = $validacao['pedido'];
 
-        // Verificar se empresa_id no body corresponde ao pedido (segurança extra)
         if ($request->has('empresa_id') && $request->empresa_id !== $pedido->empresa_id) {
             return response()->json([
                 'success' => false,
-                'error' => 'Empresa inválida',
-                'message' => 'A empresa informada não corresponde ao pedido.'
+                'error'   => 'Empresa inválida',
+                'message' => 'A empresa informada não corresponde ao pedido.',
             ], 400);
         }
 
-        // Criar avaliação
         $avaliacao = EmpresaAvaliacao::create([
             'empresa_id' => $pedido->empresa_id,
             'usuario_id' => $usuario->id,
-            'pedido_id' => $request->pedido_id,
-            'descricao' => $request->descricao,
-            'nota' => $request->nota,
+            'pedido_id'  => $request->pedido_id,
+            'descricao'  => $request->descricao,
+            'nota'       => $request->nota,
         ]);
 
-        // Carregar relacionamentos
-        $avaliacao->load(['empresa', 'usuario', 'pedido']);
+        $avaliacao->load(['pedido']);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Avaliação criada com sucesso',
-            'avaliacao' => new EmpresaAvaliacaoResource($avaliacao)
+            'success'   => true,
+            'message'   => 'Avaliação criada com sucesso',
+            'avaliacao' => new EmpresaAvaliacaoResource($avaliacao),
         ], 201);
     }
 
     /**
-     * Display the specified resource.
+     * Detalhes de uma avaliação específica (sem dados do cliente).
      */
     public function show(string $id)
     {
-        $avaliacao = EmpresaAvaliacao::with(['empresa', 'usuario', 'pedido'])->findOrFail($id);
+        $avaliacao = EmpresaAvaliacao::with(['pedido', 'moderacao'])->findOrFail($id);
 
-        // Verificar se usuário tem acesso à empresa da avaliação
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($avaliacao->empresa_id)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para visualizar esta avaliação.'
+                'error'   => 'Acesso negado',
+                'message' => 'Você não tem permissão para visualizar esta avaliação.',
             ], 403);
         }
 
         return response()->json([
-            'avaliacao' => new EmpresaAvaliacaoResource($avaliacao)
+            'avaliacao' => new EmpresaAvaliacaoResource($avaliacao),
         ]);
     }
 
+    /**
+     * Lojista solicita moderação de uma avaliação com conteúdo ofensivo.
+     */
+    public function solicitarModeracao(Request $request, string $id)
+    {
+        $request->validate([
+            'motivo' => 'required|string|min:20|max:1000',
+        ]);
+
+        $avaliacao = EmpresaAvaliacao::findOrFail($id);
+
+        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($avaliacao->empresa_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você não tem permissão para solicitar moderação desta avaliação.',
+            ], 403);
+        }
+
+        $jaExiste = AvaliacaoModeracao::where('avaliacao_id', $id)->exists();
+        if ($jaExiste) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Já existe uma solicitação de moderação para esta avaliação.',
+            ], 409);
+        }
+
+        $moderacao = AvaliacaoModeracao::create([
+            'avaliacao_id' => $avaliacao->id,
+            'empresa_id'   => $avaliacao->empresa_id,
+            'motivo'       => $request->motivo,
+            'status'       => AvaliacaoModeracao::STATUS_PENDENTE,
+        ]);
+
+        return response()->json([
+            'success'   => true,
+            'message'   => 'Solicitação de moderação enviada. Nossa equipe irá analisar em breve.',
+            'moderacao' => [
+                'id'     => $moderacao->id,
+                'status' => $moderacao->status,
+            ],
+        ], 201);
+    }
 
     /**
-     * Obter avaliações de uma empresa específica
+     * Rota pública: avaliações de uma empresa para exibição no site do cliente.
+     * Retorna dados sem identificação do avaliador.
      */
     public function avaliacoesPorEmpresa(Request $request, string $empresaId)
     {
         $query = EmpresaAvaliacao::where('empresa_id', $empresaId)
-            ->with(['usuario', 'pedido'])
+            ->with(['pedido'])
             ->orderBy('created_at', 'desc');
 
-        // Filtros opcionais
         if ($request->has('nota') && $request->nota) {
             $query->where('nota', '>=', $request->nota);
         }
 
-        if ($request->has('recentes') && $request->boolean('recentes')) {
+        if ($request->boolean('recentes')) {
             $query->where('created_at', '>=', now()->subDays(30));
         }
 
-        // Paginação
-        $perPage = $request->get('per_page', 10);
+        $perPage    = $request->get('per_page', 10);
         $avaliacoes = $query->paginate($perPage);
 
-        // Calcular estatísticas
         $estatisticas = [
-            'total_avaliacoes' => EmpresaAvaliacao::contarAvaliacoesEmpresa($empresaId),
-            'media_nota' => EmpresaAvaliacao::where('empresa_id', $empresaId)
+            'total_avaliacoes'   => EmpresaAvaliacao::contarAvaliacoesEmpresa($empresaId),
+            'media_nota'         => EmpresaAvaliacao::where('empresa_id', $empresaId)
                 ->selectRaw('AVG(nota) as media')
                 ->first()->media ?? 0,
             'distribuicao_notas' => EmpresaAvaliacao::where('empresa_id', $empresaId)
                 ->selectRaw('nota, COUNT(*) as quantidade')
                 ->groupBy('nota')
                 ->pluck('quantidade', 'nota')
-                ->toArray()
+                ->toArray(),
         ];
 
         return response()->json([
-            'empresa_id' => $empresaId,
-            'estatisticas' => $estatisticas,
-            'avaliacoes' => EmpresaAvaliacaoResource::collection($avaliacoes),
-            'paginacao' => [
-                'total' => $avaliacoes->total(),
-                'per_page' => $avaliacoes->perPage(),
-                'current_page' => $avaliacoes->currentPage(),
-                'last_page' => $avaliacoes->lastPage(),
-                'from' => $avaliacoes->firstItem(),
-                'to' => $avaliacoes->lastItem(),
-                'has_more_pages' => $avaliacoes->hasMorePages(),
-            ]
+            'empresa_id'  => $empresaId,
+            'estatisticas'=> $estatisticas,
+            'avaliacoes'  => EmpresaAvaliacaoResource::collection($avaliacoes),
+            'paginacao'   => [
+                'total'         => $avaliacoes->total(),
+                'per_page'      => $avaliacoes->perPage(),
+                'current_page'  => $avaliacoes->currentPage(),
+                'last_page'     => $avaliacoes->lastPage(),
+                'from'          => $avaliacoes->firstItem(),
+                'to'            => $avaliacoes->lastItem(),
+                'has_more_pages'=> $avaliacoes->hasMorePages(),
+            ],
         ]);
     }
-
 }

@@ -61,9 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas de avaliações protegidas
     Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->group(function () {
-        Route::get('/', 'index')->middleware('check.permission:avaliacoes.index'); // Dashboard empresa
-        Route::post('/', 'store'); // Usuários criam avaliações (sem permissão específica)
-        Route::get('/{id}', 'show')->middleware('check.permission:avaliacoes.show'); // Empresa vê avaliação específica
+        Route::get('/', 'index')->middleware('check.permission:avaliacoes.index');
+        Route::post('/', 'store');
+        Route::get('/{id}', 'show')->middleware('check.permission:avaliacoes.show');
+        Route::post('/{id}/solicitar-moderacao', 'solicitarModeracao')->middleware('check.permission:avaliacoes.index');
     });
 
     // Rotas de pedidos

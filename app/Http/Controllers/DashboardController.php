@@ -83,17 +83,15 @@ class DashboardController extends Controller
             ]);
 
         // ─── Avaliações recentes ───────────────────────────────────
-        $avaliacoesRecentes = EmpresaAvaliacao::with('usuario:id,nome')
-            ->where('empresa_id', $empresaId)
+        $avaliacoesRecentes = EmpresaAvaliacao::where('empresa_id', $empresaId)
             ->orderBy('created_at', 'desc')
             ->limit(3)
             ->get()
             ->map(fn($a) => [
-                'id'           => $a->id,
-                'usuario_nome' => $a->usuario?->nome ?? null,
-                'nota'         => (float) $a->nota,
-                'comentario'   => $a->descricao ?? null,
-                'created_at'   => $a->created_at,
+                'id'         => $a->id,
+                'nota'       => (float) $a->nota,
+                'comentario' => $a->descricao ?? null,
+                'created_at' => $a->created_at,
             ]);
 
         // ─── Produtos populares (logs de adicionar ao carrinho) ────
