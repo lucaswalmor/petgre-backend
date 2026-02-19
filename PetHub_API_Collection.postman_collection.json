@@ -1945,6 +1945,100 @@
 					}
 				}
 			]
+		},
+		{
+			"name": "Testes e Desenvolvimento",
+			"item": [
+				{
+					"name": "Email - Status da Configuração",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/email/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"email",
+								"status"
+							]
+						},
+						"description": "Verifica o status da configuração de email (mailer, host, from, etc.)"
+					}
+				},
+				{
+					"name": "Email - Teste Simples",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/email/test?to={{email_teste}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"email",
+								"test"
+							],
+							"query": [
+								{
+									"key": "to",
+									"value": "{{email_teste}}",
+									"description": "Email destinatário para teste"
+								}
+							]
+						},
+						"description": "Envia um email de teste simples para verificar se a configuração SMTP está funcionando"
+					}
+				},
+				{
+					"name": "Email - Teste Boas-Vindas",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/email/test-bem-vindo?to={{email_teste}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"email",
+								"test-bem-vindo"
+							],
+							"query": [
+								{
+									"key": "to",
+									"value": "{{email_teste}}",
+									"description": "Email destinatário para teste de boas-vindas"
+								}
+							]
+						},
+						"description": "Simula o envio do email de boas-vindas enviado quando uma empresa é cadastrada com sucesso"
+					}
+				}
+			]
 		}
 	],
 	"variable": [
@@ -2002,6 +2096,12 @@
 			"key": "endereco_id",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "email_teste",
+			"value": "seuemail@gmail.com",
+			"type": "string",
+			"description": "Email para testes de envio (substitua pelo seu email)"
 		}
 	]
 }

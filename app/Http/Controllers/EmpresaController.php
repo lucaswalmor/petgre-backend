@@ -19,6 +19,8 @@ use App\Models\UsuarioEnderecos;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Helpers\VerificaEmpresa;
+use App\Services\EmailService;
+use App\Mail\NovoLojistaMail;
 
 class EmpresaController extends Controller
 {
@@ -138,6 +140,15 @@ class EmpresaController extends Controller
             ]);
 
             DB::commit();
+
+            // Enviar email de boas-vindas para o novo lojista
+            try {
+                $emailService = app(EmailService::class);
+                $emailService->sendMailable($usuario->email, new NovoLojistaMail($empresa, $usuario));
+            } catch (\Exception $emailException) {
+                // Log do erro mas não falha a criação da empresa
+                \Log::error('Erro ao enviar email de boas-vindas: ' . $emailException->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

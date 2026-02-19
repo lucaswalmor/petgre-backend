@@ -16,6 +16,7 @@ use App\Http\Controllers\EmpresaFavoritoController;
 use App\Http\Controllers\UsuarioLogController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmailTestController;
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -176,5 +177,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/adicionar-produto-carrinho', 'salvarLogAdicionarProdutoCarrinho');
         Route::post('/remover-produto-carrinho', 'salvarLogRemoverProdutoCarrinho');
         Route::post('/trocar-loja', 'salvarLogTrocarLoja');
+    });
+
+    // Teste de Email (desenvolvimento)
+    Route::controller(EmailTestController::class)->prefix('email')->group(function () {
+        Route::get('/test', 'test');
+        Route::get('/test-bem-vindo', 'testBemVindo');
+        Route::get('/status', 'status');
     });
 });
