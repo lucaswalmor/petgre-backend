@@ -105,6 +105,12 @@ class Empresa extends Model
         return $this->hasMany(EmpresaCupom::class, 'empresa_id');
     }
 
+    // Relação com pausas agendadas
+    public function pausasAgendadas()
+    {
+        return $this->hasMany(EmpresaPausaAgendada::class, 'empresa_id');
+    }
+
     /**
      * Calcular média das avaliações da empresa
      */
@@ -122,7 +128,8 @@ class Empresa extends Model
     }
 
     /**
-     * Verificar se a empresa está aberta no momento
+     * Verificar se a empresa está aberta no momento (America/Sao_Paulo).
+     * Considera horário de funcionamento e pausas agendadas (em pausa = fechada).
      */
     public function isAberta(): bool
     {
@@ -130,7 +137,8 @@ class Empresa extends Model
             return false;
         }
 
-        $agora = Carbon::now('America/Sao_Paulo');
+        $tz = 'America/Sao_Paulo';
+        $agora = Carbon::now($tz);
         $diaSemanaIngles = strtolower($agora->format('l'));
 
         $mapaDias = [
@@ -150,14 +158,39 @@ class Empresa extends Model
             return false;
         }
 
+        $dentroHorario = false;
         foreach ($this->horarios as $horario) {
             if ($horario->dia_semana === $diaSemana) {
                 if ($horaAtual >= $horario->horario_inicio && $horaAtual <= $horario->horario_fim) {
-                    return true;
+                    $dentroHorario = true;
+                    break;
                 }
             }
         }
 
-        return false;
+        if (!$dentroHorario) {
+            return false;
+        }
+
+        if (!$this->relationLoaded('pausasAgendadas')) {
+            $this->load('pausasAgendadas');
+        }
+        foreach ($this->pausasAgendadas as $pausa) {
+            $rawInicio = $pausa->getRawOriginal('data_inicio');
+            $rawFim = $pausa->getRawOriginal('data_fim');
+            $inicio = Carbon::parse($rawInicio, $tz);
+            $fim = Carbon::parse($rawFim, $tz);
+            if ($pausa->recorrente) {
+                if ($horaAtual >= $inicio->format('H:i:s') && $horaAtual <= $fim->format('H:i:s')) {
+                    return false;
+                }
+            } else {
+                if ($agora->between($inicio, $fim)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

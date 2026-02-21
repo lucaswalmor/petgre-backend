@@ -25,7 +25,7 @@ class SiteEmpresaResource extends JsonResource
             // 'path_logo' => $this->path_logo ? asset('storage/' . $this->path_logo) : null,
             // 'path_banner' => $this->path_banner ? asset('storage/' . $this->path_banner) : null,
             'ativo' => $this->ativo,
-            'empresa_aberta' => $this->isAberta(),
+            'empresa_aberta' => $this->resource->isAberta(),
             'horario_hoje' => $this->getHorarioHoje(),
             'empresa_nova' => $this->created_at >= now()->subMonth(),
         ];
@@ -187,39 +187,4 @@ class SiteEmpresaResource extends JsonResource
         return null;
     }
 
-    /**
-     * Lógica para verificar se a empresa está aberta
-     */
-    private function isAberta(): bool
-    {
-        if (!$this->relationLoaded('horarios')) {
-            return false;
-        }
-
-        $agora = Carbon::now('America/Sao_Paulo');
-        $diaSemanaIngles = strtolower($agora->format('l'));
-
-        $mapaDias = [
-            'monday' => 'segunda',
-            'tuesday' => 'terca',
-            'wednesday' => 'quarta',
-            'thursday' => 'quinta',
-            'friday' => 'sexta',
-            'saturday' => 'sabado',
-            'sunday' => 'domingo',
-        ];
-
-        $diaSemana = $mapaDias[$diaSemanaIngles];
-        $horaAtual = $agora->format('H:i:s');
-
-        foreach ($this->horarios as $horario) {
-            if ($horario->dia_semana === $diaSemana) {
-                if ($horaAtual >= $horario->horario_inicio && $horaAtual <= $horario->horario_fim) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
 }

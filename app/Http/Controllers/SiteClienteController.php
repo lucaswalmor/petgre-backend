@@ -38,7 +38,7 @@ class SiteClienteController extends Controller
         Log::info($request->all());
         $query = Empresa::where('ativo', true)
             ->where('cadastro_completo', true)
-            ->with(['nicho', 'horarios', 'avaliacoes', 'bairrosEntregas.bairro', 'configuracoes'])
+            ->with(['nicho', 'horarios', 'pausasAgendadas', 'avaliacoes', 'bairrosEntregas.bairro', 'configuracoes'])
             ->withCount('avaliacoes')
             ->withAvg('avaliacoes', 'nota');
 
@@ -169,6 +169,7 @@ class SiteClienteController extends Controller
                 'nicho',
                 'endereco',
                 'horarios',
+                'pausasAgendadas',
                 'bairrosEntregas.bairro',
                 'produtos' => function($query) {
                     $query->where('ativo', true)->with(['categoria', 'unidadeMedida']);
