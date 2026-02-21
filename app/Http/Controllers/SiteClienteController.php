@@ -27,6 +27,7 @@ use App\Models\Categorias;
 use App\Models\User;
 use App\Models\UsuarioLog;
 use Illuminate\Support\Facades\Log;
+use App\Services\PushNotificationService;
 
 class SiteClienteController extends Controller
 {
@@ -417,6 +418,9 @@ class SiteClienteController extends Controller
             ]);
 
             DB::commit();
+
+            $codigo = '#' . str_pad((string) $pedido->id, 6, '0', STR_PAD_LEFT);
+            app(PushNotificationService::class)->sendNewOrderToEmpresa($pedido->empresa_id, $codigo);
 
             return response()->json([
                 'success' => true,

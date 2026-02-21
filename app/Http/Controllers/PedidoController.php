@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\VerificaEmpresa;
 use App\Models\EmpresaAvaliacao;
+use App\Services\PushNotificationService;
 use Carbon\Carbon;
 
 class PedidoController extends Controller
@@ -195,6 +196,9 @@ class PedidoController extends Controller
             ]);
 
             DB::commit();
+
+            $codigo = '#' . str_pad((string) $pedido->id, 6, '0', STR_PAD_LEFT);
+            app(PushNotificationService::class)->sendNewOrderToEmpresa($pedido->empresa_id, $codigo);
 
             // Carregar relacionamentos
             $pedido->load([

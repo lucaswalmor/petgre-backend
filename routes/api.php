@@ -18,6 +18,7 @@ use App\Http\Controllers\FaqController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailTestController;
 use App\Http\Controllers\PausasAgendadasController;
+use App\Http\Controllers\PushSubscriptionController;
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -131,6 +132,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', 'show')->middleware('check.permission:empresas.show');
         Route::post('/{id}/upload-image', 'uploadImage')->middleware('check.permission:empresas.upload_image');
         Route::delete('/{id}', 'destroy')->middleware('check.permission:empresas.destroy');
+    });
+
+    // Push notifications (lojista — novo pedido)
+    Route::controller(PushSubscriptionController::class)->prefix('push')->group(function () {
+        Route::get('/vapid-public-key', 'vapidPublicKey');
+        Route::post('/subscribe', 'store');
     });
 
     // Pausas agendadas (Configurações)

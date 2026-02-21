@@ -644,6 +644,55 @@
 			]
 		},
 		{
+			"name": "Push (Notificações)",
+			"item": [
+				{
+					"name": "Chave pública VAPID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/push/vapid-public-key",
+							"host": ["{{base_url}}"],
+							"path": ["api", "push", "vapid-public-key"]
+						},
+						"description": "Retorna a chave pública VAPID para o frontend registrar push (novo pedido). Requer autenticação lojista."
+					}
+				},
+				{
+					"name": "Registrar subscription (push)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"endpoint\": \"https://fcm.googleapis.com/...\",\n  \"keys\": {\n    \"p256dh\": \"...\",\n    \"auth\": \"...\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/push/subscribe",
+							"host": ["{{base_url}}"],
+							"path": ["api", "push", "subscribe"]
+						},
+						"description": "Registra a subscription do navegador do lojista para receber notificações de novo pedido. O frontend obtém a subscription via PushManager e envia aqui."
+					}
+				}
+			]
+		},
+		{
 			"name": "Avaliações",
 			"item": [
 				{
