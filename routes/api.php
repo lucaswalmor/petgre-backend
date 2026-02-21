@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rotas de usuários
     Route::controller(UsuarioController::class)->prefix('usuarios')->group(function () {
+        Route::put('/alterar-senha-primeiro-login', 'alterarSenhaPrimeiroLogin');
         Route::get('/', 'index')->middleware('check.permission:usuarios.index');
         Route::post('/criar-funcionario', 'store')->middleware('check.permission:usuarios.store');
         Route::get('/{id}', 'show')->middleware('check.permission:usuarios.show');

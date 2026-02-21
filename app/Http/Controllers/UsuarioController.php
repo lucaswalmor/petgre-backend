@@ -105,6 +105,7 @@ class UsuarioController extends Controller
                 'ativo' => true,
                 'is_master' => false,
                 'tipo_cadastro' => $tipoCadastro,
+                'primeiro_login' => $isFuncionario,
             ]);
 
             if ($request->has('empresa_id') && $request->empresa_id) {
@@ -454,6 +455,42 @@ class UsuarioController extends Controller
 
         return response()->json([
             'message' => 'Senha alterada com sucesso'
+        ]);
+    }
+
+    /**
+     * Alterar senha no primeiro login (painel lojista). Requer auth.
+     */
+    public function alterarSenhaPrimeiroLogin(Request $request)
+    {
+        $usuario = Auth::user();
+
+        if (!$usuario->primeiro_login) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta ação é válida apenas no primeiro acesso.',
+            ], 403);
+        }
+
+        $request->validate([
+            'senha' => 'required|string|min:8|confirmed',
+        ], [
+            'senha.required' => 'A nova senha é obrigatória',
+            'senha.min' => 'A senha deve ter no mínimo 8 caracteres',
+            'senha.confirmed' => 'As senhas não conferem',
+        ]);
+
+        $usuario->update([
+            'password' => Hash::make($request->senha),
+            'primeiro_login' => false,
+        ]);
+
+        $usuario->load(['permissoes', 'empresas', 'enderecos']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Senha alterada com sucesso',
+            'user' => new \App\Http\Resources\Usuario\UsuarioLoginResource($usuario),
         ]);
     }
 }

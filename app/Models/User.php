@@ -28,6 +28,7 @@ class User extends Authenticatable
         'ativo',
         'is_master',
         'tipo_cadastro',
+        'primeiro_login',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'primeiro_login' => 'boolean',
         ];
     }
 

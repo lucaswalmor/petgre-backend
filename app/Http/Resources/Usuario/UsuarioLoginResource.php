@@ -20,6 +20,7 @@ class UsuarioLoginResource extends JsonResource
             'email' => $this->email,
             'telefone' => $this->telefone,
             'ativo' => $this->ativo,
+            'primeiro_login' => (bool) $this->primeiro_login,
             'permissoes' => $this->whenLoaded('permissoes', function () {
                 return $this->permissoes->map(function ($permissao) {
                     return [
