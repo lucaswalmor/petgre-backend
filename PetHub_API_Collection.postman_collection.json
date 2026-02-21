@@ -1979,6 +1979,128 @@
 			]
 		},
 		{
+			"name": "Pausas Agendadas",
+			"item": [
+				{
+					"name": "Listar Pausas Agendadas",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/pausas-agendadas?empresa_id={{empresa_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"pausas-agendadas"
+							],
+							"query": [
+								{
+									"key": "empresa_id",
+									"value": "{{empresa_id}}",
+									"description": "ID da empresa (opcional; usa primeira do usuário se omitido)"
+								}
+							]
+						}
+					},
+					"description": "Lista pausas agendadas da empresa. Requer permissão pausas_agendadas.index ou sistema.acesso_total."
+				},
+				{
+					"name": "Criar Pausa Agendada",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"empresa_id\": 1,\n  \"data_inicio\": \"2026-02-20 12:00:00\",\n  \"data_fim\": \"2026-02-20 13:00:00\",\n  \"motivo\": \"Almoço\",\n  \"recorrente\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/pausas-agendadas",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"pausas-agendadas"
+							]
+						}
+					},
+					"description": "Cria uma nova pausa agendada. Campos: empresa_id (obrigatório), data_inicio, data_fim (obrigatórios; data_fim após data_inicio), motivo (opcional), recorrente (boolean). Requer pausas_agendadas.store."
+				},
+				{
+					"name": "Atualizar Pausa Agendada",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"data_inicio\": \"2026-02-20 12:00:00\",\n  \"data_fim\": \"2026-02-20 13:00:00\",\n  \"motivo\": \"Almoço\",\n  \"recorrente\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/pausas-agendadas/{{pausa_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"pausas-agendadas",
+								"{{pausa_id}}"
+							]
+						}
+					},
+					"description": "Atualiza uma pausa agendada. Apenas da empresa do usuário. Requer pausas_agendadas.update."
+				},
+				{
+					"name": "Excluir Pausa Agendada",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/pausas-agendadas/{{pausa_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"pausas-agendadas",
+								"{{pausa_id}}"
+							]
+						}
+					},
+					"description": "Exclui uma pausa agendada. Apenas da empresa do usuário. Requer pausas_agendadas.destroy."
+				}
+			]
+		},
+		{
 			"name": "Testes e Desenvolvimento",
 			"item": [
 				{
@@ -2278,6 +2400,12 @@
 			"key": "endereco_id",
 			"value": "",
 			"type": "string"
+		},
+		{
+			"key": "pausa_id",
+			"value": "",
+			"type": "string",
+			"description": "ID da pausa agendada (para PUT/DELETE)"
 		},
 		{
 			"key": "email_teste",
