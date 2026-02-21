@@ -17,6 +17,7 @@ use App\Http\Controllers\UsuarioLogController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailTestController;
+use App\Http\Controllers\PausasAgendadasController;
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -129,6 +130,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}', 'show')->middleware('check.permission:empresas.show');
         Route::post('/{id}/upload-image', 'uploadImage')->middleware('check.permission:empresas.upload_image');
         Route::delete('/{id}', 'destroy')->middleware('check.permission:empresas.destroy');
+    });
+
+    // Pausas agendadas (Configurações)
+    Route::controller(PausasAgendadasController::class)->prefix('pausas-agendadas')->group(function () {
+        Route::get('/', 'index')->middleware('check.permission:pausas_agendadas.index,sistema.acesso_total');
+        Route::post('/', 'store')->middleware('check.permission:pausas_agendadas.store,sistema.acesso_total');
+        Route::put('/{id}', 'update')->middleware('check.permission:pausas_agendadas.update,sistema.acesso_total');
+        Route::delete('/{id}', 'destroy')->middleware('check.permission:pausas_agendadas.destroy,sistema.acesso_total');
     });
 
     // Rotas de produtos

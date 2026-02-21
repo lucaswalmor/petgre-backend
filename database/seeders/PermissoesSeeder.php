@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\DB;
 class PermissoesSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Sincroniza permissões com o array abaixo: insere novas, atualiza nome das existentes,
+     * e remove da tabela as que foram deletadas do array (fonte da verdade é o seeder).
      */
     public function run(): void
     {
@@ -61,22 +62,42 @@ class PermissoesSeeder extends Seeder
             ['nome' => 'Criar Funcionários',     'slug' => 'usuarios.store'],
             ['nome' => 'Visualizar Funcionário', 'slug' => 'usuarios.show'],
             ['nome' => 'Editar Funcionários',    'slug' => 'usuarios.update'],
+
+            // Pausas agendadas
+            ['nome' => 'Listar Pausas Agendadas',   'slug' => 'pausas_agendadas.index'],
+            ['nome' => 'Criar Pausas Agendadas',   'slug' => 'pausas_agendadas.store'],
+            ['nome' => 'Editar Pausas Agendadas',  'slug' => 'pausas_agendadas.update'],
+            ['nome' => 'Deletar Pausas Agendadas', 'slug' => 'pausas_agendadas.destroy'],
         ];
+
+        $slugsDoSeeder = array_column($permissoes, 'slug');
 
         foreach ($permissoes as $permissao) {
             $existe = DB::table('permissoes')->where('slug', $permissao['slug'])->exists();
-
-            if (!$existe) {
+            if ($existe) {
+                DB::table('permissoes')->where('slug', $permissao['slug'])->update([
+                    'nome' => $permissao['nome'],
+                    'ativo' => true,
+                    'updated_at' => $timestamp,
+                ]);
+            } else {
                 DB::table('permissoes')->insert([
-                    'nome'       => $permissao['nome'],
-                    'slug'       => $permissao['slug'],
-                    'ativo'      => true,
+                    'nome' => $permissao['nome'],
+                    'slug' => $permissao['slug'],
+                    'ativo' => true,
                     'created_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ]);
                 $this->command->info("Permissão criada: {$permissao['nome']}");
-            } else {
-                $this->command->info("Permissão já existe: {$permissao['nome']}");
+            }
+        }
+
+        $removidas = DB::table('permissoes')->whereNotIn('slug', $slugsDoSeeder)->get();
+        if ($removidas->isNotEmpty()) {
+            foreach ($removidas as $r) {
+                DB::table('usuarios_permissoes')->where('permissao_id', $r->id)->delete();
+                DB::table('permissoes')->where('id', $r->id)->delete();
+                $this->command->warn("Permissão removida (não está mais no seeder): {$r->nome} ({$r->slug})");
             }
         }
     }

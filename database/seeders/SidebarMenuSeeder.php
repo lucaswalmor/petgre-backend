@@ -8,7 +8,8 @@ use Illuminate\Database\Seeder;
 class SidebarMenuSeeder extends Seeder
 {
     /**
-     * Cria itens do menu do sidebar. Itens com chave já existente são ignorados.
+     * Sincroniza itens do menu com o array: insere novos, atualiza existentes,
+     * e remove da tabela os que foram deletados do array (fonte da verdade é o seeder).
      */
     public function run(): void
     {
@@ -22,7 +23,7 @@ class SidebarMenuSeeder extends Seeder
         ];
 
         foreach ($itens as $item) {
-            $this->criarSeNaoExistir($item);
+            $this->sincronizarItem($item);
         }
 
         $cadastrosId = SidebarMenu::where('chave', 'cadastros')->value('id');
@@ -33,20 +34,40 @@ class SidebarMenuSeeder extends Seeder
             ['chave' => 'cadastros.cupons', 'label' => 'Cupons', 'path' => '/dashboard/cupons', 'icon' => 'pi pi-tag', 'permission_slug' => 'cupons.index', 'parent_id' => $cadastrosId, 'ordem' => 2],
             ['chave' => 'config.empresa', 'label' => 'Empresa', 'path' => '/dashboard/empresa', 'icon' => 'pi pi-building', 'permission_slug' => 'empresas.show', 'parent_id' => $configuracoesId, 'ordem' => 1],
             ['chave' => 'config.usuarios', 'label' => 'Usuários', 'path' => '/dashboard/users', 'icon' => 'pi pi-users', 'permission_slug' => 'usuarios.index', 'parent_id' => $configuracoesId, 'ordem' => 2],
-            ['chave' => 'config.dados-conta', 'label' => 'Dados da Conta', 'path' => '/dashboard/configuracao', 'icon' => 'pi pi-user', 'permission_slug' => null, 'parent_id' => $configuracoesId, 'ordem' => 3],
+            ['chave' => 'config.pausas-agendadas', 'label' => 'Pausas Agendadas', 'path' => '/dashboard/pausas-agendadas', 'icon' => 'pi pi-pause', 'permission_slug' => 'pausas_agendadas.index', 'parent_id' => $configuracoesId, 'ordem' => 3],
+            ['chave' => 'config.dados-conta', 'label' => 'Dados da Conta', 'path' => '/dashboard/configuracao', 'icon' => 'pi pi-user', 'permission_slug' => null, 'parent_id' => $configuracoesId, 'ordem' => 4],
         ];
 
         foreach ($subItens as $item) {
-            $this->criarSeNaoExistir($item);
+            $this->sincronizarItem($item);
+        }
+
+        $chavesDoSeeder = array_merge(array_column($itens, 'chave'), array_column($subItens, 'chave'));
+        $this->removerItensForaDoSeeder($chavesDoSeeder);
+    }
+
+    private function sincronizarItem(array $item): void
+    {
+        $existe = SidebarMenu::where('chave', $item['chave'])->first();
+        if ($existe) {
+            $existe->update($item);
+        } else {
+            SidebarMenu::create($item);
+            $this->command->info("Menu criado: {$item['label']}");
         }
     }
 
-    private function criarSeNaoExistir(array $item): void
+    private function removerItensForaDoSeeder(array $chavesDoSeeder): void
     {
-        if (SidebarMenu::where('chave', $item['chave'])->exists()) {
-            return;
+        $toDelete = SidebarMenu::whereNotIn('chave', $chavesDoSeeder)->get();
+        while ($toDelete->isNotEmpty()) {
+            $leaves = $toDelete->filter(fn ($row) => $toDelete->where('parent_id', $row->id)->isEmpty());
+            $idsRemovidos = $leaves->pluck('id')->all();
+            foreach ($leaves as $row) {
+                $this->command->warn("Menu removido (não está mais no seeder): {$row->label} ({$row->chave})");
+                $row->delete();
+            }
+            $toDelete = $toDelete->filter(fn ($row) => !in_array($row->id, $idsRemovidos));
         }
-        SidebarMenu::create($item);
-        $this->command->info("Menu criado: {$item['label']}");
     }
 }
