@@ -131,8 +131,21 @@ class UsuarioController extends Controller
                     $permissoesIds = array_map('intval', $permissoes);
                 }
 
+                if ($isFuncionario) {
+                    $dashboardPerm = Permissao::where('slug', 'dashboard.index')->first();
+                    if ($dashboardPerm && !in_array($dashboardPerm->id, $permissoesIds)) {
+                        $permissoesIds[] = $dashboardPerm->id;
+                    }
+                }
 
                 $usuario->permissoes()->sync($permissoesIds);
+            }
+            // Funcionário sem permissões enviadas: garantir ao menos dashboard para primeiro login
+            elseif ($isFuncionario) {
+                $dashboardPerm = Permissao::where('slug', 'dashboard.index')->first();
+                if ($dashboardPerm) {
+                    $usuario->permissoes()->sync([$dashboardPerm->id]);
+                }
             }
 
             if ($isFuncionario) {

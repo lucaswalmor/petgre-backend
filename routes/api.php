@@ -54,8 +54,8 @@ Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->grou
 // Rotas protegidas (precisam de autenticação)
 Route::middleware('auth:sanctum')->group(function () {
     
-    // Dashboard lojista — retorna todos os dados em uma única requisição
-    Route::get('/dashboard', [DashboardController::class, 'getDados'])->middleware('check.permission:pedidos.index');
+    // Dashboard lojista — qualquer usuário autenticado; visibilidade de blocos de pedidos é controlada no frontend por permissão
+    Route::get('/dashboard', [DashboardController::class, 'getDados']);
 
     // Rota para listar permissões
     Route::get('/permissoes', [PermissaoController::class, 'index']);

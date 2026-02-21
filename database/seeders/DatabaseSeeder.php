@@ -16,10 +16,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Executar seeders do sistema
-        $this->call([
-            SistemaSeeder::class,
-        ]);
+        // Executar seeders do sistema (SistemaSeeder já inclui PermissoesSeeder, Bairros, SidebarMenuSeeder, etc.)
+        $this->call(SistemaSeeder::class);
 
         // User::factory(10)->create();
 

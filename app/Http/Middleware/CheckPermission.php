@@ -16,24 +16,27 @@ class CheckPermission
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        
         $user = $request->user();
-        
 
-        // Se não está autenticado, retorna erro
         if (!$user) {
             return response()->json([
                 'error' => 'Usuário não autenticado'
             ], 401);
         }
 
-        // Se é master, pode tudo
         if ($user->isMaster()) {
             return $next($request);
         }
 
-        // Verifica se tem a permissão específica
-        if (!$user->hasPermission($permission)) {
+        $permissions = array_map('trim', explode(',', $permission));
+        $hasAny = false;
+        foreach ($permissions as $perm) {
+            if ($user->hasPermission($perm)) {
+                $hasAny = true;
+                break;
+            }
+        }
+        if (!$hasAny) {
             return response()->json([
                 'error' => 'Você não tem permissão para executar esta ação'
             ], 403);

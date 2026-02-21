@@ -1095,6 +1095,38 @@
 					}
 				},
 				{
+					"name": "Alterar senha (primeiro login)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"senha\": \"nova_senha_123\",\n  \"senha_confirmation\": \"nova_senha_123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/usuarios/alterar-senha-primeiro-login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"alterar-senha-primeiro-login"
+							]
+						},
+						"description": "Alterar senha no primeiro acesso (painel lojista). Usado quando o funcionário foi criado pela empresa e faz o primeiro login com a senha temporária recebida por e-mail.\n\n## 🔒 Requisitos:\n- Requer autenticação (Bearer token do lojista/funcionário)\n- O usuário autenticado deve ter `primeiro_login = true` (retorna 403 caso contrário)\n- Não exige permissão específica\n\n## 📝 Body:\n- `senha`: Nova senha (mín. 8 caracteres)\n- `senha_confirmation`: Confirmação da nova senha\n\n## 📋 Resposta de sucesso:\nRetorna `success`, `message` e `user` (objeto atualizado com `primeiro_login: false`) para o frontend atualizar o localStorage e redirecionar ao dashboard."
+					}
+				},
+				{
 					"name": "Listar Usuários",
 					"request": {
 						"method": "GET",

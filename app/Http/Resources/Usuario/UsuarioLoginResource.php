@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Usuario;
 
+use App\Services\SidebarMenuService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -58,6 +59,7 @@ class UsuarioLoginResource extends JsonResource
                     ];
                 });
             }, []),
+            'menu' => $this->when($this->resource->isLojista(), fn () => SidebarMenuService::menuParaUsuario($this->resource)),
         ];
     }
 }

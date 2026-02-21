@@ -174,6 +174,11 @@ class SistemaSeeder extends Seeder
         // -----------------------------
         $this->call(UberlandiaBairrosSeeder::class);
 
+        // -----------------------------
+        // Menu do sidebar (painel lojista)
+        // -----------------------------
+        $this->call(SidebarMenuSeeder::class);
+
         $this->command->info('✓ Seeder inicial do sistema executado com sucesso!');
     }
 }
