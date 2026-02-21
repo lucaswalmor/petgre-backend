@@ -26,6 +26,7 @@ class SiteEmpresaResource extends JsonResource
             // 'path_banner' => $this->path_banner ? asset('storage/' . $this->path_banner) : null,
             'ativo' => $this->ativo,
             'empresa_aberta' => $this->resource->isAberta(),
+            'fechado_ate' => $this->resource->getFechadoAte(),
             'horario_hoje' => $this->getHorarioHoje(),
             'empresa_nova' => $this->created_at >= now()->subMonth(),
         ];

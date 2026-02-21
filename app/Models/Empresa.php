@@ -172,6 +172,15 @@ class Empresa extends Model
             return false;
         }
 
+        return $this->getPausaAtual($tz, $agora, $horaAtual) === null;
+    }
+
+    /**
+     * Retorna a pausa agendada em que a empresa está no momento (ou null).
+     * Só considera se estiver dentro do horário de funcionamento.
+     */
+    private function getPausaAtual(string $tz, Carbon $agora, string $horaAtual): ?EmpresaPausaAgendada
+    {
         if (!$this->relationLoaded('pausasAgendadas')) {
             $this->load('pausasAgendadas');
         }
@@ -182,15 +191,62 @@ class Empresa extends Model
             $fim = Carbon::parse($rawFim, $tz);
             if ($pausa->recorrente) {
                 if ($horaAtual >= $inicio->format('H:i:s') && $horaAtual <= $fim->format('H:i:s')) {
-                    return false;
+                    return $pausa;
                 }
             } else {
                 if ($agora->between($inicio, $fim)) {
-                    return false;
+                    return $pausa;
                 }
             }
         }
+        return null;
+    }
 
-        return true;
+    /**
+     * Quando a loja está fechada por pausa agendada, retorna o horário em que volta (fim da pausa).
+     * Formato: "16:00" (hoje), "amanhã 16:00" ou "dd/mm 16:00". Retorna null se aberta ou fechada por horário.
+     */
+    public function getFechadoAte(): ?string
+    {
+        if (!$this->relationLoaded('horarios')) {
+            return null;
+        }
+        $tz = 'America/Sao_Paulo';
+        $agora = Carbon::now($tz);
+        $diaSemanaIngles = strtolower($agora->format('l'));
+        $mapaDias = [
+            'monday' => 'segunda', 'tuesday' => 'terca', 'wednesday' => 'quarta', 'thursday' => 'quinta',
+            'friday' => 'sexta', 'saturday' => 'sabado', 'sunday' => 'domingo',
+        ];
+        $diaSemana = $mapaDias[$diaSemanaIngles] ?? null;
+        $horaAtual = $agora->format('H:i:s');
+        if (!$diaSemana) {
+            return null;
+        }
+        $dentroHorario = false;
+        foreach ($this->horarios as $horario) {
+            if ($horario->dia_semana === $diaSemana && $horaAtual >= $horario->horario_inicio && $horaAtual <= $horario->horario_fim) {
+                $dentroHorario = true;
+                break;
+            }
+        }
+        if (!$dentroHorario) {
+            return null;
+        }
+        $pausa = $this->getPausaAtual($tz, $agora, $horaAtual);
+        if ($pausa === null) {
+            return null;
+        }
+        $rawFim = $pausa->getRawOriginal('data_fim');
+        $fim = Carbon::parse($rawFim, $tz);
+        $hoje = $agora->toDateString();
+        $amanha = $agora->copy()->addDay()->toDateString();
+        if ($fim->toDateString() === $hoje) {
+            return $fim->format('H:i');
+        }
+        if ($fim->toDateString() === $amanha) {
+            return 'amanhã ' . $fim->format('H:i');
+        }
+        return $fim->format('d/m') . ' ' . $fim->format('H:i');
     }
 }
