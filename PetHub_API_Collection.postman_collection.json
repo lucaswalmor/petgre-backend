@@ -909,7 +909,33 @@
 							"host": ["{{base_url}}"],
 							"path": ["api", "empresa", "{{empresa_id}}", "status"]
 						},
-						"description": "Retorna se a loja está aberta ou fechada no momento (America/Sao_Paulo). Considera horários de funcionamento e pausas agendadas. Usado pelo painel lojista para o indicador no header.\n\nResposta: { \"success\": true, \"empresa_aberta\": true, \"fechado_ate\": null } ou fechado_ate com horário (ex: \"16:00\").\n\nPermissão: empresas.show"
+						"description": "Retorna se a loja está aberta ou fechada no momento (America/Sao_Paulo). Considera fechada_manual (override), horários e pausas agendadas. Resposta inclui empresa_aberta, fechado_ate, fechada_manual. Permissão: empresas.show"
+					}
+				},
+				{
+					"name": "Fechar/Abrir loja (status manual)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fechada_manual\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/empresa/{{empresa_id}}/status-manual",
+							"host": ["{{base_url}}"],
+							"path": ["api", "empresa", "{{empresa_id}}", "status-manual"]
+						},
+						"description": "Fechar ou abrir a loja manualmente (emergência, sem usar Pausas agendadas). Body: { \"fechada_manual\": true } para fechar, false para abrir. Retorna empresa_aberta, fechado_ate, fechada_manual. Permissão: empresas.update"
 					}
 				},
 				{

@@ -25,6 +25,7 @@ class Empresa extends Model
         'nicho_id',
         'cadastro_completo',
         'ativo',
+        'fechada_manual',
     ];
 
     // Relação com nicho
@@ -129,10 +130,16 @@ class Empresa extends Model
 
     /**
      * Verificar se a empresa está aberta no momento (America/Sao_Paulo).
-     * Considera horário de funcionamento e pausas agendadas (em pausa = fechada).
+     * fechada_manual = true → fechada; false → aberta (força abertura); null → usa horário e pausas.
      */
     public function isAberta(): bool
     {
+        if ($this->fechada_manual === true) {
+            return false;
+        }
+        if ($this->fechada_manual === false) {
+            return true;
+        }
         if (!$this->relationLoaded('horarios')) {
             return false;
         }
@@ -203,11 +210,17 @@ class Empresa extends Model
     }
 
     /**
-     * Quando a loja está fechada por pausa agendada, retorna o horário em que volta (fim da pausa).
-     * Formato: "16:00" (hoje), "amanhã 16:00" ou "dd/mm 16:00". Retorna null se aberta ou fechada por horário.
+     * Quando a loja está fechada por pausa agendada ou manual, retorna o horário ou mensagem.
+     * Se fechada_manual: "quando o lojista reabrir". Senão, pausa: "16:00", "amanhã 16:00" ou "dd/mm 16:00". Null se aberta ou fechada por horário.
      */
     public function getFechadoAte(): ?string
     {
+        if ($this->fechada_manual === false) {
+            return null;
+        }
+        if ($this->fechada_manual === true) {
+            return 'quando o lojista reabrir';
+        }
         if (!$this->relationLoaded('horarios')) {
             return null;
         }

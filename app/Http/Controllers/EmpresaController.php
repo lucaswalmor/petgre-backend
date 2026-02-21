@@ -496,6 +496,31 @@ class EmpresaController extends Controller
                 'success' => true,
                 'empresa_aberta' => $empresa->isAberta(),
                 'fechado_ate' => $empresa->getFechadoAte(),
+                'fechada_manual' => (bool) $empresa->fechada_manual,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Empresa não encontrada'], 404);
+        }
+    }
+
+    /**
+     * Fechar ou abrir a loja manualmente (override de horário/pausas). Emergência sem usar Pausas agendadas.
+     */
+    public function statusManual(Request $request, string $id)
+    {
+        $request->validate(['fechada_manual' => 'required|boolean']);
+        try {
+            if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int) $id)) {
+                return response()->json(['success' => false, 'message' => 'Acesso negado.'], 403);
+            }
+            $empresa = Empresa::findOrFail($id);
+            $empresa->update(['fechada_manual' => $request->boolean('fechada_manual')]);
+            $empresa->load(['horarios', 'pausasAgendadas']);
+            return response()->json([
+                'success' => true,
+                'empresa_aberta' => $empresa->isAberta(),
+                'fechado_ate' => $empresa->getFechadoAte(),
+                'fechada_manual' => (bool) $empresa->fechada_manual,
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['success' => false, 'message' => 'Empresa não encontrada'], 404);
