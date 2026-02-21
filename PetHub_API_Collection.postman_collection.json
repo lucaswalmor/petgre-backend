@@ -846,6 +846,24 @@
 					}
 				},
 				{
+					"name": "Status Loja (aberta/fechada)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/empresa/{{empresa_id}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "empresa", "{{empresa_id}}", "status"]
+						},
+						"description": "Retorna se a loja está aberta ou fechada no momento (America/Sao_Paulo). Considera horários de funcionamento e pausas agendadas. Usado pelo painel lojista para o indicador no header.\n\nResposta: { \"success\": true, \"empresa_aberta\": true, \"fechado_ate\": null } ou fechado_ate com horário (ex: \"16:00\").\n\nPermissão: empresas.show"
+					}
+				},
+				{
 					"name": "Criar Empresa",
 					"request": {
 						"method": "POST",

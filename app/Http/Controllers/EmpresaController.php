@@ -483,6 +483,26 @@ class EmpresaController extends Controller
     }
 
     /**
+     * Retorna status de abertura da loja (para indicador no painel lojista).
+     */
+    public function status(Request $request, string $id)
+    {
+        try {
+            if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int)$id)) {
+                return response()->json(['success' => false, 'message' => 'Acesso negado.'], 403);
+            }
+            $empresa = Empresa::with(['horarios', 'pausasAgendadas'])->findOrFail($id);
+            return response()->json([
+                'success' => true,
+                'empresa_aberta' => $empresa->isAberta(),
+                'fechado_ate' => $empresa->getFechadoAte(),
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Empresa não encontrada'], 404);
+        }
+    }
+
+    /**
      * Check if company registration is complete.
      */
     public function verificarCadastro(Request $request, string $id)
@@ -497,43 +517,27 @@ class EmpresaController extends Controller
                 ], 403);
             }
 
-            $empresa = Empresa::findOrFail($id);
+            $empresa = Empresa::with(['endereco', 'configuracoes', 'formasPagamentos', 'horarios', 'bairrosEntregas'])->findOrFail($id);
 
-            $cadastroCompleto = true;
+            $itens = [];
+            $itens[] = ['chave' => 'endereco', 'label' => 'Endereço da empresa', 'ok' => (bool) $empresa->endereco];
+            $itens[] = ['chave' => 'configuracoes', 'label' => 'Configurações da empresa', 'ok' => (bool) $empresa->configuracoes];
+            $itens[] = ['chave' => 'whatsapp_pedidos', 'label' => 'WhatsApp para pedidos', 'ok' => $empresa->configuracoes ? !empty($empresa->configuracoes->whatsapp_pedidos) : false];
+            $itens[] = ['chave' => 'formas_pagamento', 'label' => 'Pelo menos uma forma de pagamento', 'ok' => !$empresa->formasPagamentos->isEmpty()];
+            $itens[] = ['chave' => 'horarios', 'label' => 'Horários de funcionamento', 'ok' => !$empresa->horarios->isEmpty()];
+            $itens[] = ['chave' => 'bairros_entrega', 'label' => 'Pelo menos um bairro de entrega', 'ok' => !$empresa->bairrosEntregas->isEmpty()];
 
-            // Verifica se existe endereço
-            if (!$empresa->endereco) {
-                $cadastroCompleto = false;
-            }
-
-            // Verifica se existe configurações
-            if (!$empresa->configuracoes) {
-                $cadastroCompleto = false;
-            } else {
-                // Verifica se o WhatsApp de pedidos está preenchido (essencial para receber pedidos)
-                if (empty($empresa->configuracoes->whatsapp_pedidos)) {
-                    $cadastroCompleto = false;
-                }
-            }
-
-            // Verifica se existe pelo menos uma forma de pagamento
-            if ($empresa->formasPagamentos->isEmpty()) {
-                $cadastroCompleto = false;
-            }
-
-            // Verifica se existe pelo menos um horário
-            if ($empresa->horarios->isEmpty()) {
-                $cadastroCompleto = false;
-            }
-
-            // Verifica se existe pelo menos um bairro de entrega
-            if ($empresa->bairrosEntregas->isEmpty()) {
-                $cadastroCompleto = false;
-            }
+            $total = count($itens);
+            $ok = collect($itens)->where('ok', true)->count();
+            $percentual = $total > 0 ? (int) round(($ok / $total) * 100) : 0;
+            $itens_pendentes = collect($itens)->where('ok', false)->pluck('label')->values()->all();
+            $cadastroCompleto = $percentual === 100;
 
             return response()->json([
                 'success' => true,
                 'cadastro_completo' => $cadastroCompleto,
+                'percentual' => $percentual,
+                'itens_pendentes' => $itens_pendentes,
                 'empresa_id' => $empresa->id,
                 'empresa_nome' => $empresa->nome_fantasia ?? $empresa->razao_social
             ]);

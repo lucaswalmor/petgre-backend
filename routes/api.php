@@ -125,6 +125,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rotas de empresas
     Route::controller(EmpresaController::class)->prefix('empresa')->group(function () {
         Route::get('/{id}/verificar-cadastro', 'verificarCadastro')->middleware('check.permission:empresas.verificar_cadastro');
+        Route::get('/{id}/status', 'status')->middleware('check.permission:empresas.show');
         Route::get('/{empresaId}/bairros-disponiveis', 'bairrosDisponiveis')->middleware('check.permission:empresas.show');
         Route::put('/{id}', 'update')->middleware('check.permission:empresas.update');
         Route::get('/{id}', 'show')->middleware('check.permission:empresas.show');
