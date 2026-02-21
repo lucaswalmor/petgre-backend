@@ -14,6 +14,7 @@ class PushNotificationService
         $publicKey = config('services.webpush.vapid_public');
         $privateKey = config('services.webpush.vapid_private');
         if (!$publicKey || !$privateKey) {
+            \Illuminate\Support\Facades\Log::warning('Push: VAPID keys não configuradas no .env (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY).');
             return;
         }
 
@@ -59,8 +60,14 @@ class PushNotificationService
         }
 
         foreach ($webPush->flush() as $report) {
-            if (!$report->isSuccess() && $report->isSubscriptionExpired()) {
-                PushSubscription::where('endpoint', $report->getEndpoint())->delete();
+            if (!$report->isSuccess()) {
+                \Illuminate\Support\Facades\Log::warning('Push falhou', [
+                    'endpoint' => $report->getEndpoint(),
+                    'reason' => $report->getReason(),
+                ]);
+                if ($report->isSubscriptionExpired()) {
+                    PushSubscription::where('endpoint', $report->getEndpoint())->delete();
+                }
             }
         }
     }

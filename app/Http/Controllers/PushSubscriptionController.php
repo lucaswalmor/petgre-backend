@@ -26,14 +26,14 @@ class PushSubscriptionController extends Controller
         ]);
 
         $user = Auth::user();
-        PushSubscription::updateOrCreate(
-            ['endpoint' => $request->endpoint],
-            [
-                'usuario_id' => $user->id,
-                'public_key' => $request->keys['p256dh'],
-                'auth_token' => $request->keys['auth'],
-            ]
-        );
+        // Uma subscription por usuário (evita duplicata ao reativar em outra aba ou mesmo navegador)
+        PushSubscription::where('usuario_id', $user->id)->delete();
+        PushSubscription::create([
+            'usuario_id' => $user->id,
+            'endpoint' => $request->endpoint,
+            'public_key' => $request->keys['p256dh'],
+            'auth_token' => $request->keys['auth'],
+        ]);
 
         return response()->json(['success' => true]);
     }
