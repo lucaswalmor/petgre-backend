@@ -256,7 +256,7 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 
 | Comando | Descrição |
 |--------|-----------|
-| **backup:database** | Gera dump MySQL (mysqldump), envia o arquivo .sql para o disco R2 em `backups/{database}_{date}.sql` e remove o arquivo local. Agendado diariamente às 02:00 em `routes/console.php`. Em produção é necessário configurar o cron: `* * * * * php /caminho/artisan schedule:run`. No Windows com Laragon, o comando detecta automaticamente o `mysqldump` em `C:\laragon\bin\mysql\*`. |
+| **backup:database** | Gera dump MySQL (mysqldump), envia o arquivo .sql para o disco R2 em `backups/{APP_NAME_slug}/{database}_{date}.sql` (a pasta usa o nome da aplicação do `.env` para diferenciar projetos). Remove o arquivo local após envio. Agendado diariamente às 02:00 em `routes/console.php`. Em produção é necessário configurar o cron: `* * * * * php /caminho/artisan schedule:run`. No Windows com Laragon, o comando detecta automaticamente o `mysqldump` em `C:\laragon\bin\mysql\*`. |
 
 ---
 

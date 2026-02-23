@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class BackupDatabase extends Command
 {
@@ -18,7 +19,8 @@ class BackupDatabase extends Command
         $host = config('database.connections.mysql.host', '127.0.0.1');
 
         $date = now()->format('Y-m-d_H-i-s');
-        $fileName = "backups/{$database}_{$date}.sql";
+        $projectSlug = Str::slug(config('app.name', 'laravel'));
+        $fileName = "backups/{$projectSlug}/{$database}_{$date}.sql";
         $localPath = storage_path("app/{$database}_{$date}.sql");
 
         // Arquivo temporário com senha (evita senha no comando / process list)
