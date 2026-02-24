@@ -85,15 +85,15 @@ class UsuarioControllerTest extends TestCase
     }
 
     /**
-     * POST /api/usuarios (cliente público) - sucesso
+     * Payload válido para POST /api/usuarios (cliente – campos conforme Postman).
      */
-    public function test_store_cliente_publico_sucesso(): void
+    private function payloadClienteValido(?string $email = null): array
     {
-        $payload = [
+        $email = $email ?? 'cliente' . uniqid() . '@example.com';
+        return [
             'nome' => 'Cliente Teste',
-            'email' => 'cliente@example.com',
+            'email' => $email,
             'password' => 'senhaSegura123',
-            'password_confirmation' => 'senhaSegura123',
             'telefone' => '34999999999',
             'endereco' => [
                 'cep' => '38400-000',
@@ -104,6 +104,29 @@ class UsuarioControllerTest extends TestCase
                 'estado' => 'MG',
             ],
         ];
+    }
+
+    /**
+     * Payload válido para POST /api/usuarios/criar-funcionario (campos conforme Postman).
+     */
+    private function payloadFuncionarioValido(int $empresaId, array $permissaoIds, ?string $email = null): array
+    {
+        $email = $email ?? 'funcionario' . uniqid() . '@example.com';
+        return [
+            'nome' => 'Funcionario Teste',
+            'email' => $email,
+            'telefone' => '34999999999',
+            'empresa_id' => $empresaId,
+            'permissoes' => $permissaoIds,
+        ];
+    }
+
+    /**
+     * POST /api/usuarios (cliente público) - sucesso
+     */
+    public function test_store_cliente_publico_sucesso(): void
+    {
+        $payload = $this->payloadClienteValido('cliente@example.com');
 
         $response = $this->postJson('/api/usuarios', $payload);
 
@@ -162,21 +185,8 @@ class UsuarioControllerTest extends TestCase
             'tipo_cadastro' => 1,
         ]);
 
-        $payload = [
-            'nome' => 'Outro Cliente',
-            'email' => 'cliente@example.com',
-            'password' => 'senhaSegura123',
-            'password_confirmation' => 'senhaSegura123',
-            'telefone' => '34999999999',
-            'endereco' => [
-                'cep' => '38400-000',
-                'rua' => 'Rua Teste',
-                'numero' => '123',
-                'bairro' => 'Centro',
-                'cidade' => 'Uberlândia',
-                'estado' => 'MG',
-            ],
-        ];
+        $payload = $this->payloadClienteValido('cliente@example.com');
+        $payload['nome'] = 'Outro Cliente';
 
         $response = $this->postJson('/api/usuarios', $payload);
 
@@ -212,16 +222,9 @@ class UsuarioControllerTest extends TestCase
         ]);
 
         $permissao = Permissao::first();
-
         Sanctum::actingAs($lojista);
 
-        $payload = [
-            'nome' => 'Funcionario Teste',
-            'email' => 'funcionario@example.com',
-            'telefone' => '34999999999',
-            'empresa_id' => $empresa->id,
-            'permissoes' => [$permissao->id],
-        ];
+        $payload = $this->payloadFuncionarioValido($empresa->id, [$permissao->id], 'funcionario@example.com');
 
         $response = $this->postJson('/api/usuarios', $payload);
 
@@ -274,21 +277,46 @@ class UsuarioControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         $this->criarPermissaoDashboard();
         $permissao = Permissao::first();
-
         Sanctum::actingAs($lojista);
 
-        $response = $this->postJson('/api/usuarios/criar-funcionario', [
-            'nome' => 'Funcionario Teste',
-            'email' => 'funcionario@example.com',
-            'telefone' => '34999999999',
-            'empresa_id' => $empresaOutra->id,
-            'permissoes' => [$permissao->id],
-        ]);
+        $payload = $this->payloadFuncionarioValido($empresaOutra->id, [$permissao->id], 'funcionario@example.com');
+        $response = $this->postJson('/api/usuarios/criar-funcionario', $payload);
 
         $response->assertStatus(403)
             ->assertJsonFragment([
                 'error' => 'Acesso negado',
             ]);
+    }
+
+    /**
+     * POST /api/usuarios/criar-funcionario - 422 quando dados inválidos (email, nome, permissoes inexistentes).
+     */
+    public function test_store_funcionario_dados_invalidos_retorna_422(): void
+    {
+        [$lojista, $empresa] = $this->criarLojistaComEmpresa(true);
+        $this->criarPermissaoDashboard();
+        $permissao = Permissao::first();
+        Sanctum::actingAs($lojista);
+
+        $response = $this->postJson('/api/usuarios/criar-funcionario', [
+            'nome' => '',
+            'email' => 'email-invalido',
+            'telefone' => '',
+            'empresa_id' => $empresa->id,
+            'permissoes' => [99999], // id de permissão inexistente
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonFragment([
+                'success' => false,
+                'message' => 'Dados inválidos. Verifique os erros abaixo.',
+            ])
+            ->assertJsonStructure(['errors']);
+        $errors = $response->json('errors');
+        $this->assertTrue(
+            isset($errors['nome']) || isset($errors['email']) || isset($errors['telefone']) || isset($errors['permissoes.0']),
+            'Deve haver erro em pelo menos um campo obrigatório ou formato'
+        );
     }
 
     /**
@@ -467,6 +495,65 @@ class UsuarioControllerTest extends TestCase
                 'message' => 'Dados inválidos. Verifique os erros abaixo.',
             ])
             ->assertJsonPath('errors.permissoes.0', 'Não é possível alterar as permissões de um usuário master.');
+    }
+
+    /**
+     * PUT /api/usuarios/{id} - 422 quando dados inválidos (nome vazio, email inválido, senha curta, permissoes inexistentes).
+     */
+    public function test_update_usuario_dados_invalidos_retorna_422(): void
+    {
+        [$lojista, $empresa] = $this->criarLojistaComEmpresa(true);
+        $usuario = User::factory()->create(['tipo_cadastro' => 0]);
+        $this->vincularUsuarioEmpresa($usuario, $empresa);
+        Sanctum::actingAs($lojista);
+
+        $response = $this->putJson("/api/usuarios/{$usuario->id}", [
+            'nome' => '',
+            'email' => 'email-invalido',
+            'password' => '123',
+            'telefone' => '',
+            'permissoes' => [99999],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonFragment([
+                'success' => false,
+                'message' => 'Dados inválidos. Verifique os erros abaixo.',
+            ])
+            ->assertJsonStructure(['errors']);
+        $errors = $response->json('errors');
+        $this->assertTrue(
+            isset($errors['nome']) || isset($errors['email']) || isset($errors['password']) || isset($errors['telefone']) || isset($errors['permissoes.0']),
+            'Deve haver erro em pelo menos um campo enviado com valor inválido'
+        );
+    }
+
+    /**
+     * PUT /api/usuarios/{id} - 422 quando email já usado por outro usuário do mesmo tipo_cadastro.
+     */
+    public function test_update_email_duplicado_retorna_422(): void
+    {
+        [$lojista, $empresa] = $this->criarLojistaComEmpresa(true);
+        $outro = User::factory()->create([
+            'email' => 'outro@example.com',
+            'tipo_cadastro' => 0,
+        ]);
+        $this->vincularUsuarioEmpresa($outro, $empresa);
+
+        $usuario = User::factory()->create([
+            'email' => 'usuario@example.com',
+            'tipo_cadastro' => 0,
+        ]);
+        $this->vincularUsuarioEmpresa($usuario, $empresa);
+        Sanctum::actingAs($lojista);
+
+        $response = $this->putJson("/api/usuarios/{$usuario->id}", [
+            'email' => 'outro@example.com',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonFragment(['success' => false])
+            ->assertJsonPath('errors.email.0', 'Este email já está sendo usado por outro usuário.');
     }
 
     /**
