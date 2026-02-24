@@ -1,0 +1,3 @@
+php artisan test
+php artisan test tests/Feature/UsuarioControllerTest.php
+php artisan test tests/Feature/EmpresaControllerTest.php

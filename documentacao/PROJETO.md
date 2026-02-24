@@ -265,4 +265,4 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 - **auth:sanctum** — Exige token válido.
 - **check.permission:slug** — Exige que o usuário tenha a permissão (ou seja master). Usado nas rotas do painel lojista.
 
-As rotas exatas estão em `routes/api.php`; para testes use a coleção Postman do projeto.
+As rotas exatas estão em `routes/api.php`; para testes manuais use a coleção Postman do projeto. Testes automatizados de API: `UsuarioControllerTest`, `EmpresaControllerTest` (Feature).
