@@ -18,10 +18,12 @@ return new class extends Migration
 
             // Renomear cnpj para cpf_cnpj
             $table->renameColumn('cnpj', 'cpf_cnpj');
-
-            // Adicionar comentário na tabela
-            DB::statement("ALTER TABLE empresas COMMENT 'tipo_pessoa: 0 = Pessoa Jurídica (CNPJ), 1 = Pessoa Física (CPF)'");
         });
+
+        // Comentário na tabela (apenas MySQL; SQLite não suporta COMMENT)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE empresas COMMENT 'tipo_pessoa: 0 = Pessoa Jurídica (CNPJ), 1 = Pessoa Física (CPF)'");
+        }
     }
 
     /**
@@ -29,10 +31,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('empresas', function (Blueprint $table) {
-            // Remover comentário da tabela
+        if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE empresas COMMENT ''");
+        }
 
+        Schema::table('empresas', function (Blueprint $table) {
             // Renomear cpf_cnpj de volta para cnpj
             $table->renameColumn('cpf_cnpj', 'cnpj');
 

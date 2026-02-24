@@ -89,6 +89,13 @@ class UsuarioController extends Controller
      */
     public function store(UsuarioStoreRequest $request)
     {
+        if ($request->has('empresa_id') && $request->empresa_id && Auth::check() && !VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int) $request->empresa_id)) {
+            return response()->json([
+                'error' => 'Acesso negado',
+                'message' => 'Você não tem permissão para criar funcionários nesta empresa.',
+            ], 403);
+        }
+
         DB::beginTransaction();
         try {
             $isFuncionario = $request->has('empresa_id') && $request->empresa_id && $request->has('permissoes') && is_array($request->permissoes);

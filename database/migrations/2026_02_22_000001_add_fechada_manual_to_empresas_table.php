@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('empresas', 'fechada_manual')) {
+            return;
+        }
         Schema::table('empresas', function (Blueprint $table) {
             $table->boolean('fechada_manual')->default(false)->after('ativo');
         });

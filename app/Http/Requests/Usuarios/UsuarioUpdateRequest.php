@@ -55,7 +55,7 @@ class UsuarioUpdateRequest extends FormRequest
                 'email',
                 'max:255',
                 function ($attribute, $value, $fail) {
-                    $usuarioId = $this->route('usuario');
+                    $usuarioId = $this->route('id');
                     $usuario = User::find($usuarioId);
 
                     if ($usuario) {
@@ -123,7 +123,7 @@ class UsuarioUpdateRequest extends FormRequest
         $validator->after(function ($validator) {
             // Verificar se está tentando alterar permissões de usuário master
             if ($this->has('permissoes')) {
-                $usuario = User::find($this->route('usuario'));
+                $usuario = User::find($this->route('id'));
 
                 if ($usuario && $usuario->isMaster()) {
                     $validator->errors()->add('permissoes', 'Não é possível alterar as permissões de um usuário master.');
