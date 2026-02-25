@@ -18,6 +18,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
+storage/app/production_dump_*.sql
 /vendor
 Homestead.json
 Homestead.yaml
