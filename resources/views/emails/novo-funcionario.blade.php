@@ -12,14 +12,10 @@
             <td align="center">
                 <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.1); overflow:hidden;">
 
-                    <!-- Header com Logo -->
+                    <!-- Header -->
                     <tr>
                         <td align="center" style="padding:40px 40px 20px 40px;">
-                            @if($logoBase64)
-                                <img src="{{ $logoBase64 }}" alt="PetGre" width="140" style="display:block; margin:0 auto 20px auto;">
-                            @else
-                                <h1 style="color:#3b82f6; font-size:28px; margin:0 0 20px 0;">PetGre</h1>
-                            @endif
+                            <h1 style="color:#3b82f6; font-size:28px; margin:0 0 20px 0;">PetGre</h1>
                             <h1 style="color:#1f2937; font-size:26px; font-weight:700; margin:0 0 8px 0;">👋 Bem-vindo à Equipe!</h1>
                             <p style="color:#6b7280; font-size:15px; margin:0;">Olá, {{ $usuario->nome }}!</p>
                             <p style="color:#6b7280; font-size:15px; margin:8px 0 0 0;">Você foi adicionado à equipe da {{ $empresa->nome_fantasia }}</p>

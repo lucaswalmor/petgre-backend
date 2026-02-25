@@ -27,7 +27,7 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 | `show` | GET /api/usuarios/{id} | Detalhes de um usuário (mesma empresa). Permissão: usuarios.show. |
 | `update` | PUT /api/usuarios/{id} | Atualiza nome, email, telefone, ativo, senha e permissões. Permissão: usuarios.update. |
 | `destroy` | DELETE /api/usuarios/{id} | Soft delete (não permite deletar a si mesmo nem master). Permissão: usuarios.destroy. |
-| `alterarSenhaPrimeiroLogin` | PUT /api/usuarios/alterar-senha-primeiro-login | Troca de senha no primeiro login (funcionário). Requer auth. |
+| `alterarSenhaPrimeiroLogin` | PUT /api/usuarios/alterar-senha-primeiro-login | Troca de senha no primeiro login (funcionário). Requer auth. Após sucesso, envia email de confirmação (PasswordChangedMail) via EmailService — o email não contém a senha, apenas avisa que a troca foi concluída. |
 | `enviarCodigoRecuperacao` | POST /api/change-password/send-code | Envia código de 6 dígitos por e-mail para recuperação de senha. |
 | `verificarCodigoRecuperacao` | POST /api/change-password/verify-code | Valida o código antes de permitir alterar senha. |
 | `alterarSenhaPublico` | POST /api/change-password | Altera senha usando e-mail + token de recuperação. |

@@ -505,6 +505,8 @@ class UsuarioController extends Controller
             'primeiro_login' => false,
         ]);
 
+        app(EmailService::class)->sendMailable($usuario->email, new PasswordChangedMail($usuario));
+
         $usuario->load(['permissoes', 'empresas', 'enderecos']);
 
         return response()->json([

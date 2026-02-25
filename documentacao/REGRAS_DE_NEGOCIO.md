@@ -9,7 +9,7 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 - **Login duplo:** o login exige `tipo_login` (lojista ou cliente). O backend valida que o usuário tenha `tipo_cadastro` correspondente (0 = lojista, 1 = cliente). Mesmo e-mail pode ter as duas contas; o token e os dados retornados dependem do tipo.
 - **Lojista:** retorna user com permissoes, empresas e menu (sidebar filtrado por permissão). Cliente retorna user com enderecos.
 - **Conta inativa:** usuário com ativo = false não pode fazer login (retorno 403).
-- **Primeiro login (funcionário):** usuário criado como funcionário (empresa_id + permissoes) vem com primeiro_login = true e senha temporária por e-mail. No painel lojista, deve alterar a senha antes de acessar o restante; PUT /api/usuarios/alterar-senha-primeiro-login zera primeiro_login.
+- **Primeiro login (funcionário):** usuário criado como funcionário (empresa_id + permissoes) vem com primeiro_login = true e senha temporária por e-mail. No painel lojista, deve alterar a senha antes de acessar o restante; PUT /api/usuarios/alterar-senha-primeiro-login zera primeiro_login. Após trocar a senha com sucesso, o usuário recebe um email de confirmação (PasswordChangedMail via EmailService) apenas avisando que a troca foi concluída — a senha não é enviada no email.
 - **Recuperação de senha:** código de 6 dígitos, expiração (ex.: 15 min), uso único. Fluxo: send-code → verify-code → change-password.
 
 ---

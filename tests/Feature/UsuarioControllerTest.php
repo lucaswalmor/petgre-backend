@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Helpers\VerificaEmpresa;
+use App\Mail\PasswordChangedMail;
 use App\Models\Empresa;
 use App\Models\PasswordReset;
 use App\Models\Permissao;
@@ -11,6 +12,7 @@ use App\Models\UsuarioEmpresas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -827,10 +829,12 @@ class UsuarioControllerTest extends TestCase
     }
 
     /**
-     * PUT /api/usuarios/alterar-senha-primeiro-login - sucesso
+     * PUT /api/usuarios/alterar-senha-primeiro-login - sucesso e envia email de confirmação
      */
     public function test_alterar_senha_primeiro_login_sucesso(): void
     {
+        Mail::fake();
+
         [$lojista, $empresa] = $this->criarLojistaComEmpresa(true);
 
         $funcionario = User::factory()->create([
@@ -855,6 +859,10 @@ class UsuarioControllerTest extends TestCase
         $funcionario->refresh();
         $this->assertFalse($funcionario->primeiro_login);
         $this->assertTrue(Hash::check('novaSenha123', $funcionario->password));
+
+        Mail::assertSent(PasswordChangedMail::class, function ($mail) use ($funcionario) {
+            return $mail->usuario->id === $funcionario->id;
+        });
     }
 
     /**
