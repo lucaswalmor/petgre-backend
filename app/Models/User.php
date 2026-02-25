@@ -131,6 +131,14 @@ class User extends Authenticatable
         return $this->tipo_cadastro === 1;
     }
 
+    /**
+     * Retorna a primeira empresa ativa do usuário (para lojistas).
+     */
+    public function empresaUsuarioAtivo()
+    {
+        return $this->empresas()->where('ativo', true)->first();
+    }
+
     // Relação com avaliações feitas pelo usuário
     public function avaliacoes()
     {

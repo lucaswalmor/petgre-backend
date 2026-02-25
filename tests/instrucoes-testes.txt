@@ -3,3 +3,15 @@ php artisan test tests/Feature/UsuarioControllerTest.php
 php artisan test tests/Feature/EmpresaControllerTest.php
 php artisan test tests/Feature/ProdutoControllerTest.php
 php artisan test tests/Feature/PausasAgendadasControllerTest.php
+php artisan test tests/Feature/PedidoControllerTest.php
+php artisan test tests/Feature/AuthControllerTest.php
+php artisan test tests/Feature/PermissaoControllerTest.php
+php artisan test tests/Feature/FaqControllerTest.php
+php artisan test tests/Feature/DashboardControllerTest.php
+php artisan test tests/Feature/UsuarioEnderecosControllerTest.php
+php artisan test tests/Feature/EmpresaFavoritoControllerTest.php
+php artisan test tests/Feature/EmpresaAvaliacaoControllerTest.php
+php artisan test tests/Feature/EmpresaCuponsControllerTest.php
+php artisan test tests/Feature/UsuarioLogControllerTest.php
+php artisan test tests/Feature/SiteClienteControllerTest.php
+php artisan test tests/Feature/PushSubscriptionControllerTest.php
