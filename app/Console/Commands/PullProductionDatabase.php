@@ -45,15 +45,17 @@ class PullProductionDatabase extends Command
 
         $passwordFlag = $prodPassword ? "-p" . escapeshellarg($prodPassword) : '';
 
+        $stderrRedirect = PHP_OS_FAMILY === 'Windows' ? '2>nul' : '2>/dev/null';
         $dumpCommand = sprintf(
-            '%s -h %s -P %s -u %s %s --single-transaction --no-tablespaces %s > %s 2>&1',
+            '%s -h %s -P %s -u %s %s --single-transaction --no-tablespaces %s > %s %s',
             $mysqldump,
             escapeshellarg($prodHost),
             escapeshellarg($prodPort),
             escapeshellarg($prodUser),
             $passwordFlag,
             escapeshellarg($prodDatabase),
-            escapeshellarg($dumpFile)
+            escapeshellarg($dumpFile),
+            $stderrRedirect
         );
 
         exec($dumpCommand, $output, $returnCode);
@@ -72,22 +74,43 @@ class PullProductionDatabase extends Command
         }
 
         // ── 2. CONFIRMAÇÃO ───────────────────────────────────────────────────
-        $localDatabase = env('DB_DATABASE');
-        if (!$this->confirm("⚠️  Isso vai SOBRESCREVER o banco local '{$localDatabase}'. Continuar?")) {
+        // Importamos sempre para um banco com o MESMO NOME da produção no localhost (ex: lksoft04_pet).
+        // Assim o banco de desenvolvimento (DB_DATABASE, ex: petgre) permanece intacto.
+        $importTargetDb = $prodDatabase;
+        $localDevDb     = env('DB_DATABASE');
+        if (!$this->confirm("⚠️  Será criado/sobrescrito o banco '{$importTargetDb}' no localhost com os dados de produção. O banco '{$localDevDb}' (seu desenvolvimento) NÃO será alterado. Continuar?")) {
             $this->warn('Operação cancelada.');
             @unlink($dumpFile);
             return Command::SUCCESS;
         }
 
-        // ── 3. IMPORTAR LOCAL ────────────────────────────────────────────────
-        $this->info('💾 Importando no banco local...');
-
-        $mysql      = $this->getMysqlPath();
-        $localUser  = env('DB_USERNAME');
+        // ── 3. CRIAR BANCO (nome de produção) NO LOCALHOST SE NÃO EXISTIR ─────
+        $mysql         = $this->getMysqlPath();
+        $localUser     = env('DB_USERNAME');
         $localPassword = env('DB_PASSWORD');
-        $localHost   = env('DB_HOST', '127.0.0.1');
-        $localPort   = env('DB_PORT', 3306);
+        $localHost     = env('DB_HOST', '127.0.0.1');
+        $localPort     = env('DB_PORT', 3306);
         $localPassFlag = $localPassword ? "-p" . escapeshellarg($localPassword) : '';
+
+        $createDbSql = 'CREATE DATABASE IF NOT EXISTS `' . str_replace('`', '``', $importTargetDb) . '`';
+        $createDbCommand = sprintf(
+            '%s -h %s -P %s -u %s %s -e %s 2>&1',
+            $mysql,
+            escapeshellarg($localHost),
+            escapeshellarg($localPort),
+            escapeshellarg($localUser),
+            $localPassFlag,
+            escapeshellarg($createDbSql)
+        );
+        exec($createDbCommand, $createDbOut, $createDbCode);
+        if ($createDbCode !== 0) {
+            $this->error('Falha ao criar banco no localhost. Saída: ' . implode("\n", $createDbOut));
+            return Command::FAILURE;
+        }
+        $this->line('Banco "' . $importTargetDb . '" no localhost garantido (criado se não existia).');
+
+        // ── 4. IMPORTAR NO BANCO (MESMO NOME DA PRODUÇÃO) NO LOCALHOST ─────────
+        $this->info('💾 Importando no banco local "' . $importTargetDb . '"...');
 
         $importCommand = sprintf(
             '%s -h %s -P %s -u %s %s %s < %s 2>&1',
@@ -96,7 +119,7 @@ class PullProductionDatabase extends Command
             escapeshellarg($localPort),
             escapeshellarg($localUser),
             $localPassFlag,
-            escapeshellarg($localDatabase),
+            escapeshellarg($importTargetDb),
             escapeshellarg($dumpFile)
         );
 
@@ -107,18 +130,13 @@ class PullProductionDatabase extends Command
             return Command::FAILURE;
         }
 
-        // ── 4. LIMPEZA ───────────────────────────────────────────────────────
+        // ── 5. LIMPEZA ───────────────────────────────────────────────────────
         if (!$this->option('no-clean')) {
             @unlink($dumpFile);
             $this->line('🗑  Arquivo de dump removido.');
         }
 
-        $this->info('✅ Banco de produção importado com sucesso no ambiente local!');
-
-        // ── 5. OPCIONAL: rodar migrations pendentes ──────────────────────────
-        if ($this->confirm('Deseja rodar as migrations pendentes agora?', false)) {
-            $this->call('migrate');
-        }
+        $this->info('✅ Dados de produção importados no banco "' . $importTargetDb . '" no localhost. O banco "' . $localDevDb . '" (desenvolvimento) permanece intacto.');
 
         return Command::SUCCESS;
     }
