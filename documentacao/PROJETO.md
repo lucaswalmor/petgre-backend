@@ -48,6 +48,8 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 | `statusManual` | PUT /api/empresa/{id}/status-manual | Fecha ou abre loja manualmente (body: fechada_manual boolean). Permissão: empresas.update. |
 | `bairrosDisponiveis` | GET /api/empresa/{empresaId}/bairros-disponiveis | Bairros da cidade da empresa para entrega. Permissão: empresas.show. |
 
+- **Slug da empresa:** gerado automaticamente a partir do nome fantasia (ou razão social) em `store` e `update`. Se já existir empresa com o mesmo slug, é adicionado um sufixo aleatório de 8 caracteres (ex.: `lucas-steinbach` → `lucas-steinbach-a1b2c3d4`) para garantir unicidade.
+
 ---
 
 ### ProdutoController

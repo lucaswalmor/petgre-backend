@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Helpers\VerificaEmpresa;
 use App\Services\EmailService;
 use App\Mail\NovoLojistaMail;
+use Illuminate\Support\Str;
 
 class EmpresaController extends Controller
 {
@@ -63,7 +64,13 @@ class EmpresaController extends Controller
 
             // Gera o slug automaticamente baseado no nome fantasia ou razão social
             $textoParaSlug = $dadosEmpresa['nome_fantasia'] ?? $dadosEmpresa['razao_social'];
-            $dadosEmpresa['slug'] = FormatHelper::formatSlug($textoParaSlug);
+            $slugBase = FormatHelper::formatSlug($textoParaSlug);
+            $dadosEmpresa['slug'] = $slugBase;
+            if (Empresa::where('slug', $dadosEmpresa['slug'])->exists()) {
+                do {
+                    $dadosEmpresa['slug'] = $slugBase . '-' . Str::random(8);
+                } while (Empresa::where('slug', $dadosEmpresa['slug'])->exists());
+            }
             $dadosEmpresa['telefone'] = FormatHelper::formatOnlyNumbers($dadosEmpresa['telefone']);
 
             // Cria a empresa
@@ -364,7 +371,14 @@ class EmpresaController extends Controller
             // Se foi enviado um novo nome fantasia ou razão social, gera novo slug
             if (isset($dadosEmpresa['nome_fantasia']) || isset($dadosEmpresa['razao_social'])) {
                 $textoParaSlug = $dadosEmpresa['nome_fantasia'] ?? $empresa->nome_fantasia ?? $dadosEmpresa['razao_social'] ?? $empresa->razao_social;
-                $dadosEmpresa['slug'] = FormatHelper::formatSlug($textoParaSlug);
+                $slugBase = FormatHelper::formatSlug($textoParaSlug);
+                $dadosEmpresa['slug'] = $slugBase;
+                $slugExiste = fn ($s) => Empresa::where('slug', $s)->where('id', '!=', $empresa->id)->exists();
+                if ($slugExiste($dadosEmpresa['slug'])) {
+                    do {
+                        $dadosEmpresa['slug'] = $slugBase . '-' . Str::random(8);
+                    } while ($slugExiste($dadosEmpresa['slug']));
+                }
             }
 
             // Formata telefone se foi enviado
