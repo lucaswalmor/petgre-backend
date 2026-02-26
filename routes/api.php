@@ -162,11 +162,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Chamados (admin/desenvolvedor - validação desenvolvedor no controller)
     Route::controller(ChamadosController::class)->prefix('chamados')->group(function () {
         Route::get('/', 'index');
-        Route::patch('/concluir-lote', 'concluirLote');
+        Route::put('/concluir-lote', 'concluirLote');
         Route::delete('/excluir-lote', 'excluirLote');
         Route::get('/{id}', 'show');
         Route::post('/{id}/responder', 'responder');
-        Route::patch('/{id}/concluir', 'concluir');
+        Route::put('/{id}/concluir', 'concluir');
         Route::delete('/{id}', 'destroy');
     });
 
