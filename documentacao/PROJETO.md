@@ -174,6 +174,33 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 
 ---
 
+### TicketController (Lojista — Chamados)
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `index` | GET /api/tickets | Lista tickets da empresa do usuário (por empresa_id; qualquer usuário da empresa vê os chamados). Paginação: page, per_page. Auth. |
+| `store` | POST /api/tickets | Abre novo ticket (subject, body). Cria primeira mensagem (tipo_remetente cliente), envia e-mail para usuários com desenvolvedor=1. Auth. |
+| `show` | GET /api/tickets/{id} | Detalhes do ticket com mensagens. Valida por empresa_id. Auth. |
+| `storeMessage` | POST /api/tickets/{id}/messages | Adiciona mensagem do cliente (body). Valida por empresa_id; status não fechado. Auth. |
+
+---
+
+### ChamadosController (Admin / Desenvolvedor)
+
+Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações validam essa condição no controller.
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `index` | GET /api/chamados | Lista todos os tickets. Filtros: status, empresa (nome), data_inicio, data_fim. Paginação: page, per_page. |
+| `show` | GET /api/chamados/{id} | Detalhes do ticket com mensagens. |
+| `responder` | POST /api/chamados/{id}/responder | Responde ao ticket (mensagem). Atualiza status para respondido; envia e-mail ao cliente. |
+| `concluir` | PATCH /api/chamados/{id}/concluir | Altera status do ticket para fechado. |
+| `destroy` | DELETE /api/chamados/{id} | Exclui o ticket (e mensagens em cascade). |
+| `concluirLote` | PATCH /api/chamados/concluir-lote | Conclui múltiplos tickets. Body: { ids: number[] }. |
+| `excluirLote` | DELETE /api/chamados/excluir-lote | Exclui múltiplos tickets. Body: { ids: number[] }. |
+
+---
+
 ### UsuarioLogController
 
 | Método | Função | Descrição |

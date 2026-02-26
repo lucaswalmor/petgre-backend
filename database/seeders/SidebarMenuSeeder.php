@@ -18,8 +18,10 @@ class SidebarMenuSeeder extends Seeder
             ['chave' => 'painel.pedidos', 'label' => 'Painel de Pedidos', 'path' => '/dashboard/painel-pedidos', 'icon' => 'pi pi-th-large', 'permission_slug' => 'painel.pedidos', 'parent_id' => null, 'ordem' => 2],
             ['chave' => 'pedidos', 'label' => 'Pedidos', 'path' => '/dashboard/pedidos', 'icon' => 'pi pi-shopping-cart', 'permission_slug' => 'pedidos.index', 'parent_id' => null, 'ordem' => 3],
             ['chave' => 'avaliacoes', 'label' => 'Avaliações', 'path' => '/dashboard/avaliacoes', 'icon' => 'pi pi-star', 'permission_slug' => 'avaliacoes.index', 'parent_id' => null, 'ordem' => 4],
-            ['chave' => 'cadastros', 'label' => 'Cadastros', 'path' => null, 'icon' => 'pi pi-folder', 'permission_slug' => null, 'parent_id' => null, 'ordem' => 5],
-            ['chave' => 'configuracoes', 'label' => 'Configurações', 'path' => null, 'icon' => 'pi pi-cog', 'permission_slug' => null, 'parent_id' => null, 'ordem' => 6],
+            ['chave' => 'tickets', 'label' => 'Meus Chamados', 'path' => '/dashboard/tickets', 'icon' => 'pi pi-ticket', 'permission_slug' => 'tickets.index', 'parent_id' => null, 'ordem' => 5],
+            ['chave' => 'chamados', 'label' => 'Chamados', 'path' => '/dashboard/chamados', 'icon' => 'pi pi-headphones', 'permission_slug' => 'administrador', 'parent_id' => null, 'ordem' => 6],
+            ['chave' => 'cadastros', 'label' => 'Cadastros', 'path' => null, 'icon' => 'pi pi-folder', 'permission_slug' => null, 'parent_id' => null, 'ordem' => 7],
+            ['chave' => 'configuracoes', 'label' => 'Configurações', 'path' => null, 'icon' => 'pi pi-cog', 'permission_slug' => null, 'parent_id' => null, 'ordem' => 8],
         ];
 
         foreach ($itens as $item) {

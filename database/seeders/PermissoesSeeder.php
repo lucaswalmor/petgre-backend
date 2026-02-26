@@ -16,6 +16,9 @@ class PermissoesSeeder extends Seeder
         $timestamp = now();
 
         $permissoes = [
+            // Administrador (chamados / suporte)
+            ['nome' => 'Administrador',         'slug' => 'administrador'],
+
             // Sistema
             ['nome' => 'Acesso Total',           'slug' => 'sistema.acesso_total'],
 
@@ -68,6 +71,12 @@ class PermissoesSeeder extends Seeder
             ['nome' => 'Criar Pausas Agendadas',   'slug' => 'pausas_agendadas.store'],
             ['nome' => 'Editar Pausas Agendadas',  'slug' => 'pausas_agendadas.update'],
             ['nome' => 'Deletar Pausas Agendadas', 'slug' => 'pausas_agendadas.destroy'],
+
+            // Tickets (lojista - chamados)
+            ['nome' => 'Listar Chamados',        'slug' => 'tickets.index'],
+            ['nome' => 'Abrir Chamado',          'slug' => 'tickets.store'],
+            ['nome' => 'Visualizar Chamado',     'slug' => 'tickets.show'],
+            ['nome' => 'Responder Chamado',      'slug' => 'tickets.messages'],
         ];
 
         $slugsDoSeeder = array_column($permissoes, 'slug');

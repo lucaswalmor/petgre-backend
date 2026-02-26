@@ -2194,6 +2194,120 @@
 			]
 		},
 		{
+			"name": "Tickets (Lojista)",
+			"item": [
+				{
+					"name": "Listar Meus Chamados",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}],
+						"url": {"raw": "{{base_url}}/api/tickets?page=1&per_page=15", "host": ["{{base_url}}"], "path": ["api", "tickets"], "query": [{"key": "page", "value": "1"}, {"key": "per_page", "value": "15"}]},
+						"description": "Lista tickets da empresa do usuário (auth)."
+					}
+				},
+				{
+					"name": "Abrir Chamado",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}, {"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"subject\": \"Assunto do chamado\",\n  \"body\": \"Mensagem inicial\"\n}"},
+						"url": {"raw": "{{base_url}}/api/tickets", "host": ["{{base_url}}"], "path": ["api", "tickets"]},
+						"description": "Abre novo ticket e envia e-mail aos admins (auth)."
+					}
+				},
+				{
+					"name": "Ver Chamado",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}],
+						"url": {"raw": "{{base_url}}/api/tickets/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["api", "tickets", "{{ticket_id}}"]},
+						"description": "Detalhes do ticket com mensagens (auth)."
+					}
+				},
+				{
+					"name": "Enviar Mensagem no Chamado",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}, {"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"body\": \"Minha resposta\"\n}"},
+						"url": {"raw": "{{base_url}}/api/tickets/{{ticket_id}}/messages", "host": ["{{base_url}}"], "path": ["api", "tickets", "{{ticket_id}}", "messages"]},
+						"description": "Adiciona mensagem do cliente no ticket (auth)."
+					}
+				}
+			]
+		},
+		{
+			"name": "Chamados (Admin)",
+			"item": [
+				{
+					"name": "Listar Todos Chamados",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}],
+						"url": {"raw": "{{base_url}}/api/chamados?page=1&per_page=15", "host": ["{{base_url}}"], "path": ["api", "chamados"], "query": [{"key": "page", "value": "1"}, {"key": "per_page", "value": "15"}, {"key": "status", "value": ""}, {"key": "empresa", "value": ""}, {"key": "data_inicio", "value": ""}, {"key": "data_fim", "value": ""}]},
+						"description": "Lista todos os tickets. Apenas usuário com desenvolvedor=1 (auth)."
+					}
+				},
+				{
+					"name": "Ver Chamado (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}],
+						"url": {"raw": "{{base_url}}/api/chamados/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["api", "chamados", "{{ticket_id}}"]},
+						"description": "Detalhes do ticket (admin)."
+					}
+				},
+				{
+					"name": "Responder Chamado",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}, {"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"mensagem\": \"Resposta do suporte\"\n}"},
+						"url": {"raw": "{{base_url}}/api/chamados/{{ticket_id}}/responder", "host": ["{{base_url}}"], "path": ["api", "chamados", "{{ticket_id}}", "responder"]},
+						"description": "Envia resposta do admin e e-mail ao cliente (desenvolvedor=1)."
+					}
+				},
+				{
+					"name": "Concluir Chamado",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}],
+						"url": {"raw": "{{base_url}}/api/chamados/{{ticket_id}}/concluir", "host": ["{{base_url}}"], "path": ["api", "chamados", "{{ticket_id}}", "concluir"]},
+						"description": "Altera status para fechado (desenvolvedor=1)."
+					}
+				},
+				{
+					"name": "Excluir Chamado",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}],
+						"url": {"raw": "{{base_url}}/api/chamados/{{ticket_id}}", "host": ["{{base_url}}"], "path": ["api", "chamados", "{{ticket_id}}"]},
+						"description": "Exclui o ticket (desenvolvedor=1)."
+					}
+				},
+				{
+					"name": "Concluir Lote",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}, {"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"ids\": [1, 2, 3]\n}"},
+						"url": {"raw": "{{base_url}}/api/chamados/concluir-lote", "host": ["{{base_url}}"], "path": ["api", "chamados", "concluir-lote"]},
+						"description": "Conclui múltiplos tickets (desenvolvedor=1)."
+					}
+				},
+				{
+					"name": "Excluir Lote",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_lojista}}", "type": "text"}, {"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\n  \"ids\": [1, 2, 3]\n}"},
+						"url": {"raw": "{{base_url}}/api/chamados/excluir-lote", "host": ["{{base_url}}"], "path": ["api", "chamados", "excluir-lote"]},
+						"description": "Exclui múltiplos tickets (desenvolvedor=1)."
+					}
+				}
+			]
+		},
+		{
 			"name": "Testes e Desenvolvimento",
 			"item": [
 				{
@@ -2499,6 +2613,12 @@
 			"value": "",
 			"type": "string",
 			"description": "ID da pausa agendada (para PUT/DELETE)"
+		},
+		{
+			"key": "ticket_id",
+			"value": "1",
+			"type": "string",
+			"description": "ID do ticket/chamado (para tickets e chamados)"
 		},
 		{
 			"key": "email_teste",

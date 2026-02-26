@@ -18,15 +18,30 @@ class SidebarMenuService
         }
 
         $itens = SidebarMenu::orderBy('ordem')->orderBy('id')->get();
+        $permissionSlugs = $user->permissoes->pluck('slug')->toArray();
+        $temAcessoTotal = in_array('sistema.acesso_total', $permissionSlugs, true);
+        $temAdministrador = in_array('administrador', $permissionSlugs, true);
 
-        if ($user->isMaster()) {
-            $filtrados = $itens;
+        if ($user->isMaster() || $temAcessoTotal) {
+            // Master ou acesso_total: Chamados só para administrador; Meus Chamados só para quem NÃO é administrador
+            $filtrados = $itens->filter(function ($item) use ($temAdministrador) {
+                if ($item->chave === 'chamados') {
+                    return $temAdministrador;
+                }
+                if ($item->chave === 'tickets') {
+                    return !$temAdministrador;
+                }
+                return true;
+            });
         } else {
-            $permissionSlugs = $user->permissoes->pluck('slug')->toArray();
-            $filtrados = $itens->filter(function ($item) use ($permissionSlugs) {
+            $filtrados = $itens->filter(function ($item) use ($permissionSlugs, $temAdministrador) {
                 if ($item->permission_slug === null) {
+                    if ($item->chave === 'chamados') return $temAdministrador;
+                    if ($item->chave === 'tickets') return !$temAdministrador;
                     return true;
                 }
+                if ($item->chave === 'chamados') return $temAdministrador;
+                if ($item->chave === 'tickets') return !$temAdministrador;
                 return in_array($item->permission_slug, $permissionSlugs, true);
             });
         }

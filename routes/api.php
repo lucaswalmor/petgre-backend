@@ -19,6 +19,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmailTestController;
 use App\Http\Controllers\PausasAgendadasController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\TicketController;
+use App\Http\Controllers\ChamadosController;
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -147,6 +149,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', 'store')->middleware('check.permission:pausas_agendadas.store,sistema.acesso_total');
         Route::put('/{id}', 'update')->middleware('check.permission:pausas_agendadas.update,sistema.acesso_total');
         Route::delete('/{id}', 'destroy')->middleware('check.permission:pausas_agendadas.destroy,sistema.acesso_total');
+    });
+
+    // Tickets (lojista - qualquer usuário autenticado acessa por empresa)
+    Route::controller(TicketController::class)->prefix('tickets')->group(function () {
+        Route::get('/', 'index');
+        Route::post('/', 'store');
+        Route::get('/{id}', 'show');
+        Route::post('/{id}/messages', 'storeMessage');
+    });
+
+    // Chamados (admin/desenvolvedor - validação desenvolvedor no controller)
+    Route::controller(ChamadosController::class)->prefix('chamados')->group(function () {
+        Route::get('/', 'index');
+        Route::patch('/concluir-lote', 'concluirLote');
+        Route::delete('/excluir-lote', 'excluirLote');
+        Route::get('/{id}', 'show');
+        Route::post('/{id}/responder', 'responder');
+        Route::patch('/{id}/concluir', 'concluir');
+        Route::delete('/{id}', 'destroy');
     });
 
     // Rotas de produtos

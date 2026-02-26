@@ -27,6 +27,7 @@ class User extends Authenticatable
         'telefone',
         'ativo',
         'is_master',
+        'desenvolvedor',
         'tipo_cadastro',
         'primeiro_login',
     ];
@@ -52,6 +53,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'primeiro_login' => 'boolean',
+            'desenvolvedor' => 'boolean',
         ];
     }
 
