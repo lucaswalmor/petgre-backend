@@ -21,6 +21,7 @@ class UsuarioLoginResource extends JsonResource
             'email' => $this->email,
             'telefone' => $this->telefone,
             'ativo' => $this->ativo,
+            'is_master' => (bool) $this->is_master,
             'primeiro_login' => (bool) $this->primeiro_login,
             'permissoes' => $this->whenLoaded('permissoes', function () {
                 return $this->permissoes->map(function ($permissao) {
@@ -59,7 +60,13 @@ class UsuarioLoginResource extends JsonResource
                     ];
                 });
             }, []),
-            'menu' => $this->when($this->resource->isLojista(), fn () => SidebarMenuService::menuParaUsuario($this->resource)),
+            'menu' => $this->when($this->resource->isLojista(), function () {
+                try {
+                    return SidebarMenuService::menuParaUsuario($this->resource);
+                } catch (\Throwable $e) {
+                    return [];
+                }
+            }, []),
         ];
     }
 }

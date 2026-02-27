@@ -18,7 +18,7 @@ class SidebarMenuService
         }
 
         $itens = SidebarMenu::orderBy('ordem')->orderBy('id')->get();
-        $permissionSlugs = $user->permissoes->pluck('slug')->toArray();
+        $permissionSlugs = $user->permissoes ? $user->permissoes->pluck('slug')->toArray() : [];
         $temAcessoTotal = in_array('sistema.acesso_total', $permissionSlugs, true);
         $temAdministrador = in_array('administrador', $permissionSlugs, true);
 
@@ -35,14 +35,15 @@ class SidebarMenuService
             });
         } else {
             $filtrados = $itens->filter(function ($item) use ($permissionSlugs, $temAdministrador) {
-                if ($item->permission_slug === null) {
-                    if ($item->chave === 'chamados') return $temAdministrador;
-                    if ($item->chave === 'tickets') return !$temAdministrador;
-                    return true;
+                // Primeiro verifica se o usuário tem a permissão específica do item
+                if ($item->permission_slug !== null) {
+                    return in_array($item->permission_slug, $permissionSlugs, true);
                 }
+
+                // Para itens sem permission_slug, aplica regras especiais
                 if ($item->chave === 'chamados') return $temAdministrador;
                 if ($item->chave === 'tickets') return !$temAdministrador;
-                return in_array($item->permission_slug, $permissionSlugs, true);
+                return true;
             });
         }
 
