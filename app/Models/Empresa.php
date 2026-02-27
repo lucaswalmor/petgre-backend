@@ -156,10 +156,11 @@ class Empresa extends Model
      */
     public function isAberta(): bool
     {
-        if ($this->fechada_manual === true) {
+        // Debug para identificar problema com fechada_manual
+        if ($this->fechada_manual === true || $this->fechada_manual === 1 || $this->fechada_manual === "1") {
             return false;
         }
-        if ($this->fechada_manual === false) {
+        if ($this->fechada_manual === false || $this->fechada_manual === 0 || $this->fechada_manual === "0") {
             return true;
         }
         if (!$this->relationLoaded('horarios')) {
