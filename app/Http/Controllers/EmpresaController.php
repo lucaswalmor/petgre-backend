@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\Empresa;
 use App\Models\User;
 use App\Models\EmpresaEndereco;
+use App\Models\EmpresaFaturamento;
 use App\Models\Bairro;
 use App\Helpers\FormatHelper;
 use App\Http\Resources\Usuario\UsuarioResource;
@@ -670,6 +671,22 @@ class EmpresaController extends Controller
             $itens[] = ['chave' => 'horarios', 'label' => 'Horários de funcionamento', 'ok' => !$empresa->horarios->isEmpty()];
             $itens[] = ['chave' => 'bairros_entrega', 'label' => 'Pelo menos um bairro de entrega', 'ok' => !$empresa->bairrosEntregas->isEmpty()];
 
+            // Verifica dados de faturamento apenas para empresa matriz
+            if ($empresa->is_matriz) {
+                $master = User::where('is_master', true)
+                    ->whereHas('usuarioEmpresas', function ($q) use ($empresa) {
+                        $q->where('empresa_id', $empresa->id);
+                    })
+                    ->first();
+
+                $faturamentoOk = false;
+                if ($master) {
+                    $faturamento = EmpresaFaturamento::where('usuario_id', $master->id)->first();
+                    $faturamentoOk = $faturamento && !empty($faturamento->nome_titular) && !empty($faturamento->cpf_cnpj);
+                }
+                $itens[] = ['chave' => 'dados_faturamento', 'label' => 'Dados de faturamento', 'ok' => $faturamentoOk];
+            }
+
             $total = count($itens);
             $ok = collect($itens)->where('ok', true)->count();
             $percentual = $total > 0 ? (int) round(($ok / $total) * 100) : 0;
@@ -786,6 +803,22 @@ class EmpresaController extends Controller
             $cadastroCompleto = false;
         }
 
+    // Verifica se existem dados de faturamento (apenas para empresa matriz)
+        if ($empresa->is_matriz) {
+            $master = User::where('is_master', true)
+                ->whereHas('usuarioEmpresas', function ($q) use ($empresa) {
+                    $q->where('empresa_id', $empresa->id);
+                })
+                ->first();
+
+            if ($master) {
+                $faturamento = EmpresaFaturamento::where('usuario_id', $master->id)->first();
+                if (!$faturamento || empty($faturamento->nome_titular) || empty($faturamento->cpf_cnpj)) {
+                    $cadastroCompleto = false;
+                }
+            }
+        }
+
         // Se todas as verificações passaram, marca como cadastro completo
         if ($cadastroCompleto) {
             $empresa->update(['cadastro_completo' => true]);
@@ -799,7 +832,7 @@ class EmpresaController extends Controller
     {
         $itensPendentes = [];
         $itensCompletos = 0;
-        $totalItens = 6; // endereço, configurações, whatsapp pedidos, formas de pagamento, horários, bairros
+        $totalItens = 7; // endereço, configurações, whatsapp pedidos, formas de pagamento, horários, bairros, faturamento
 
         // Verifica se existe endereço
         if (!$empresa->endereco) {
@@ -841,6 +874,29 @@ class EmpresaController extends Controller
             $itensPendentes[] = 'Bairros de entrega';
         } else {
             $itensCompletos++;
+        }
+
+        // Verifica se existem dados de faturamento (apenas para empresa matriz)
+        if ($empresa->is_matriz) {
+            $master = User::where('is_master', true)
+                ->whereHas('usuarioEmpresas', function ($q) use ($empresa) {
+                    $q->where('empresa_id', $empresa->id);
+                })
+                ->first();
+
+            if ($master) {
+                $faturamento = EmpresaFaturamento::where('usuario_id', $master->id)->first();
+                if (!$faturamento || empty($faturamento->nome_titular) || empty($faturamento->cpf_cnpj)) {
+                    $itensPendentes[] = 'Dados de faturamento';
+                } else {
+                    $itensCompletos++;
+                }
+            } else {
+                $itensPendentes[] = 'Dados de faturamento';
+            }
+        } else {
+            // Para filiais, não conta dados de faturamento no progresso
+            $totalItens = 6;
         }
 
         $porcentagem = round(($itensCompletos / $totalItens) * 100);
