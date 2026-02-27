@@ -117,7 +117,7 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 |--------|--------|-----------|
 | `estatisticas` | GET /api/pedidos/estatisticas | KPIs para cards (pedidos hoje, faturamento mês, pendentes, avaliação média). Permissão: pedidos.index. |
 | `index` | GET /api/pedidos | Lista pedidos (filtros: empresa_id, status_id, usuario_id, data_inicio, data_fim). Permissão: pedidos.index. |
-| `store` | POST /api/pedidos | Cliente/lojista cria pedido (itens, endereço, cupom, frete). Dispara push para empresa. Após salvar, chama FaturamentoService::contabilizarPedido(empresa_id) para contagem de pedidos e eventual disparo de assinatura (30 pedidos no mês). |
+| `store` | POST /api/pedidos | Cliente cria pedido (itens, endereço, cupom, frete). Rota pública para clientes (não exige x-empresa-id). Dispara push para empresa. Após salvar, chama FaturamentoService::contabilizarPedido(empresa_id) para contagem de pedidos e eventual disparo de assinatura (30 pedidos no mês). |
 | `show` | GET /api/pedidos/{id} | Detalhes do pedido (quem criou ou empresa do pedido). |
 | `update` | PUT /api/pedidos/{id} | Atualiza status e observações; ao confirmar/entregar/cancelar trata cupons. Permissão: pedidos.update. |
 | `destroy` | DELETE /api/pedidos/{id} | Exclui apenas pedidos pendentes. Permissão: pedidos.destroy. |

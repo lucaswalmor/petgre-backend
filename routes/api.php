@@ -82,12 +82,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::controller(PedidoController::class)->prefix('pedidos')->middleware('empresa.context')->group(function () {
         Route::get('/estatisticas', 'estatisticas')->middleware('check.permission:pedidos.index');
         Route::get('/', 'index')->middleware('check.permission:pedidos.index'); // Dashboard empresa
-        Route::post('/', 'store'); // Usuários criam pedidos
         Route::get('/{id}', 'show'); // Usuários/empresas veem pedidos específicos
         Route::put('/{id}', 'update')->middleware('check.permission:pedidos.update'); // Empresa altera status
         Route::delete('/{id}', 'destroy')->middleware('check.permission:pedidos.destroy'); // Empresa exclui (apenas pendentes)
         Route::post('/validar-cupom', 'validarCupom'); // Validar cupom antes do pedido
     });
+
+    // Rota de criação de pedidos (pública para clientes)
+    Route::post('/pedidos', [PedidoController::class, 'store'])->middleware('auth:sanctum');
 
     // Rotas de usuários — exige x-empresa-id
     Route::controller(UsuarioController::class)->prefix('usuarios')->middleware('empresa.context')->group(function () {
