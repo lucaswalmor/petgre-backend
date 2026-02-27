@@ -52,7 +52,7 @@ class FaturamentoService
         );
         $registro->increment('total_pedidos');
 
-        if ($registro->total_pedidos >= 30 && !$registro->assinatura_disparada) {
+        if ($registro->total_pedidos >= QTD_PEDIDOS_COBRAR && !$registro->assinatura_disparada) {
             $this->dispararAssinatura($master->id);
             $registro->update(['assinatura_disparada' => true]);
         }
