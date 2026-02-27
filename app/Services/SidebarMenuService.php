@@ -20,29 +20,35 @@ class SidebarMenuService
         $itens = SidebarMenu::orderBy('ordem')->orderBy('id')->get();
         $permissionSlugs = $user->permissoes ? $user->permissoes->pluck('slug')->toArray() : [];
         $temAcessoTotal = in_array('sistema.acesso_total', $permissionSlugs, true);
-        $temAdministrador = in_array('administrador', $permissionSlugs, true);
+        $isDesenvolvedor = $user->desenvolvedor == 1;
 
         if ($user->isMaster() || $temAcessoTotal) {
-            // Master ou acesso_total: Chamados só para administrador; Meus Chamados só para quem NÃO é administrador
-            $filtrados = $itens->filter(function ($item) use ($temAdministrador) {
+            // Master ou acesso_total: sempre mostra todos os menus, exceto regras especiais para chamados/tickets
+            $filtrados = $itens->filter(function ($item) use ($isDesenvolvedor) {
+                // Se for desenvolvedor, mostra chamados
                 if ($item->chave === 'chamados') {
-                    return $temAdministrador;
+                    return $isDesenvolvedor;
                 }
+                // Tickets sempre é mostrado
                 if ($item->chave === 'tickets') {
-                    return !$temAdministrador;
+                    return true;
                 }
                 return true;
             });
         } else {
-            $filtrados = $itens->filter(function ($item) use ($permissionSlugs, $temAdministrador) {
+            $filtrados = $itens->filter(function ($item) use ($permissionSlugs, $isDesenvolvedor) {
                 // Primeiro verifica se o usuário tem a permissão específica do item
                 if ($item->permission_slug !== null) {
                     return in_array($item->permission_slug, $permissionSlugs, true);
                 }
 
                 // Para itens sem permission_slug, aplica regras especiais
-                if ($item->chave === 'chamados') return $temAdministrador;
-                if ($item->chave === 'tickets') return !$temAdministrador;
+                if ($item->chave === 'chamados') {
+                    return $isDesenvolvedor; // Apenas desenvolvedores veem chamados
+                }
+                if ($item->chave === 'tickets') {
+                    return true; // Tickets sempre é mostrado
+                }
                 return true;
             });
         }
