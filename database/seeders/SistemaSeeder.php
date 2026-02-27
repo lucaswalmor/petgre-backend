@@ -184,6 +184,16 @@ class SistemaSeeder extends Seeder
         // -----------------------------
         $this->call(PlanosSeeder::class);
 
+        // -----------------------------
+        // FAQs (perguntas frequentes)
+        // -----------------------------
+        $this->call(FaqSeeder::class);
+
+        // -----------------------------
+        // Planilhas terceiros (importação de produtos)
+        // -----------------------------
+        $this->call(PlanilhaTerceirosSeeder::class);
+
         $this->command->info('✓ Seeder inicial do sistema executado com sucesso!');
     }
 }
