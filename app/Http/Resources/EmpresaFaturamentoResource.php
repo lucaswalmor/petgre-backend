@@ -19,6 +19,10 @@ class EmpresaFaturamentoResource extends JsonResource
             'chave_pix' => $this->chave_pix,
             'tipo_chave_pix' => $this->tipo_chave_pix,
             'assinatura_ativa' => (bool) $this->assinatura_ativa,
+            'asaas_customer_id' => $this->asaas_customer_id,
+            'asaas_subscription_id' => $this->asaas_subscription_id,
+            'valor_atual' => $this->valor_atual ? (float) $this->valor_atual : null,
+            'data_ativacao' => $this->data_ativacao?->toIso8601String(),
         ];
     }
 }

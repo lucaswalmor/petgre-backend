@@ -179,6 +179,11 @@ class SistemaSeeder extends Seeder
         // -----------------------------
         $this->call(SidebarMenuSeeder::class);
 
+        // -----------------------------
+        // Planos (assinatura faturamento)
+        // -----------------------------
+        $this->call(PlanosSeeder::class);
+
         $this->command->info('✓ Seeder inicial do sistema executado com sucesso!');
     }
 }

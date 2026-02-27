@@ -4,14 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Plano extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'planos';
 
-    // Relação com empresas de assinatura
+    protected $fillable = ['nome', 'slug', 'valor', 'ativo'];
+
+    protected $casts = [
+        'valor' => 'decimal:2',
+        'ativo' => 'boolean',
+    ];
+
     public function empresasAssinatura()
     {
         return $this->hasMany(EmpresaAssinatura::class, 'plano_id');

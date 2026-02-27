@@ -22,6 +22,11 @@ use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ChamadosController;
 use App\Http\Controllers\EmpresaFaturamentoController;
+use App\Http\Controllers\EmpresaFaturasController;
+use App\Http\Controllers\AsaasWebhookController;
+
+// Webhook Asaas (público, validado por token no header)
+Route::post('/webhooks/asaas', [AsaasWebhookController::class, 'handle']);
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -161,6 +166,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', 'store');
         Route::put('/', 'update');
         Route::get('/resumo', 'resumo');
+    });
+
+    // Faturas (lista e detalhe com PIX) — apenas master
+    Route::controller(EmpresaFaturasController::class)->prefix('faturas')->middleware('empresa.context')->middleware('check.permission:sistema.acesso_total')->group(function () {
+        Route::get('/', 'index');
+        Route::get('/{id}', 'show');
     });
 
     // Tickets (lojista - qualquer usuário autenticado acessa por empresa)

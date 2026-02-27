@@ -80,8 +80,9 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **sidebar_menu** | Itens do menu do painel lojista (parent_id, chave, label, path, icon, permission_slug, ordem). Filtrado por permissão no login. |
 | **faqs** | Perguntas frequentes (público). |
 | **planilhas_terceiros** | Cadastro de ERPs/planilhas para importação de produtos. |
-| **empresa_faturamento** | Dados de faturamento do master: usuario_id (FK usuarios), nome_titular, cpf_cnpj, email, telefone, chave_pix (nullable), tipo_chave_pix (enum: cpf, cnpj, email, telefone, aleatoria; nullable), assinatura_ativa (boolean, default false). nome_titular e cpf_cnpj não são atualizáveis via API. |
-| **empresa_faturas** | Histórico de faturas por usuário master: usuario_id, mes_referencia (YYYY-MM), valor, status (pendente, pago, vencido), vencimento (date), pago_em (date nullable). |
+| **empresa_faturamento** | Dados de faturamento do master: usuario_id (FK usuarios), nome_titular, cpf_cnpj, email, telefone, chave_pix (nullable), tipo_chave_pix (enum: cpf, cnpj, email, telefone, aleatoria; nullable), assinatura_ativa (boolean, default false), asaas_customer_id (nullable), asaas_subscription_id (nullable), valor_atual (decimal 8,2 nullable), data_ativacao (timestamp nullable). nome_titular e cpf_cnpj não são atualizáveis via API. |
+| **empresa_faturas** | Histórico de faturas por usuário master: usuario_id, asaas_payment_id (unique nullable), mes_referencia (YYYY-MM), valor, status (pendente, pago, vencido, cancelado), vencimento (date), pago_em (date nullable), pix_qrcode_base64 (text nullable), pix_copia_cola (text nullable), link_fatura (string nullable). |
+| **usuario_faturamento_pedidos** | Contagem de pedidos por mês para disparo de assinatura: usuario_id (FK usuarios), mes_referencia (YYYY-MM), total_pedidos (default 0), assinatura_disparada (boolean default false). Unique (usuario_id, mes_referencia). |
 
 ### Dados mestres
 
@@ -90,7 +91,7 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **nichos_empresa** | Tipos de negócio: Petshop, Agropecuária, Veterinária, Banho e Tosa, Caça e Pesca. |
 | **bairros** | Bairros por cidade/estado (ex.: Uberlândia-MG). |
 | **formas_pagamentos** | Dinheiro, PIX, Cartão Crédito/Débito, Transferência. |
-| **planos** | Planos de assinatura. |
+| **planos** | Planos de assinatura (nome, slug, valor, ativo). PlanosSeeder insere "Plano PetGre" (valor 39,90) se não existir. |
 | **permissoes** | Permissões do sistema (slug: pedidos.index, produtos.store, empresas.criar_filial, etc.). Inclui "Criar Filial" (empresas.criar_filial) no PermissoesSeeder. |
 
 ### Infraestrutura Laravel
@@ -129,6 +130,9 @@ As migrations estão em `database/migrations/`. Ordem lógica (dependências):
 21. add_matriz_filial_to_empresas (empresa_matriz_id, is_matriz)
 22. create_empresa_faturamento_table
 23. create_empresa_faturas_table
+24. add_asaas_fields_to_empresa_faturamento_table (asaas_customer_id, asaas_subscription_id, valor_atual, data_ativacao)
+25. add_asaas_fields_to_empresa_faturas_table (asaas_payment_id, pix_qrcode_base64, pix_copia_cola, link_fatura; status com cancelado)
+26. create_usuario_faturamento_pedidos_table
 
 (Os nomes exatos dos arquivos podem variar; o importante é rodar `php artisan migrate` na ordem padrão do Laravel.)
 
@@ -139,10 +143,11 @@ As migrations estão em `database/migrations/`. Ordem lógica (dependências):
 | Seeder | Descrição |
 |--------|-----------|
 | **DatabaseSeeder** | Ponto de entrada. Chama SistemaSeeder e opcionalmente cria usuário de teste. |
-| **SistemaSeeder** | Dados iniciais: categorias, unidades_medidas, nichos_empresa, bairros, formas_pagamentos, planos, status_pedidos, permissoes. Chama PermissoesSeeder, UberlandiaBairrosSeeder, SidebarMenuSeeder, etc. |
+| **SistemaSeeder** | Dados iniciais: categorias, unidades_medidas, nichos_empresa, bairros, formas_pagamentos, planos, status_pedidos, permissoes. Chama PermissoesSeeder, UberlandiaBairrosSeeder, SidebarMenuSeeder, PlanosSeeder, etc. |
 | **PermissoesSeeder** | Popula tabela **permissoes** (não duplica por slug; remove da tabela se removido do seeder). |
 | **UberlandiaBairrosSeeder** | Popula **bairros** para Uberlândia-MG. |
 | **SidebarMenuSeeder** | Popula **sidebar_menu** (itens e subitens do painel lojista). Não duplica por `chave`. |
+| **PlanosSeeder** | Insere plano "Plano PetGre" (slug plano-petgre, valor 39,90, ativo) na tabela **planos** se ainda não existir. Chamado pelo SistemaSeeder. |
 | **FaqSeeder** | Popula **faqs** (se existir). |
 | **PlanilhaTerceirosSeeder** | Popula **planilhas_terceiros** (ERPs para importação). |
 | **CupomBoasVindasSeeder** / **CupomPersonalizadoSeeder** | Cupons do sistema / personalizados (se usados). |

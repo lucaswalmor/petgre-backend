@@ -38,7 +38,7 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 
 | Método | Função | Descrição |
 |--------|--------|-----------|
-| `store` | POST /api/empresa | Cria empresa: se body `is_filial` = true, exige auth + header x-empresa-id (matriz), permissão empresas.criar_filial ou master; cria só empresa (sem usuário), seta empresa_matriz_id e is_matriz=false, vincula master da matriz e usuário atual à filial. Se is_filial = false (cadastro público), cria empresa matriz + usuário admin + endereço + configurações + horário padrão. |
+| `store` | POST /api/empresa | Cria empresa: se body `is_filial` = true, exige auth + header x-empresa-id (matriz), permissão empresas.criar_filial ou master; cria só empresa (sem usuário), seta empresa_matriz_id e is_matriz=false, vincula master da matriz e usuário atual à filial. Após criar filial, chama FaturamentoService::recalcularValorAssinatura(master_id). Se is_filial = false (cadastro público), cria empresa matriz + usuário admin + endereço + configurações + horário padrão. |
 | `show` | GET /api/empresa/{id} | Dados completos da empresa (com relacionamentos). Query `?basic=true` retorna só dados básicos. Permissão: empresas.show. |
 | `update` | PUT /api/empresa/{id} | Atualiza empresa, configurações, horários, endereço, formas de pagamento, bairros. Permissão: empresas.update. |
 | `destroy` | DELETE /api/empresa/{id} | Remove empresa. Permissão: empresas.destroy. |
@@ -58,10 +58,31 @@ Rotas sob `auth:sanctum`, `empresa.context` e `check.permission:sistema.acesso_t
 
 | Método | Função | Descrição |
 |--------|--------|-----------|
-| `show` | GET /api/faturamento | Retorna dados de faturamento do usuário master autenticado. Se não existir, retorna faturamento: null. |
+| `show` | GET /api/faturamento | Retorna dados de faturamento do usuário master autenticado. Se não existir, retorna faturamento: null. Inclui asaas_customer_id, asaas_subscription_id, valor_atual, data_ativacao. |
 | `store` | POST /api/faturamento | Cria registro de faturamento (usuario_id = auth). Apenas se ainda não existir para esse usuário. Body: nome_titular, cpf_cnpj, email, telefone, chave_pix (opcional), tipo_chave_pix (opcional). |
-| `update` | PUT /api/faturamento | Atualiza apenas email, telefone, chave_pix e tipo_chave_pix. nome_titular e cpf_cnpj são ignorados se enviados. |
+| `update` | PUT /api/faturamento | Atualiza apenas email, telefone, chave_pix e tipo_chave_pix. nome_titular e cpf_cnpj são ignorados se enviados. Se existir asaas_customer_id, sincroniza email e telefone no Asaas (AsaasService::atualizarCliente). |
 | `resumo` | GET /api/faturamento/resumo | Retorna plano_status (gratuito/ativo), pedidos_mes_atual, limite_gratuito (30), proxima_cobranca (dd/mm/yyyy ou null), valor_plano (39.90), faturas (array de empresa_faturas). Pedidos do mês somam todas as empresas do master (usuarios_empresas). |
+
+---
+
+### EmpresaFaturasController
+
+Rotas sob `auth:sanctum`, `empresa.context` e `check.permission:sistema.acesso_total` (apenas master).
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `index` | GET /api/faturas | Lista faturas do usuário master (ordenadas por vencimento DESC). Retorno sem pix_qrcode_base64 para não pesar a listagem. |
+| `show` | GET /api/faturas/{id} | Detalhe de uma fatura (valida que pertence ao usuário). Inclui pix_qrcode_base64 e pix_copia_cola para pagamento PIX. |
+
+---
+
+### AsaasWebhookController
+
+Rota **pública** (sem auth). Validação pelo header `asaas-access-token` comparado com `ASAAS_WEBHOOK_TOKEN`.
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `handle` | POST /api/webhooks/asaas | Recebe eventos do Asaas: PAYMENT_CREATED (cria empresa_faturas com PIX), PAYMENT_RECEIVED/PAYMENT_CONFIRMED (marca pago, ativa empresas e assinatura), PAYMENT_OVERDUE (marca vencido; se ≥5 dias desativa empresas e envia email), PAYMENT_DELETED/PAYMENT_REFUNDED (marca cancelado). Sempre responde 200; erros são logados. |
 
 ---
 
@@ -96,7 +117,7 @@ Rotas sob `auth:sanctum`, `empresa.context` e `check.permission:sistema.acesso_t
 |--------|--------|-----------|
 | `estatisticas` | GET /api/pedidos/estatisticas | KPIs para cards (pedidos hoje, faturamento mês, pendentes, avaliação média). Permissão: pedidos.index. |
 | `index` | GET /api/pedidos | Lista pedidos (filtros: empresa_id, status_id, usuario_id, data_inicio, data_fim). Permissão: pedidos.index. |
-| `store` | POST /api/pedidos | Cliente/lojista cria pedido (itens, endereço, cupom, frete). Dispara push para empresa. |
+| `store` | POST /api/pedidos | Cliente/lojista cria pedido (itens, endereço, cupom, frete). Dispara push para empresa. Após salvar, chama FaturamentoService::contabilizarPedido(empresa_id) para contagem de pedidos e eventual disparo de assinatura (30 pedidos no mês). |
 | `show` | GET /api/pedidos/{id} | Detalhes do pedido (quem criou ou empresa do pedido). |
 | `update` | PUT /api/pedidos/{id} | Atualiza status e observações; ao confirmar/entregar/cancelar trata cupons. Permissão: pedidos.update. |
 | `destroy` | DELETE /api/pedidos/{id} | Exclui apenas pedidos pendentes. Permissão: pedidos.destroy. |

@@ -431,6 +431,27 @@
 			]
 		},
 		{
+			"name": "Webhooks",
+			"item": [
+				{
+					"name": "Asaas (eventos de pagamento)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "asaas-access-token", "value": "{{asaas_webhook_token}}", "description": "Token configurado no Asaas (env ASAAS_WEBHOOK_TOKEN)"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/webhooks/asaas",
+							"host": ["{{base_url}}"],
+							"path": ["api", "webhooks", "asaas"]
+						},
+						"description": "Endpoint público para receber eventos do Asaas (PAYMENT_CREATED, PAYMENT_RECEIVED, etc.). Valida header asaas-access-token. Sempre retorna 200."
+					}
+				}
+			]
+		},
+		{
 			"name": "Pedidos",
 			"item": [
 				{
@@ -2225,6 +2246,43 @@
 			]
 		},
 		{
+			"name": "Faturas",
+			"item": [
+				{
+					"name": "Listar Faturas",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/faturas",
+							"host": ["{{base_url}}"],
+							"path": ["api", "faturas"]
+						},
+						"description": "Lista faturas do usuário master (ordenadas por vencimento DESC). Apenas master (sistema.acesso_total). Sem pix_qrcode_base64 na listagem."
+					}
+				},
+				{
+					"name": "Detalhe Fatura (com PIX)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/faturas/{{fatura_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "faturas", "{{fatura_id}}"]
+						},
+						"description": "Detalhe de uma fatura com pix_qrcode_base64 e pix_copia_cola para pagamento PIX. Apenas master."
+					}
+				}
+			]
+		},
+		{
 			"name": "Tickets (Lojista)",
 			"item": [
 				{
@@ -2644,6 +2702,18 @@
 			"value": "",
 			"type": "string",
 			"description": "ID da pausa agendada (para PUT/DELETE)"
+		},
+		{
+			"key": "fatura_id",
+			"value": "",
+			"type": "string",
+			"description": "ID da fatura (GET /api/faturas/{id})"
+		},
+		{
+			"key": "asaas_webhook_token",
+			"value": "",
+			"type": "string",
+			"description": "Token do webhook Asaas (env ASAAS_WEBHOOK_TOKEN)"
 		},
 		{
 			"key": "ticket_id",

@@ -5,27 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EmpresaFatura extends Model
+class UsuarioFaturamentoPedidos extends Model
 {
-    protected $table = 'empresa_faturas';
+    protected $table = 'usuario_faturamento_pedidos';
 
     protected $fillable = [
         'usuario_id',
-        'asaas_payment_id',
         'mes_referencia',
-        'valor',
-        'status',
-        'vencimento',
-        'pago_em',
-        'pix_qrcode_base64',
-        'pix_copia_cola',
-        'link_fatura',
+        'total_pedidos',
+        'assinatura_disparada',
     ];
 
     protected $casts = [
-        'valor' => 'decimal:2',
-        'vencimento' => 'date',
-        'pago_em' => 'date',
+        'assinatura_disparada' => 'boolean',
     ];
 
     public function usuario(): BelongsTo

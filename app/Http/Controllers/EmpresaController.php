@@ -134,6 +134,10 @@ class EmpresaController extends Controller
 
             DB::commit();
 
+            if ($masterMatriz) {
+                app(\App\Services\FaturamentoService::class)->recalcularValorAssinatura($masterMatriz->id);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Filial criada com sucesso',

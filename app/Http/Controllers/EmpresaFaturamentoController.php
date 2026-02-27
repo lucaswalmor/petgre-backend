@@ -7,6 +7,7 @@ use App\Http\Resources\EmpresaFaturamentoResource;
 use App\Models\EmpresaFatura;
 use App\Models\EmpresaFaturamento;
 use App\Models\Pedido;
+use App\Services\AsaasService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +67,13 @@ class EmpresaFaturamentoController extends Controller
         }
 
         $faturamento->update($request->only(['email', 'telefone', 'chave_pix', 'tipo_chave_pix']));
+
+        if ($faturamento->asaas_customer_id) {
+            app(AsaasService::class)->atualizarCliente($faturamento->asaas_customer_id, [
+                'email' => $faturamento->email,
+                'phone' => $faturamento->telefone,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
