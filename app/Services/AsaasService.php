@@ -8,12 +8,22 @@ use Illuminate\Support\Facades\Log;
 class AsaasService
 {
     private string $baseUrl;
-    private string $apiKey;
+    private ?string $apiKey;
 
     public function __construct()
     {
         $this->baseUrl = rtrim(config('services.asaas.base_url', 'https://api.asaas.com/v3'), '/');
-        $this->apiKey = config('services.asaas.api_key', '');
+        $this->apiKey = config('services.asaas.api_key') ?: null;
+    }
+
+    public function isConfigured(): bool
+    {
+        return !empty($this->apiKey);
+    }
+
+    public function getApiKey(): ?string
+    {
+        return $this->apiKey;
     }
 
     private function request(string $method, string $path, array $data = []): array

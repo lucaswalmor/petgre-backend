@@ -60,6 +60,12 @@ class FaturamentoService
 
     public function dispararAssinatura(int $usuarioMasterId): void
     {
+        // Verificar se Asaas está configurado
+        if (!$this->asaasService->isConfigured()) {
+            Log::warning('FaturamentoService::dispararAssinatura - Asaas não configurado, pulando assinatura');
+            return;
+        }
+
         $faturamento = EmpresaFaturamento::where('usuario_id', $usuarioMasterId)->first();
         if (!$faturamento || empty($faturamento->nome_titular) || empty($faturamento->cpf_cnpj)) {
             Log::warning('FaturamentoService::dispararAssinatura - dados incompletos', ['usuario_id' => $usuarioMasterId]);
@@ -110,6 +116,11 @@ class FaturamentoService
 
     public function recalcularValorAssinatura(int $usuarioMasterId): void
     {
+        // Verificar se Asaas está configurado
+        if (!$this->asaasService->isConfigured()) {
+            return;
+        }
+
         $faturamento = EmpresaFaturamento::where('usuario_id', $usuarioMasterId)->first();
         if (!$faturamento || !$faturamento->assinatura_ativa || empty($faturamento->asaas_subscription_id)) {
             return;
