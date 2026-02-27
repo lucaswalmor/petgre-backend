@@ -30,12 +30,8 @@ class ProdutoController extends Controller
      */
     public function index(Request $request)
     {
-        $usuarioAutenticado = Auth::user();
-
-        // Todos os usuários veem apenas produtos das suas empresas
-        $empresasIds = $usuarioAutenticado->empresas->pluck('id');
-
-        $query = Produto::whereIn('empresa_id', $empresasIds)
+        $empresaId = $request->empresa_id;
+        $query = Produto::where('empresa_id', $empresaId)
             ->with(['categoria', 'unidadeMedida', 'empresa']);
 
         // Busca por texto (nome, descrição, SKU, marca)
@@ -51,9 +47,6 @@ class ProdutoController extends Controller
         }
 
         // Filtros opcionais
-        if ($request->has('empresa_id') && $request->empresa_id) {
-            $query->where('empresa_id', $request->empresa_id);
-        }
 
         if ($request->has('categoria_id') && $request->categoria_id) {
             $query->where('categoria_id', $request->categoria_id);
@@ -122,16 +115,7 @@ class ProdutoController extends Controller
     {
         DB::beginTransaction();
         try {
-            // Verificar se a empresa pertence ao usuário autenticado
-            if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($request->empresa_id)) {
-                return response()->json([
-                    'error' => 'Acesso negado',
-                    'message' => 'Você não tem permissão para criar produtos nesta empresa.'
-                ], 403);
-            }
-
             $dados = $request->only([
-                'empresa_id',
                 'categoria_id',
                 'unidade_medida_id',
                 'tipo',
@@ -157,6 +141,7 @@ class ProdutoController extends Controller
                 'tem_promocao',
                 'vende_granel',
             ]);
+            $dados['empresa_id'] = $request->empresa_id;
 
             // Ajustes de defaults
             $dados['estoque'] = $request->tipo === 'servico' ? 0 : ($request->estoque ?? 0);
@@ -365,14 +350,12 @@ class ProdutoController extends Controller
      */
     public function search(Request $request)
     {
-        $usuarioAutenticado = Auth::user();
-        $empresasIds = $usuarioAutenticado->empresas->pluck('id');
-
+        $empresaId = $request->empresa_id;
         $query = $request->get('q', '');
         $categoriaId = $request->get('categoria_id');
         $tipo = $request->get('tipo');
 
-        $produtos = Produto::whereIn('empresa_id', $empresasIds)
+        $produtos = Produto::where('empresa_id', $empresaId)
             ->where('ativo', true)
             ->when($query, function ($q) use ($query) {
                 $q->where('nome', 'like', "%{$query}%")

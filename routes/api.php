@@ -21,6 +21,7 @@ use App\Http\Controllers\PausasAgendadasController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ChamadosController;
+use App\Http\Controllers\EmpresaFaturamentoController;
 
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
@@ -58,22 +59,22 @@ Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->grou
 // Rotas protegidas (precisam de autenticação)
 Route::middleware('auth:sanctum')->group(function () {
     
-    // Dashboard lojista — qualquer usuário autenticado; visibilidade de blocos de pedidos é controlada no frontend por permissão
-    Route::get('/dashboard', [DashboardController::class, 'getDados']);
+    // Dashboard lojista — exige x-empresa-id
+    Route::get('/dashboard', [DashboardController::class, 'getDados'])->middleware('empresa.context');
 
-    // Rota para listar permissões
+    // Rota para listar permissões (não exige empresa)
     Route::get('/permissoes', [PermissaoController::class, 'index']);
 
-    // Rotas de avaliações protegidas
-    Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->group(function () {
+    // Rotas de avaliações protegidas — exige x-empresa-id
+    Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->middleware('empresa.context')->group(function () {
         Route::get('/', 'index')->middleware('check.permission:avaliacoes.index');
         Route::post('/', 'store');
         Route::get('/{id}', 'show')->middleware('check.permission:avaliacoes.show');
         Route::post('/{id}/solicitar-moderacao', 'solicitarModeracao')->middleware('check.permission:avaliacoes.index');
     });
 
-    // Rotas de pedidos
-    Route::controller(PedidoController::class)->prefix('pedidos')->group(function () {
+    // Rotas de pedidos — exige x-empresa-id
+    Route::controller(PedidoController::class)->prefix('pedidos')->middleware('empresa.context')->group(function () {
         Route::get('/estatisticas', 'estatisticas')->middleware('check.permission:pedidos.index');
         Route::get('/', 'index')->middleware('check.permission:pedidos.index'); // Dashboard empresa
         Route::post('/', 'store'); // Usuários criam pedidos
@@ -83,8 +84,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/validar-cupom', 'validarCupom'); // Validar cupom antes do pedido
     });
 
-    // Rotas de usuários
-    Route::controller(UsuarioController::class)->prefix('usuarios')->group(function () {
+    // Rotas de usuários — exige x-empresa-id
+    Route::controller(UsuarioController::class)->prefix('usuarios')->middleware('empresa.context')->group(function () {
         Route::put('/alterar-senha-primeiro-login', 'alterarSenhaPrimeiroLogin');
         Route::get('/', 'index')->middleware('check.permission:usuarios.index');
         Route::post('/criar-funcionario', 'store')->middleware('check.permission:usuarios.store');
@@ -125,8 +126,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/estatisticas/empresa/{empresaId}', 'getEstatisticasEmpresa');
     });
 
-    // Rotas de empresas
-    Route::controller(EmpresaController::class)->prefix('empresa')->group(function () {
+    // Listar empresas do usuário (não exige x-empresa-id)
+    Route::get('/empresa', [EmpresaController::class, 'index']);
+
+    // Rotas de empresas (com id) — exige x-empresa-id
+    Route::controller(EmpresaController::class)->prefix('empresa')->middleware('empresa.context')->group(function () {
         Route::get('/{id}/verificar-cadastro', 'verificarCadastro')->middleware('check.permission:empresas.verificar_cadastro');
         Route::get('/{id}/status', 'status')->middleware('check.permission:empresas.show');
         Route::put('/{id}/status-manual', 'statusManual')->middleware('check.permission:empresas.update');
@@ -143,12 +147,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/subscribe', 'store');
     });
 
-    // Pausas agendadas (Configurações)
-    Route::controller(PausasAgendadasController::class)->prefix('pausas-agendadas')->group(function () {
+    // Pausas agendadas (Configurações) — exige x-empresa-id
+    Route::controller(PausasAgendadasController::class)->prefix('pausas-agendadas')->middleware('empresa.context')->group(function () {
         Route::get('/', 'index')->middleware('check.permission:pausas_agendadas.index,sistema.acesso_total');
         Route::post('/', 'store')->middleware('check.permission:pausas_agendadas.store,sistema.acesso_total');
         Route::put('/{id}', 'update')->middleware('check.permission:pausas_agendadas.update,sistema.acesso_total');
         Route::delete('/{id}', 'destroy')->middleware('check.permission:pausas_agendadas.destroy,sistema.acesso_total');
+    });
+
+    // Faturamento (apenas master) — exige x-empresa-id
+    Route::controller(EmpresaFaturamentoController::class)->prefix('faturamento')->middleware('empresa.context')->middleware('check.permission:sistema.acesso_total')->group(function () {
+        Route::get('/', 'show');
+        Route::post('/', 'store');
+        Route::put('/', 'update');
+        Route::get('/resumo', 'resumo');
     });
 
     // Tickets (lojista - qualquer usuário autenticado acessa por empresa)
@@ -170,8 +182,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', 'destroy');
     });
 
-    // Rotas de produtos
-    Route::controller(ProdutoController::class)->prefix('produtos')->group(function () {
+    // Rotas de produtos — exige x-empresa-id
+    Route::controller(ProdutoController::class)->prefix('produtos')->middleware('empresa.context')->group(function () {
         Route::get('/', 'index')->middleware('check.permission:produtos.index');
         Route::get('/categorias', 'listarCategorias')->middleware('check.permission:produtos.index');
         Route::get('/unidades-medidas', 'listarUnidadesMedidas')->middleware('check.permission:produtos.index');
@@ -197,8 +209,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/search/buscar', 'search')->middleware('check.permission:produtos.index');
     });
 
-    // Rotas de cupons da empresa
-    Route::controller(EmpresaCuponsController::class)->prefix('cupons')->group(function () {
+    // Rotas de cupons da empresa — exige x-empresa-id
+    Route::controller(EmpresaCuponsController::class)->prefix('cupons')->middleware('empresa.context')->group(function () {
         Route::get('/', 'index');
         Route::post('/', 'store');
         Route::get('/{id}', 'show');

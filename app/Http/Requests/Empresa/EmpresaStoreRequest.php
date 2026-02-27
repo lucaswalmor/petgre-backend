@@ -45,6 +45,7 @@ class EmpresaStoreRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'is_filial' => 'nullable|boolean',
             // Campos principais da empresa
             'tipo_pessoa' => 'required|boolean|in:0,1',
             'razao_social' => 'required|string|max:255|unique:empresas,razao_social',
@@ -152,24 +153,23 @@ class EmpresaStoreRequest extends FormRequest
             'bairros_entrega.*.valor_entrega_minimo' => 'nullable|numeric|min:0|max:999999.99',
             'bairros_entrega.*.ativo' => 'boolean',
 
-            // Usuário admin da empresa
-            'usuario_admin' => 'required|array',
-            'usuario_admin.nome' => 'required|string|max:255',
-            'usuario_admin.telefone' => 'required|string|max:255',
-            'usuario_admin.email' => [
+            // Usuário admin da empresa (obrigatório apenas quando não é filial)
+            'usuario_admin' => $this->boolean('is_filial') ? 'nullable|array' : 'required|array',
+            'usuario_admin.nome' => $this->boolean('is_filial') ? 'nullable|string|max:255' : 'required|string|max:255',
+            'usuario_admin.telefone' => $this->boolean('is_filial') ? 'nullable|string|max:255' : 'required|string|max:255',
+            'usuario_admin.email' => $this->boolean('is_filial') ? 'nullable|email|max:255' : [
                 'required',
                 'email',
                 'max:255',
                 function ($attribute, $value, $fail) {
-                    // Verificar se já existe usuário com este email e tipo_cadastro = 0 (Empresa)
                     if (\App\Models\User::where('email', $value)->where('tipo_cadastro', 0)->exists()) {
                         $fail('Este email já está sendo usado por outro usuário.');
                     }
                 },
             ],
-            'usuario_admin.password' => 'required|string|min:8|max:255',
-            'usuario_admin.password_confirmation' => 'required|string|same:usuario_admin.password',
-            'usuario_admin.permissoes' => 'required|array',
+            'usuario_admin.password' => $this->boolean('is_filial') ? 'nullable|string|min:8|max:255' : 'required|string|min:8|max:255',
+            'usuario_admin.password_confirmation' => $this->boolean('is_filial') ? 'nullable|string|same:usuario_admin.password' : 'required|string|same:usuario_admin.password',
+            'usuario_admin.permissoes' => $this->boolean('is_filial') ? 'nullable|array' : 'required|array',
             'usuario_admin.permissoes.*' => 'exists:permissoes,id',
         ];
     }

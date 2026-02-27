@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'check.permission' => \App\Http\Middleware\CheckPermission::class,
+            'empresa.context' => \App\Http\Middleware\EnsureEmpresaContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

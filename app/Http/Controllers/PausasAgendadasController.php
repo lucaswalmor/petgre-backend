@@ -13,10 +13,7 @@ class PausasAgendadasController extends Controller
 {
     public function index(Request $request)
     {
-        $empresaId = $request->get('empresa_id');
-        if (!$empresaId || !VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int) $empresaId)) {
-            $empresaId = VerificaEmpresa::obterEmpresasDoUsuario()->first()?->id;
-        }
+        $empresaId = $request->empresa_id;
         if (!$empresaId) {
             return response()->json(['success' => true, 'pausas' => []]);
         }

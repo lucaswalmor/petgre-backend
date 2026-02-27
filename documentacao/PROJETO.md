@@ -38,7 +38,7 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 
 | Método | Função | Descrição |
 |--------|--------|-----------|
-| `store` | POST /api/empresa | Cria empresa + usuário admin + endereço + configurações + horário padrão. |
+| `store` | POST /api/empresa | Cria empresa: se body `is_filial` = true, exige auth + header x-empresa-id (matriz), permissão empresas.criar_filial ou master; cria só empresa (sem usuário), seta empresa_matriz_id e is_matriz=false, vincula master da matriz e usuário atual à filial. Se is_filial = false (cadastro público), cria empresa matriz + usuário admin + endereço + configurações + horário padrão. |
 | `show` | GET /api/empresa/{id} | Dados completos da empresa (com relacionamentos). Query `?basic=true` retorna só dados básicos. Permissão: empresas.show. |
 | `update` | PUT /api/empresa/{id} | Atualiza empresa, configurações, horários, endereço, formas de pagamento, bairros. Permissão: empresas.update. |
 | `destroy` | DELETE /api/empresa/{id} | Remove empresa. Permissão: empresas.destroy. |
@@ -49,6 +49,19 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 | `bairrosDisponiveis` | GET /api/empresa/{empresaId}/bairros-disponiveis | Bairros da cidade da empresa para entrega. Permissão: empresas.show. |
 
 - **Slug da empresa:** gerado automaticamente a partir do nome fantasia (ou razão social) em `store` e `update`. Se já existir empresa com o mesmo slug, é adicionado um sufixo aleatório de 8 caracteres (ex.: `lucas-steinbach` → `lucas-steinbach-a1b2c3d4`) para garantir unicidade.
+
+---
+
+### EmpresaFaturamentoController
+
+Rotas sob `auth:sanctum`, `empresa.context` e `check.permission:sistema.acesso_total` (apenas master).
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `show` | GET /api/faturamento | Retorna dados de faturamento do usuário master autenticado. Se não existir, retorna faturamento: null. |
+| `store` | POST /api/faturamento | Cria registro de faturamento (usuario_id = auth). Apenas se ainda não existir para esse usuário. Body: nome_titular, cpf_cnpj, email, telefone, chave_pix (opcional), tipo_chave_pix (opcional). |
+| `update` | PUT /api/faturamento | Atualiza apenas email, telefone, chave_pix e tipo_chave_pix. nome_titular e cpf_cnpj são ignorados se enviados. |
+| `resumo` | GET /api/faturamento/resumo | Retorna plano_status (gratuito/ativo), pedidos_mes_atual, limite_gratuito (30), proxima_cobranca (dd/mm/yyyy ou null), valor_plano (39.90), faturas (array de empresa_faturas). Pedidos do mês somam todas as empresas do master (usuarios_empresas). |
 
 ---
 
@@ -293,5 +306,6 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 
 - **auth:sanctum** — Exige token válido.
 - **check.permission:slug** — Exige que o usuário tenha a permissão (ou seja master). Usado nas rotas do painel lojista.
+- **empresa.context** (EnsureEmpresaContext) — Exige header `x-empresa-id` com id de empresa; valida se o usuário tem vínculo em usuarios_empresas; em sucesso faz `$request->merge(['empresa_id' => $id])`. Aplicado nas rotas do painel que dependem da empresa atual (dashboard, empresa por id, produtos, pedidos, cupons, avaliações, usuarios, pausas-agendadas).
 
 As rotas exatas estão em `routes/api.php`; para testes manuais use a coleção Postman do projeto. Testes automatizados de API (Feature): `AuthControllerTest`, `UsuarioControllerTest`, `EmpresaControllerTest`, `ProdutoControllerTest`, `PausasAgendadasControllerTest`, `PedidoControllerTest`, `PermissaoControllerTest`, `FaqControllerTest`, `DashboardControllerTest`, `UsuarioEnderecosControllerTest`, `EmpresaFavoritoControllerTest`, `EmpresaAvaliacaoControllerTest`, `EmpresaCuponsControllerTest`, `UsuarioLogControllerTest`, `SiteClienteControllerTest`, `PushSubscriptionControllerTest`.

@@ -17,6 +17,8 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 ## 2. Multiempresa e isolamento
 
 - **Lojistas:** só enxergam dados das **empresas às quais estão vinculados** (tabela usuarios_empresas). Todas as listagens e operações (usuários, produtos, pedidos, cupons, avaliações) devem filtrar por empresa(s) do usuário autenticado.
+- **Contexto de empresa (x-empresa-id):** nas rotas do painel que dependem da "empresa atual", o frontend envia o header `x-empresa-id`. O middleware **EnsureEmpresaContext** valida se o usuário tem vínculo com essa empresa (usuarios_empresas) e faz `$request->merge(['empresa_id' => $id])`. Controllers usam `$request->empresa_id` (não ler o header diretamente). Rotas sem contexto (ex.: GET /empresa listagem, GET /user) não exigem o header.
+- **Matriz e filiais:** empresa pode ser matriz (`is_matriz = true`, `empresa_matriz_id` null) ou filial (`is_matriz = false`, `empresa_matriz_id` = id da matriz). Filial só é criada via POST /api/empresa com `is_filial: true`, auth, header x-empresa-id com id da matriz, e permissão empresas.criar_filial (ou master). Não cria usuário; vincula o master da matriz e o usuário que criou à filial.
 - **Clientes:** não têm empresa; não listam outros clientes. Só acessam seus próprios pedidos, endereços, favoritos e cupons atribuídos.
 - **Verificação de acesso:** usar helper VerificaEmpresa (verificaEmpresaPertenceAoUsuario, verificaUsuariosMesmaEmpresa) antes de show/update/destroy de empresa, produto, pedido, etc.
 - **Masters:** podem ter múltiplas empresas; funcionários pertencem a uma ou mais empresas. Listagem de usuários no painel: apenas usuários que compartilham pelo menos uma empresa com o usuário logado.
@@ -88,3 +90,4 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 - **Logs de comportamento:** registrar ações como adicionar_carrinho, remover_carrinho, trocar_loja, acesso_loja_aberta, acesso_loja_fechada (usuario_id, empresa_id, produto_id quando aplicável, ip, user_agent) para analytics do dashboard lojista.
 - **Pausas agendadas:** datas em horário local (America/Sao_Paulo); considerar em Empresa::isAberta() e getFechadoAte().
 - **Imagens:** upload para storage configurado (ex.: R2); tamanho e formatos conforme EmpresaUploadImageRequest / ProdutoUploadImageRequest (ex.: até 15MB, JPEG/PNG/GIF/WebP para empresa).
+- **Faturamento:** apenas usuário master (sistema.acesso_total) acessa GET/POST/PUT /api/faturamento e GET /api/faturamento/resumo. Um único registro por usuario_id em empresa_faturamento; nome_titular e cpf_cnpj definidos apenas no store e nunca alterados via API. Resumo: plano gratuito até 30 pedidos/mês (todas as empresas do master); valor_plano fixo 39,90; faturas vêm de empresa_faturas.

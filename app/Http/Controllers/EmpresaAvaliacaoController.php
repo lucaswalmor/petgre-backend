@@ -18,17 +18,9 @@ class EmpresaAvaliacaoController extends Controller
      */
     public function index(Request $request)
     {
-        $usuario     = Auth::user();
-        $empresasIds = $usuario->empresas->pluck('id');
-
-        $query = EmpresaAvaliacao::whereIn('empresa_id', $empresasIds)
+        $empresaId = $request->empresa_id;
+        $query = EmpresaAvaliacao::where('empresa_id', $empresaId)
             ->with(['pedido', 'moderacao']);
-
-        if ($request->has('empresa_id') && $request->empresa_id) {
-            if (VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int) $request->empresa_id)) {
-                $query->where('empresa_id', $request->empresa_id);
-            }
-        }
 
         if ($request->has('nota') && $request->nota) {
             $query->where('nota', $request->nota);

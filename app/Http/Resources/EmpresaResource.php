@@ -41,6 +41,11 @@ class EmpresaResource extends JsonResource
             'path_banner' => $this->path_banner,
             'ativo' => $this->ativo,
             'cadastro_completo' => $this->cadastro_completo,
+            'is_matriz' => (bool) $this->is_matriz,
+            'empresa_matriz_id' => $this->empresa_matriz_id,
+            'filiais' => $this->when($this->is_matriz && $this->relationLoaded('filiais'), function () {
+                return $this->filiais->map(fn ($f) => ['id' => $f->id, 'nome' => $f->nome_fantasia ?? $f->razao_social]);
+            }),
 
             // Relacionamentos
             'nicho' => $this->whenLoaded('nicho', function () {

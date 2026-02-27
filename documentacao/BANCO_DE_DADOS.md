@@ -24,7 +24,7 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 
 | Tabela | Descrição |
 |--------|-----------|
-| **empresas** | Dados da empresa: razao_social, nome_fantasia, slug, email, telefone, cpf_cnpj, tipo_pessoa, path_logo, path_banner, nicho_id, cadastro_completo, ativo, fechada_manual (null = usa horário/pausas; true = fechada; false = aberta). Soft deletes. |
+| **empresas** | Dados da empresa: razao_social, nome_fantasia, slug, email, telefone, cpf_cnpj, tipo_pessoa, path_logo, path_banner, nicho_id, cadastro_completo, ativo, fechada_manual (null = usa horário/pausas; true = fechada; false = aberta); empresa_matriz_id (nullable, FK empresas, onDelete restrict), is_matriz (boolean, default true). Matriz tem empresa_matriz_id null; filial aponta para a matriz. Soft deletes. |
 | **empresa_endereco** | Endereço físico da empresa (um por empresa). |
 | **empresa_configuracoes** | Configurações: faz_entrega, faz_retirada, whatsapp_pedidos, valor_entrega_padrao, valor_entrega_minimo, redes sociais, etc. |
 | **empresa_horarios** | Horários de funcionamento por dia da semana (dia_semana, slug, horario_inicio, horario_fim, padrao). |
@@ -80,6 +80,8 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **sidebar_menu** | Itens do menu do painel lojista (parent_id, chave, label, path, icon, permission_slug, ordem). Filtrado por permissão no login. |
 | **faqs** | Perguntas frequentes (público). |
 | **planilhas_terceiros** | Cadastro de ERPs/planilhas para importação de produtos. |
+| **empresa_faturamento** | Dados de faturamento do master: usuario_id (FK usuarios), nome_titular, cpf_cnpj, email, telefone, chave_pix (nullable), tipo_chave_pix (enum: cpf, cnpj, email, telefone, aleatoria; nullable), assinatura_ativa (boolean, default false). nome_titular e cpf_cnpj não são atualizáveis via API. |
+| **empresa_faturas** | Histórico de faturas por usuário master: usuario_id, mes_referencia (YYYY-MM), valor, status (pendente, pago, vencido), vencimento (date), pago_em (date nullable). |
 
 ### Dados mestres
 
@@ -89,7 +91,7 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **bairros** | Bairros por cidade/estado (ex.: Uberlândia-MG). |
 | **formas_pagamentos** | Dinheiro, PIX, Cartão Crédito/Débito, Transferência. |
 | **planos** | Planos de assinatura. |
-| **permissoes** | Permissões do sistema (slug: pedidos.index, produtos.store, etc.). |
+| **permissoes** | Permissões do sistema (slug: pedidos.index, produtos.store, empresas.criar_filial, etc.). Inclui "Criar Filial" (empresas.criar_filial) no PermissoesSeeder. |
 
 ### Infraestrutura Laravel
 
@@ -124,6 +126,9 @@ As migrations estão em `database/migrations/`. Ordem lógica (dependências):
 18. push_subscriptions  
 19. add_fechada_manual_to_empresas, make_fechada_manual_nullable  
 20. add_tipo_cadastro_to_usuarios, add_tipo_pessoa_to_empresas, add_foi_entrega_to_pedidos  
+21. add_matriz_filial_to_empresas (empresa_matriz_id, is_matriz)
+22. create_empresa_faturamento_table
+23. create_empresa_faturas_table
 
 (Os nomes exatos dos arquivos podem variar; o importante é rodar `php artisan migrate` na ordem padrão do Laravel.)
 

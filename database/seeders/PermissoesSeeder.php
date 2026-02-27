@@ -59,6 +59,7 @@ class PermissoesSeeder extends Seeder
             ['nome' => 'Visualizar Empresa',     'slug' => 'empresas.show'],
             ['nome' => 'Editar Empresa',         'slug' => 'empresas.update'],
             ['nome' => 'Upload Imagem Empresa',  'slug' => 'empresas.upload_image'],
+            ['nome' => 'Criar Filial',            'slug' => 'empresas.criar_filial'],
 
             // Usuários / Funcionários
             ['nome' => 'Listar Funcionários',    'slug' => 'usuarios.index'],

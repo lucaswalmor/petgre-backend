@@ -63,11 +63,20 @@ class AuthController extends Controller
             // Criar novo token
             $token = $user->createToken('auth_token')->plainTextToken;
 
+            $empresas = $request->tipo_login === 'lojista'
+                ? $user->empresas->map(fn ($e) => [
+                    'id' => $e->id,
+                    'nome_fantasia' => $e->nome_fantasia,
+                    'is_matriz' => (bool) $e->is_matriz,
+                ])->values()->all()
+                : [];
+
             return response()->json([
                 'success' => true,
                 'message' => 'Login realizado com sucesso',
                 'user' => new UsuarioLoginResource($user),
                 'token' => $token,
+                'empresas' => $empresas,
             ]);
 
         } catch (\Exception $e) {

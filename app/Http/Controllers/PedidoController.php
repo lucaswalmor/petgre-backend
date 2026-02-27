@@ -32,23 +32,20 @@ class PedidoController extends Controller
      */
     public function estatisticas(Request $request)
     {
-        $usuario     = Auth::user();
-        $empresasIds = $usuario->empresas->pluck('id');
-
-        $empresaId      = $request->get('empresa_id', $empresasIds->first());
+        $empresaId      = $request->empresa_id;
         $hoje           = Carbon::today();
         $primeiroDiaMes = Carbon::now()->startOfMonth();
 
-        $pedidosHoje = Pedido::whereIn('empresa_id', $empresasIds)
+        $pedidosHoje = Pedido::where('empresa_id', $empresaId)
             ->whereDate('created_at', $hoje)
             ->count();
 
-        $faturamentoMes = Pedido::whereIn('empresa_id', $empresasIds)
+        $faturamentoMes = Pedido::where('empresa_id', $empresaId)
             ->whereBetween('created_at', [$primeiroDiaMes, Carbon::now()])
             ->whereIn('status_pedido_id', [2, 3, 4, 5])
             ->sum('total');
 
-        $pedidosPendentes = Pedido::whereIn('empresa_id', $empresasIds)
+        $pedidosPendentes = Pedido::where('empresa_id', $empresaId)
             ->where('status_pedido_id', 1)
             ->count();
 
@@ -70,8 +67,7 @@ class PedidoController extends Controller
      */
     public function index(Request $request)
     {
-        $usuario = Auth::user();
-
+        $empresaId = $request->empresa_id;
         $query = Pedido::with([
             'usuario',
             'empresa',
@@ -79,18 +75,9 @@ class PedidoController extends Controller
             'formaPagamento',
             'endereco.endereco',
             'itens.produto'
-        ]);
-
-        // Filtrar por empresa se usuário não for master
-        if (!$usuario->isMaster()) {
-            $empresasIds = $usuario->empresas->pluck('id');
-            $query->whereIn('empresa_id', $empresasIds);
-        }
+        ])->where('empresa_id', $empresaId);
 
         // Filtros opcionais
-        if ($request->has('empresa_id') && $request->empresa_id) {
-            $query->where('empresa_id', $request->empresa_id);
-        }
 
         if ($request->has('status_id') && $request->status_id) {
             $query->where('status_pedido_id', $request->status_id);

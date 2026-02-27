@@ -33,7 +33,7 @@ class EmpresaController extends Controller
         $usuario = Auth::user();
 
         $empresas = $usuario->usuarioEmpresas()
-            ->with(['empresa'])
+            ->with(['empresa.filiais'])
             ->get()
             ->pluck('empresa');
 
@@ -45,8 +45,110 @@ class EmpresaController extends Controller
 
     /**
      * Store a newly created resource in storage.
+     * Se is_filial = true: cria filial (exige auth, x-empresa-id, permissão empresas.criar_filial); não cria usuário.
      */
     public function store(EmpresaStoreRequest $request)
+    {
+        if ($request->boolean('is_filial')) {
+            return $this->storeFilial($request);
+        }
+        return $this->storeMatriz($request);
+    }
+
+    /**
+     * Cria filial: empresa vinculada à matriz; não cria usuário; vincula master da matriz e usuário atual.
+     */
+    private function storeFilial(EmpresaStoreRequest $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Não autenticado.'], 401);
+        }
+
+        $empresaId = $request->header('x-empresa-id');
+        if (empty($empresaId) || !$user->empresas()->where('empresas.id', (int)$empresaId)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Header x-empresa-id obrigatório e você deve ter vínculo com a empresa.'], 403);
+        }
+
+        $empresaMatriz = Empresa::where('is_matriz', true)->find((int)$empresaId);
+        if (!$empresaMatriz) {
+            return response()->json(['success' => false, 'message' => 'Apenas empresa matriz pode ter filiais.'], 403);
+        }
+
+        if (!$user->isMaster() && !$user->hasPermission('empresas.criar_filial')) {
+            return response()->json(['success' => false, 'message' => 'Sem permissão para criar filial.'], 403);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $dadosEmpresa = $request->only(['tipo_pessoa', 'razao_social', 'nome_fantasia', 'email', 'telefone', 'cpf_cnpj', 'nicho_id']);
+            $dadosEmpresa['empresa_matriz_id'] = $empresaMatriz->id;
+            $dadosEmpresa['is_matriz'] = false;
+
+            $textoParaSlug = $dadosEmpresa['nome_fantasia'] ?? $dadosEmpresa['razao_social'];
+            $slugBase = FormatHelper::formatSlug($textoParaSlug);
+            $dadosEmpresa['slug'] = $slugBase;
+            if (Empresa::where('slug', $dadosEmpresa['slug'])->exists()) {
+                do {
+                    $dadosEmpresa['slug'] = $slugBase . '-' . Str::random(8);
+                } while (Empresa::where('slug', $dadosEmpresa['slug'])->exists());
+            }
+            $dadosEmpresa['telefone'] = FormatHelper::formatOnlyNumbers($dadosEmpresa['telefone']);
+
+            $empresa = Empresa::create($dadosEmpresa);
+
+            if ($request->has('endereco')) {
+                $dadosEndereco = $request->input('endereco');
+                $dadosEndereco['empresa_id'] = $empresa->id;
+                EmpresaEndereco::create($dadosEndereco);
+            }
+
+            $empresa->configuracoes()->create([
+                'empresa_id' => $empresa->id,
+                'faz_entrega' => false,
+                'faz_retirada' => true,
+                'a_combinar' => false,
+                'valor_entrega_padrao' => 10.00,
+                'valor_entrega_minimo' => 10.00,
+            ]);
+
+            $empresa->horarios()->create([
+                'empresa_id' => $empresa->id,
+                'dia_semana' => 'segunda',
+                'slug' => 'segunda',
+                'horario_inicio' => '08:00',
+                'horario_fim' => '18:00',
+                'padrao' => true,
+            ]);
+
+            $masterMatriz = User::where('is_master', true)->whereHas('usuarioEmpresas', function ($q) use ($empresaMatriz) {
+                $q->where('empresa_id', $empresaMatriz->id);
+            })->first();
+            if ($masterMatriz) {
+                $masterMatriz->empresas()->attach($empresa->id);
+            }
+            if (!$user->empresas()->where('empresas.id', $empresa->id)->exists()) {
+                $user->empresas()->attach($empresa->id);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Filial criada com sucesso',
+                'empresa' => new EmpresaResource($empresa),
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Cria empresa matriz com usuário administrador.
+     */
+    private function storeMatriz(EmpresaStoreRequest $request)
     {
         try {
             DB::beginTransaction();
@@ -73,15 +175,12 @@ class EmpresaController extends Controller
             }
             $dadosEmpresa['telefone'] = FormatHelper::formatOnlyNumbers($dadosEmpresa['telefone']);
 
-            // Cria a empresa
             $empresa = Empresa::create($dadosEmpresa);
 
-            // Cria o endereço da empresa se foi enviado
+            $endereco = null;
             if ($request->has('endereco')) {
                 $dadosEndereco = $request->input('endereco');
                 $dadosEndereco['empresa_id'] = $empresa->id;
-
-                // Import necessário para EmpresaEndereco
                 $endereco = EmpresaEndereco::create($dadosEndereco);
             }
 
@@ -294,7 +393,7 @@ class EmpresaController extends Controller
                 ]);
             }
 
-            // Retorna informações completas com relacionamentos
+            // Retorna informações completas com relacionamentos (filiais quando for matriz)
             $empresa = Empresa::with([
                 'nicho',
                 'endereco',
@@ -303,7 +402,8 @@ class EmpresaController extends Controller
                 'assinatura.plano',
                 'formasPagamentos.formaPagamento',
                 'bairrosEntregas.bairro',
-                'usuarios.usuario.permissoes'
+                'usuarios.usuario.permissoes',
+                'filiais'
             ])->findOrFail($id);
 
             $additionalData = [];

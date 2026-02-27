@@ -969,6 +969,37 @@
 					}
 				},
 				{
+					"name": "Criar Filial",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-empresa-id",
+								"value": "{{empresa_id}}",
+								"description": "ID da empresa matriz"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"is_filial\": true,\n  \"tipo_pessoa\": 0,\n  \"razao_social\": \"Filial Centro Ltda\",\n  \"nome_fantasia\": \"PetShop do Lucas - Filial Centro\",\n  \"email\": \"filial@example.com\",\n  \"telefone\": \"(34) 33333-3333\",\n  \"cpf_cnpj\": \"98.765.432/0001-11\",\n  \"nicho_id\": 1,\n  \"ativo\": true,\n  \"endereco\": {\n    \"logradouro\": \"Av. Brasil\",\n    \"numero\": \"500\",\n    \"complemento\": \"\",\n    \"bairro\": \"Centro\",\n    \"cidade\": \"Uberlândia\",\n    \"estado\": \"MG\",\n    \"cep\": \"38400-100\",\n    \"ponto_referencia\": \"\",\n    \"observacoes\": \"\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/empresa",
+							"host": ["{{base_url}}"],
+							"path": ["api", "empresa"]
+						},
+						"description": "Cria uma filial a partir da empresa matriz. Exige: auth, header x-empresa-id com id da matriz, permissão empresas.criar_filial ou ser master. Não envia usuario_admin (não cria usuário); vincula automaticamente o master da matriz e o usuário atual à filial. Retorna 201 com EmpresaResource."
+					}
+				},
+				{
 					"name": "Exibir Empresa",
 					"request": {
 						"method": "GET",

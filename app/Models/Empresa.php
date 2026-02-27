@@ -26,7 +26,21 @@ class Empresa extends Model
         'cadastro_completo',
         'ativo',
         'fechada_manual',
+        'empresa_matriz_id',
+        'is_matriz',
     ];
+
+    // Relação com empresa matriz (quando for filial)
+    public function matriz()
+    {
+        return $this->belongsTo(Empresa::class, 'empresa_matriz_id');
+    }
+
+    // Filiais (quando for matriz)
+    public function filiais()
+    {
+        return $this->hasMany(Empresa::class, 'empresa_matriz_id');
+    }
 
     // Relação com nicho
     public function nicho()
@@ -110,6 +124,14 @@ class Empresa extends Model
     public function pausasAgendadas()
     {
         return $this->hasMany(EmpresaPausaAgendada::class, 'empresa_id');
+    }
+
+    /**
+     * Scope: apenas empresas matriz (não filiais).
+     */
+    public function scopeMatriz($query)
+    {
+        return $query->where('is_matriz', true);
     }
 
     /**

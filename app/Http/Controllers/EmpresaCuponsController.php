@@ -19,18 +19,8 @@ class EmpresaCuponsController extends Controller
      */
     public function index(Request $request)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
-        $query = EmpresaCupom::where('empresa_id', $empresa->id)
+        $empresaId = $request->empresa_id;
+        $query = EmpresaCupom::where('empresa_id', $empresaId)
             ->with('empresa');
 
         // Filtros opcionais
@@ -78,21 +68,11 @@ class EmpresaCuponsController extends Controller
      */
     public function store(EmpresaCupomStoreRequest $request)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
+        $empresaId = $request->empresa_id;
         DB::beginTransaction();
         try {
             $cupom = EmpresaCupom::create([
-                'empresa_id' => $empresa->id,
+                'empresa_id' => $empresaId,
                 'codigo' => $request->codigo,
                 'tipo' => $request->tipo,
                 'valor' => $request->valor,
@@ -124,20 +104,10 @@ class EmpresaCuponsController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
-        $cupom = EmpresaCupom::where('empresa_id', $empresa->id)
+        $empresaId = $request->empresa_id;
+        $cupom = EmpresaCupom::where('empresa_id', $empresaId)
             ->with('empresa')
             ->findOrFail($id);
 
@@ -152,18 +122,8 @@ class EmpresaCuponsController extends Controller
      */
     public function update(EmpresaCupomUpdateRequest $request, string $id)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
-        $cupom = EmpresaCupom::where('empresa_id', $empresa->id)->findOrFail($id);
+        $empresaId = $request->empresa_id;
+        $cupom = EmpresaCupom::where('empresa_id', $empresaId)->findOrFail($id);
 
         DB::beginTransaction();
         try {
@@ -201,20 +161,10 @@ class EmpresaCuponsController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
-        $cupom = EmpresaCupom::where('empresa_id', $empresa->id)->findOrFail($id);
+        $empresaId = $request->empresa_id;
+        $cupom = EmpresaCupom::where('empresa_id', $empresaId)->findOrFail($id);
 
         // Verificar se o cupom já foi usado
         $usos = $cupom->usos()->count();
@@ -237,20 +187,10 @@ class EmpresaCuponsController extends Controller
     /**
      * Toggle status ativo/inativo do cupom
      */
-    public function toggleAtivo(string $id)
+    public function toggleAtivo(Request $request, string $id)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
-        $cupom = EmpresaCupom::where('empresa_id', $empresa->id)->findOrFail($id);
+        $empresaId = $request->empresa_id;
+        $cupom = EmpresaCupom::where('empresa_id', $empresaId)->findOrFail($id);
 
         $cupom->update(['ativo' => !$cupom->ativo]);
 
@@ -266,18 +206,8 @@ class EmpresaCuponsController extends Controller
      */
     public function usos(string $id, Request $request)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
-        $cupom = EmpresaCupom::where('empresa_id', $empresa->id)->findOrFail($id);
+        $empresaId = $request->empresa_id;
+        $cupom = EmpresaCupom::where('empresa_id', $empresaId)->findOrFail($id);
 
         $query = EmpresaCupomUsado::where('empresa_cupom_id', $cupom->id)
             ->with(['usuario', 'pedido']);
@@ -339,27 +269,17 @@ class EmpresaCuponsController extends Controller
     /**
      * Estatísticas dos cupons da empresa
      */
-    public function estatisticas()
+    public function estatisticas(Request $request)
     {
-        $usuario = Auth::user();
-        $empresa = $usuario->empresaUsuarioAtivo();
-
-        if (!$empresa) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Empresa não encontrada',
-                'message' => 'Usuário não está associado a nenhuma empresa ativa.'
-            ], 403);
-        }
-
+        $empresaId = $request->empresa_id;
         $estatisticas = [
-            'total_cupons' => EmpresaCupom::where('empresa_id', $empresa->id)->count(),
-            'cupons_ativos' => EmpresaCupom::where('empresa_id', $empresa->id)->ativos()->count(),
-            'cupons_inativos' => EmpresaCupom::where('empresa_id', $empresa->id)->where('ativo', false)->count(),
-            'cupons_expirados' => EmpresaCupom::where('empresa_id', $empresa->id)->where('data_fim', '<', now())->count(),
-            'total_usos' => EmpresaCupomUsado::daEmpresa($empresa->id)->count(),
-            'usos_ultimos_30_dias' => EmpresaCupomUsado::daEmpresa($empresa->id)->recentes(30)->count(),
-            'valor_total_descontos' => EmpresaCupomUsado::daEmpresa($empresa->id)
+            'total_cupons' => EmpresaCupom::where('empresa_id', $empresaId)->count(),
+            'cupons_ativos' => EmpresaCupom::where('empresa_id', $empresaId)->ativos()->count(),
+            'cupons_inativos' => EmpresaCupom::where('empresa_id', $empresaId)->where('ativo', false)->count(),
+            'cupons_expirados' => EmpresaCupom::where('empresa_id', $empresaId)->where('data_fim', '<', now())->count(),
+            'total_usos' => EmpresaCupomUsado::daEmpresa($empresaId)->count(),
+            'usos_ultimos_30_dias' => EmpresaCupomUsado::daEmpresa($empresaId)->recentes(30)->count(),
+            'valor_total_descontos' => EmpresaCupomUsado::daEmpresa($empresaId)
                 ->join('pedidos', 'empresa_cupons_usados.pedido_id', '=', 'pedidos.id')
                 ->sum('pedidos.desconto'),
         ];

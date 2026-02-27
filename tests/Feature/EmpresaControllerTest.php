@@ -202,7 +202,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresa->id}");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->getJson("/api/empresa/{$empresa->id}");
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -217,7 +217,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresa->id}?basic=true");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->getJson("/api/empresa/{$empresa->id}?basic=true");
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -235,24 +235,22 @@ class EmpresaControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresaOutra->id}");
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->getJson("/api/empresa/{$empresaOutra->id}");
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['error' => 'Acesso negado']);
+        $response->assertStatus(403);
     }
 
     /**
-     * GET /api/empresa/{id} - 403 quando ID não pertence ao usuário (não revela se existe ou não)
+     * GET /api/empresa/{id} - 403 quando x-empresa-id sem vínculo
      */
     public function test_show_empresa_id_inexistente_ou_alheio_retorna_403(): void
     {
-        [$lojista] = $this->criarLojistaComEmpresa();
+        [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson('/api/empresa/99999');
+        $response = $this->withHeader('x-empresa-id', '99999')->getJson("/api/empresa/{$empresa->id}");
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['error' => 'Acesso negado']);
+        $response->assertStatus(403);
     }
 
     /**
@@ -263,7 +261,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->putJson("/api/empresa/{$empresa->id}", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->putJson("/api/empresa/{$empresa->id}", [
             'nome_fantasia' => 'Novo Nome Fantasia',
             'telefone' => '34988887777',
         ]);
@@ -286,7 +284,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->putJson("/api/empresa/{$empresa->id}", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->putJson("/api/empresa/{$empresa->id}", [
             'email' => 'email-invalido',
             'ativo' => 'nao-e-boolean',
         ]);
@@ -306,12 +304,11 @@ class EmpresaControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->putJson("/api/empresa/{$empresaOutra->id}", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->putJson("/api/empresa/{$empresaOutra->id}", [
             'nome_fantasia' => 'Tentativa',
         ]);
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['error' => 'Acesso negado']);
+        $response->assertStatus(403);
     }
 
     /**
@@ -324,12 +321,11 @@ class EmpresaControllerTest extends TestCase
         Sanctum::actingAs($lojista);
 
         $file = UploadedFile::fake()->image('logo.jpg', 100, 100);
-        $response = $this->postJson("/api/empresa/{$empresaOutra->id}/upload-image?tipo=logo", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->postJson("/api/empresa/{$empresaOutra->id}/upload-image?tipo=logo", [
             'logo' => $file,
         ]);
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['error' => 'Acesso negado']);
+        $response->assertStatus(403);
     }
 
     /**
@@ -340,7 +336,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->postJson("/api/empresa/{$empresa->id}/upload-image?tipo=logo", []);
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->postJson("/api/empresa/{$empresa->id}/upload-image?tipo=logo", []);
 
         $response->assertStatus(422)
             ->assertJsonFragment(['success' => false])
@@ -356,7 +352,7 @@ class EmpresaControllerTest extends TestCase
         Sanctum::actingAs($lojista);
 
         $file = UploadedFile::fake()->create('documento.txt', 100, 'text/plain');
-        $response = $this->post("/api/empresa/{$empresa->id}/upload-image?tipo=logo", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->post("/api/empresa/{$empresa->id}/upload-image?tipo=logo", [
             'logo' => $file,
         ], ['Accept' => 'application/json']);
 
@@ -374,7 +370,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->postJson("/api/empresa/{$empresa->id}/upload-image");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->postJson("/api/empresa/{$empresa->id}/upload-image");
 
         $response->assertStatus(400)
             ->assertJsonFragment(['message' => 'Nenhuma imagem foi enviada']);
@@ -390,7 +386,7 @@ class EmpresaControllerTest extends TestCase
         Sanctum::actingAs($lojista);
 
         $file = UploadedFile::fake()->image('logo.jpg', 100, 100);
-        $response = $this->post("/api/empresa/{$empresa->id}/upload-image?tipo=logo", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->post("/api/empresa/{$empresa->id}/upload-image?tipo=logo", [
             'logo' => $file,
         ], [
             'Accept' => 'application/json',
@@ -415,7 +411,7 @@ class EmpresaControllerTest extends TestCase
         Sanctum::actingAs($lojista);
 
         $file = UploadedFile::fake()->image('banner.jpg', 200, 100);
-        $response = $this->post("/api/empresa/{$empresa->id}/upload-image?tipo=banner", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->post("/api/empresa/{$empresa->id}/upload-image?tipo=banner", [
             'banner' => $file,
         ], [
             'Accept' => 'application/json',
@@ -438,7 +434,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresa->id}/status");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->getJson("/api/empresa/{$empresa->id}/status");
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -454,10 +450,9 @@ class EmpresaControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresaOutra->id}/status");
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->getJson("/api/empresa/{$empresaOutra->id}/status");
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['message' => 'Acesso negado.']);
+        $response->assertStatus(403);
     }
 
     /**
@@ -468,7 +463,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->putJson("/api/empresa/{$empresa->id}/status-manual", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->putJson("/api/empresa/{$empresa->id}/status-manual", [
             'fechada_manual' => true,
         ]);
 
@@ -487,7 +482,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->putJson("/api/empresa/{$empresa->id}/status-manual", []);
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->putJson("/api/empresa/{$empresa->id}/status-manual", []);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['fechada_manual']);
@@ -502,12 +497,11 @@ class EmpresaControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->putJson("/api/empresa/{$empresaOutra->id}/status-manual", [
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->putJson("/api/empresa/{$empresaOutra->id}/status-manual", [
             'fechada_manual' => true,
         ]);
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['message' => 'Acesso negado.']);
+        $response->assertStatus(403);
     }
 
     /**
@@ -518,7 +512,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresa->id}/verificar-cadastro");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->getJson("/api/empresa/{$empresa->id}/verificar-cadastro");
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -534,10 +528,9 @@ class EmpresaControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresaOutra->id}/verificar-cadastro");
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->getJson("/api/empresa/{$empresaOutra->id}/verificar-cadastro");
 
-        $response->assertStatus(403)
-            ->assertJsonFragment(['error' => 'Acesso negado']);
+        $response->assertStatus(403);
     }
 
     /**
@@ -566,7 +559,7 @@ class EmpresaControllerTest extends TestCase
         ]);
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresa->id}/bairros-disponiveis");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->getJson("/api/empresa/{$empresa->id}/bairros-disponiveis");
 
         $response->assertOk()
             ->assertJsonPath('success', true)
@@ -581,7 +574,7 @@ class EmpresaControllerTest extends TestCase
         [$lojista, $empresa] = $this->criarLojistaComEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresa->id}/bairros-disponiveis");
+        $response = $this->withHeader('x-empresa-id', (string) $empresa->id)->getJson("/api/empresa/{$empresa->id}/bairros-disponiveis");
 
         $response->assertStatus(400)
             ->assertJsonFragment(['message' => 'Empresa não possui endereço cadastrado']);
@@ -596,9 +589,102 @@ class EmpresaControllerTest extends TestCase
         $empresaOutra = $this->criarEmpresa();
         Sanctum::actingAs($lojista);
 
-        $response = $this->getJson("/api/empresa/{$empresaOutra->id}/bairros-disponiveis");
+        $response = $this->withHeader('x-empresa-id', (string) $empresaOutra->id)->getJson("/api/empresa/{$empresaOutra->id}/bairros-disponiveis");
+
+        $response->assertStatus(403);
+    }
+
+    /**
+     * Payload para criar filial (sem usuario_admin).
+     */
+    private function payloadStoreFilialValido(int $nichoId, string $sufixo = null): array
+    {
+        $sufixo = $sufixo ?? substr(uniqid(), -4);
+        $dig = str_pad((string) random_int(10, 99), 2, '0');
+        return [
+            'is_filial' => true,
+            'tipo_pessoa' => 0,
+            'razao_social' => 'Filial Teste LTDA ' . $sufixo,
+            'nome_fantasia' => 'Filial Teste',
+            'email' => 'filial' . $sufixo . '@example.com',
+            'telefone' => '(34) 99999-8888',
+            'cpf_cnpj' => '98.765.432/0001-' . $dig,
+            'nicho_id' => $nichoId,
+            'ativo' => true,
+            'endereco' => [
+                'logradouro' => 'Rua da Filial',
+                'numero' => '456',
+                'complemento' => null,
+                'bairro' => 'Centro',
+                'cidade' => 'Uberlândia',
+                'estado' => 'MG',
+                'cep' => '38400-100',
+                'ponto_referencia' => null,
+                'observacoes' => null,
+            ],
+        ];
+    }
+
+    /**
+     * POST /api/empresa com is_filial true - cria filial com sucesso (master)
+     */
+    public function test_store_filial_sucesso(): void
+    {
+        $nichoId = $this->criarNichoEmpresa();
+        [$master, $matriz] = $this->criarLojistaComEmpresa(true);
+        Sanctum::actingAs($master);
+
+        $payload = $this->payloadStoreFilialValido($nichoId);
+        $response = $this->withHeader('x-empresa-id', (string) $matriz->id)->postJson('/api/empresa', $payload);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Filial criada com sucesso')
+            ->assertJsonStructure(['empresa']);
+        $empresa = Empresa::where('razao_social', $payload['razao_social'])->first();
+        $this->assertNotNull($empresa);
+        $this->assertEquals($matriz->id, $empresa->empresa_matriz_id);
+        $this->assertFalse((bool) $empresa->is_matriz);
+        $this->assertTrue($master->empresas()->where('empresas.id', $empresa->id)->exists());
+    }
+
+    /**
+     * POST /api/empresa com is_filial true - 403 sem permissão empresas.criar_filial e não master
+     */
+    public function test_store_filial_sem_permissao_retorna_403(): void
+    {
+        $nichoId = $this->criarNichoEmpresa();
+        [$usuario, $matriz] = $this->criarLojistaComEmpresa(false);
+        $permCriarFilial = Permissao::unguarded(fn () => Permissao::create(['nome' => 'Criar Filial', 'slug' => 'empresas.criar_filial', 'ativo' => true]));
+        $usuario->permissoes()->sync([]);
+        Sanctum::actingAs($usuario);
+
+        $payload = $this->payloadStoreFilialValido($nichoId);
+        $response = $this->withHeader('x-empresa-id', (string) $matriz->id)->postJson('/api/empresa', $payload);
 
         $response->assertStatus(403)
-            ->assertJsonFragment(['error' => 'Acesso negado']);
+            ->assertJsonFragment(['message' => 'Sem permissão para criar filial.']);
+    }
+
+    /**
+     * POST /api/empresa com is_filial true - vincula master da matriz e usuário atual à filial
+     */
+    public function test_store_filial_vincula_master_e_usuario_atual(): void
+    {
+        $nichoId = $this->criarNichoEmpresa();
+        [$master, $matriz] = $this->criarLojistaComEmpresa(true);
+        $permCriarFilial = Permissao::unguarded(fn () => Permissao::create(['nome' => 'Criar Filial', 'slug' => 'empresas.criar_filial', 'ativo' => true]));
+        $funcionario = User::factory()->create(['is_master' => false, 'tipo_cadastro' => 0]);
+        $funcionario->permissoes()->sync([$permCriarFilial->id]);
+        $this->vincularUsuarioEmpresa($funcionario, $matriz);
+        Sanctum::actingAs($funcionario);
+
+        $payload = $this->payloadStoreFilialValido($nichoId);
+        $response = $this->withHeader('x-empresa-id', (string) $matriz->id)->postJson('/api/empresa', $payload);
+
+        $response->assertStatus(201);
+        $empresa = Empresa::where('razao_social', $payload['razao_social'])->first();
+        $this->assertTrue($master->empresas()->where('empresas.id', $empresa->id)->exists());
+        $this->assertTrue($funcionario->empresas()->where('empresas.id', $empresa->id)->exists());
     }
 }

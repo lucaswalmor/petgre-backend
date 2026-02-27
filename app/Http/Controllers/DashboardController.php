@@ -19,33 +19,25 @@ class DashboardController extends Controller
         $hoje     = Carbon::today();
         $primeiroDiaMes = Carbon::now()->startOfMonth();
 
-        // Determinar empresas do usuário
-        $empresasIds = $usuario->empresas->pluck('id');
-
-        if ($empresasIds->isEmpty()) {
+        $empresaId = $request->empresa_id;
+        if (!$empresaId) {
             return response()->json([
                 'success' => false,
                 'message' => 'Nenhuma empresa encontrada para este usuário.'
             ], 404);
         }
 
-        // Empresa principal (primeira do usuário, ou filtrada por empresa_id)
-        $empresaId = $request->get('empresa_id', $empresasIds->first());
-        if (!$empresasIds->contains($empresaId)) {
-            $empresaId = $empresasIds->first();
-        }
-
         // ─── KPIs ─────────────────────────────────────────────────
-        $pedidosHoje = Pedido::whereIn('empresa_id', $empresasIds)
+        $pedidosHoje = Pedido::where('empresa_id', $empresaId)
             ->whereDate('created_at', $hoje)
             ->count();
 
-        $faturamentoMes = Pedido::whereIn('empresa_id', $empresasIds)
+        $faturamentoMes = Pedido::where('empresa_id', $empresaId)
             ->whereBetween('created_at', [$primeiroDiaMes, Carbon::now()])
             ->whereIn('status_pedido_id', [2, 3, 4, 5]) // confirmado, em preparo, em entrega, entregue
             ->sum('total');
 
-        $pedidosPendentes = Pedido::whereIn('empresa_id', $empresasIds)
+        $pedidosPendentes = Pedido::where('empresa_id', $empresaId)
             ->where('status_pedido_id', 1)
             ->count();
 
@@ -56,7 +48,7 @@ class DashboardController extends Controller
         for ($i = 6; $i >= 0; $i--) {
             $dia = Carbon::today()->subDays($i);
 
-            $totalDia = Pedido::whereIn('empresa_id', $empresasIds)
+            $totalDia = Pedido::where('empresa_id', $empresaId)
                 ->whereDate('created_at', $dia)
                 ->sum('total');
 
@@ -68,7 +60,7 @@ class DashboardController extends Controller
 
         // ─── Últimos 5 pedidos ────────────────────────────────────
         $ultimosPedidos = Pedido::with(['usuario:id,nome,telefone', 'statusPedido:id,nome,slug'])
-            ->whereIn('empresa_id', $empresasIds)
+            ->where('empresa_id', $empresaId)
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()

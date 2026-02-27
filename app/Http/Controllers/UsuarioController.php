@@ -30,21 +30,10 @@ class UsuarioController extends Controller
      */
     public function index(Request $request)
     {
-        $usuarioAutenticado = Auth::user();
-
-        // Todos os usuários (incluindo masters) veem apenas usuários das suas empresas
-        $empresasIds = $usuarioAutenticado->empresas->pluck('id');
-
-        $query = User::whereHas('empresas', function ($query) use ($empresasIds) {
-            $query->whereIn('empresas.id', $empresasIds);
+        $empresaId = $request->empresa_id;
+        $query = User::whereHas('empresas', function ($q) use ($empresaId) {
+            $q->where('empresas.id', $empresaId);
         })->with(['permissoes', 'enderecos', 'empresas']);
-
-        // Filtros opcionais
-        if ($request->has('empresa_id') && $request->empresa_id) {
-            $query->whereHas('empresas', function ($q) use ($request) {
-                $q->where('empresas.id', $request->empresa_id);
-            });
-        }
 
         if ($request->has('ativo') && $request->ativo !== null) {
             $query->where('ativo', $request->boolean('ativo'));
