@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
         // Clientes para testes
         $this->call(UsuarioClientesSeeder::class);
 
+        // Pedidos para teste de cobrança automática
+        $this->call(CreatePedidosSeeder::class);
+
         // Usuário de teste apenas em local (ou se CREATE_TEST_USER=true no .env)
         if (app()->environment('local') || env('CREATE_TEST_USER', false)) {
             if (!User::where('email', 'test@example.com')->exists()) {
