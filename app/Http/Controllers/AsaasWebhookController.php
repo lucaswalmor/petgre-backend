@@ -129,14 +129,10 @@ class AsaasWebhookController extends Controller
 
         $fatura->update(['status' => 'vencido']);
 
-        $vencimento = $fatura->vencimento ? Carbon::parse($fatura->vencimento) : now();
-        $diasAtraso = (int) $vencimento->diffInDays(now(), false);
-        if ($diasAtraso >= 5) {
-            $empresaIds = DB::table('usuarios_empresas')->where('usuario_id', $fatura->usuario_id)->pluck('empresa_id');
-            Empresa::whereIn('id', $empresaIds)->update(['ativo' => false]);
-
-            $usuario = User::find($fatura->usuario_id);
-            if ($usuario) {
+        // Enviar email imediatamente informando que a fatura venceu
+        $usuario = User::find($fatura->usuario_id);
+        if ($usuario) {
+            try {
                 $this->emailService->sendMailable(
                     $usuario->email,
                     new AssinaturaInativaMail(
@@ -144,9 +140,56 @@ class AsaasWebhookController extends Controller
                         (float) $fatura->valor,
                         $fatura->vencimento?->format('d/m/Y') ?? '',
                         $fatura->link_fatura,
-                        $fatura->pix_copia_cola
+                        $fatura->pix_copia_cola,
+                        'vencida'
                     )
                 );
+                Log::info('Email de fatura vencida enviado', [
+                    'usuario_id' => $usuario->id,
+                    'fatura_id' => $fatura->id,
+                    'email' => $usuario->email
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Erro ao enviar email de fatura vencida', [
+                    'usuario_id' => $usuario->id,
+                    'fatura_id' => $fatura->id,
+                    'erro' => $e->getMessage()
+                ]);
+            }
+        }
+
+        $vencimento = $fatura->vencimento ? Carbon::parse($fatura->vencimento) : now();
+        $diasAtraso = (int) $vencimento->diffInDays(now(), false);
+        if ($diasAtraso >= 5) {
+            $empresaIds = DB::table('usuarios_empresas')->where('usuario_id', $fatura->usuario_id)->pluck('empresa_id');
+            Empresa::whereIn('id', $empresaIds)->update(['ativo' => false]);
+
+            // Enviar email de desativação (empresas desativadas)
+            if ($usuario) {
+                try {
+                    $this->emailService->sendMailable(
+                        $usuario->email,
+                        new AssinaturaInativaMail(
+                            $usuario,
+                            (float) $fatura->valor,
+                            $fatura->vencimento?->format('d/m/Y') ?? '',
+                            $fatura->link_fatura,
+                            $fatura->pix_copia_cola,
+                            'desativada'
+                        )
+                    );
+                    Log::info('Email de empresas desativadas enviado', [
+                        'usuario_id' => $usuario->id,
+                        'fatura_id' => $fatura->id,
+                        'empresas_desativadas' => $empresaIds->toArray()
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Erro ao enviar email de empresas desativadas', [
+                        'usuario_id' => $usuario->id,
+                        'fatura_id' => $fatura->id,
+                        'erro' => $e->getMessage()
+                    ]);
+                }
             }
         }
     }

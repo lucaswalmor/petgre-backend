@@ -17,15 +17,21 @@ class AssinaturaInativaMail extends Mailable
         public float $valor,
         public string $vencimento,
         public ?string $linkFatura,
-        public ?string $pixCopiaCola
+        public ?string $pixCopiaCola,
+        public string $tipo = 'desativada' // 'vencida' ou 'desativada' ou 'aviso_previo'
     ) {
     }
 
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: 'Assinatura PetGre – pagamento em atraso',
-        );
+        $subject = match($this->tipo) {
+            'vencida' => 'PetGre - Fatura Vencida',
+            'desativada' => 'PetGre - Assinatura Suspensa',
+            'aviso_previo' => 'PetGre - Lembrete: Fatura Vence em 3 Dias',
+            default => 'PetGre - Assinatura PetGre – pagamento em atraso'
+        };
+
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content
