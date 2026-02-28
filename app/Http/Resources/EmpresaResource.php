@@ -104,23 +104,6 @@ class EmpresaResource extends JsonResource
                 });
             }),
 
-            'assinatura' => $this->whenLoaded('assinatura', function () {
-                return [
-                    'id' => $this->assinatura->id,
-                    'plano' => $this->whenLoaded('assinatura.plano', function () {
-                        return [
-                            'id' => $this->assinatura->plano->id,
-                            'nome' => $this->assinatura->plano->nome,
-                            'valor' => $this->assinatura->plano->valor,
-                        ];
-                    }),
-                    'data_inicio' => $this->assinatura->data_inicio,
-                    'data_fim' => $this->assinatura->data_fim,
-                    'valor' => $this->assinatura->valor,
-                    'ativo' => $this->assinatura->ativo,
-                ];
-            }),
-
             'formas_pagamento' => $this->whenLoaded('formasPagamentos', function () {
                 return $this->formasPagamentos->map(function ($forma) {
                     return [
