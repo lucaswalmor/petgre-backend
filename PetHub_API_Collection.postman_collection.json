@@ -2637,6 +2637,156 @@
 						},
 						"description": "🚪 ROTA PÚBLICA - Finaliza o processo de recuperação de senha alterando a senha do usuário após validação do código. Não requer autenticação."
 					}
+				},
+				{
+					"name": "💰 Billing - Listar Masters",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/test/masters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"masters"
+							]
+						},
+						"description": "💰 Lista todos os usuários masters para testes de faturamento. Requer autenticação lojista."
+					}
+				},
+				{
+					"name": "💰 Billing - Status Faturamento",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/test/billing-status?usuario_id={{usuario_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"billing-status"
+							],
+							"query": [
+								{
+									"key": "usuario_id",
+									"value": "{{usuario_id}}",
+									"description": "ID do usuário master para verificar status"
+								}
+							]
+						},
+						"description": "💰 Verifica o status completo de faturamento de um usuário master (pedidos, assinatura Asaas, etc.). Requer autenticação lojista."
+					}
+				},
+				{
+					"name": "💰 Billing - Simular Cobrança",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"usuario_id\": \"{{usuario_id}}\",\n    \"forcar_disparo\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/test/simulate-billing",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"simulate-billing"
+							]
+						},
+						"description": "💰 Simula atingimento de 30 pedidos e dispara assinatura Asaas automaticamente. Use forcar_disparo=true para testar mesmo sem 30 pedidos. ⚠️ Cria registros reais no Asaas!"
+					}
+				},
+				{
+					"name": "💰 Billing - Resetar Contadores",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"usuario_id\": \"{{usuario_id}}\",\n    \"mes_referencia\": \"2024-01\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/test/reset-billing",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"reset-billing"
+							]
+						},
+						"description": "💰 Reseta contadores de pedidos para teste (total_pedidos=0, assinatura_disparada=false). Útil para limpar estado após testes."
+					}
+				},
+				{
+					"name": "💰 Billing - Config Asaas",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_lojista}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/test/asaas-config",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"test",
+								"asaas-config"
+							]
+						},
+						"description": "💰 Verifica se a integração com Asaas está configurada (API key, base URL, webhook token). Requer autenticação lojista."
+					}
 				}
 			]
 		}
@@ -2726,6 +2876,18 @@
 			"value": "seuemail@gmail.com",
 			"type": "string",
 			"description": "Email para testes de envio (substitua pelo seu email)"
+		},
+		{
+			"key": "billing_usuario_id",
+			"value": "",
+			"type": "string",
+			"description": "ID do usuário master para testes de faturamento"
+		},
+		{
+			"key": "billing_mes_referencia",
+			"value": "",
+			"type": "string",
+			"description": "Mês de referência para testes de faturamento (formato: YYYY-MM)"
 		}
 	]
 }

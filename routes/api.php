@@ -8,6 +8,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\PermissaoController;
 use App\Http\Controllers\ProdutoController;
 use App\Http\Controllers\EmpresaAvaliacaoController;
+use App\Http\Controllers\BillingTestController;
 use App\Http\Controllers\EmpresaCuponsController;
 use App\Http\Controllers\PedidoController;
 use App\Http\Controllers\SiteClienteController;
@@ -63,7 +64,7 @@ Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->grou
 
 // Rotas protegidas (precisam de autenticação)
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // Dashboard lojista — exige x-empresa-id
     Route::get('/dashboard', [DashboardController::class, 'getDados'])->middleware('empresa.context');
 
@@ -90,6 +91,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rota de criação de pedidos (pública para clientes)
     Route::post('/pedidos', [PedidoController::class, 'store'])->middleware('auth:sanctum');
+
+    // Rotas de teste de faturamento (apenas para desenvolvimento/teste)
+    Route::prefix('test')->middleware('auth:sanctum')->group(function () {
+        Route::get('/masters', [BillingTestController::class, 'listMasters']);
+        Route::get('/billing-status', [BillingTestController::class, 'checkBillingStatus']);
+        Route::post('/simulate-billing', [BillingTestController::class, 'simulateBilling']);
+        Route::post('/reset-billing', [BillingTestController::class, 'resetBillingCounters']);
+        Route::get('/asaas-config', [BillingTestController::class, 'testAsaasConfig']);
+    });
 
     // Rotas de usuários — exige x-empresa-id
     Route::controller(UsuarioController::class)->prefix('usuarios')->middleware('empresa.context')->group(function () {
@@ -243,7 +253,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/remover-produto-carrinho', 'salvarLogRemoverProdutoCarrinho');
         Route::post('/trocar-loja', 'salvarLogTrocarLoja');
     });
-
 });
 
 // Rotas Públicas (sem autenticação)
