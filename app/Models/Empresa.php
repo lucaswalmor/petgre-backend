@@ -72,12 +72,6 @@ class Empresa extends Model
         return $this->hasMany(EmpresaBairrosEntregas::class, 'empresa_id');
     }
 
-    // Relação com assinatura
-    public function assinatura()
-    {
-        return $this->hasOne(EmpresaAssinatura::class, 'empresa_id');
-    }
-
     // Relação com formas de pagamento
     public function formasPagamentos()
     {

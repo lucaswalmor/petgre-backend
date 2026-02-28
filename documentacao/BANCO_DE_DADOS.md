@@ -30,7 +30,6 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **empresa_horarios** | Horários de funcionamento por dia da semana (dia_semana, slug, horario_inicio, horario_fim, padrao). |
 | **empresa_bairros_entregas** | Bairros atendidos com valor de entrega e valor mínimo (FK para bairros). |
 | **empresa_formas_pagamentos** | Formas de pagamento aceitas pela empresa (FK para formas_pagamentos). |
-| **empresa_assinatura** | Plano/assinatura da empresa (FK para planos). |
 | **empresa_pausas_agendadas** | Pausas agendadas (data_inicio, data_fim, motivo, recorrente). Consideradas em “loja aberta/fechada”. |
 
 ### Produtos
@@ -112,7 +111,7 @@ As migrations estão em `database/migrations/`. Ordem lógica (dependências):
 3. usuarios, password_reset_tokens, sessions  
 4. usuarios_enderecos, cache, jobs  
 5. empresas  
-6. empresa_endereco, empresa_configuracoes, empresa_horarios, empresa_bairros_entregas, empresa_assinatura, empresa_formas_pagamentos  
+6. empresa_endereco, empresa_configuracoes, empresa_horarios, empresa_bairros_entregas, empresa_formas_pagamentos  
 7. usuarios_empresas, usuarios_permissoes  
 8. produtos  
 9. pedidos, pedido_items, pedido_endereco, pedido_historico_status, pedido_forma_pagamento  

@@ -19,8 +19,4 @@ class Plano extends Model
         'ativo' => 'boolean',
     ];
 
-    public function empresasAssinatura()
-    {
-        return $this->hasMany(EmpresaAssinatura::class, 'plano_id');
-    }
 }
