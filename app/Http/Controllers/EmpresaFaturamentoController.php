@@ -119,6 +119,7 @@ class EmpresaFaturamentoController extends Controller
                 'status' => $f->status,
                 'vencimento' => $f->vencimento?->format('Y-m-d'),
                 'pago_em' => $f->pago_em?->format('Y-m-d'),
+                'link_fatura' => $f->link_fatura,
             ]);
 
         return response()->json([
