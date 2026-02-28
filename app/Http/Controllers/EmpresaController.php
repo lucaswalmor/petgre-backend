@@ -404,7 +404,6 @@ class EmpresaController extends Controller
                 'endereco',
                 'configuracoes',
                 'horarios',
-                'assinatura.plano',
                 'formasPagamentos.formaPagamento',
                 'bairrosEntregas.bairro',
                 'usuarios.usuario.permissoes',
