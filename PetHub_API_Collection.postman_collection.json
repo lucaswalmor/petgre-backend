@@ -2052,7 +2052,7 @@
 				{
 					"name": "Toggle Ativo",
 					"request": {
-						"method": "PATCH",
+						"method": "PUT",
 						"header": [
 							{
 								"key": "Authorization",

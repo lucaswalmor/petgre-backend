@@ -241,7 +241,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', 'destroy');
 
         // Rotas especiais
-        Route::patch('/{id}/toggle-ativo', 'toggleAtivo');
+        Route::put('/{id}/toggle-ativo', 'toggleAtivo');
         Route::get('/{id}/usos', 'usos');
         Route::get('/estatisticas/cupons', 'estatisticas');
     });

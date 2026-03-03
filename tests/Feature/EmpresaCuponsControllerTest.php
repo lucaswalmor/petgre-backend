@@ -134,7 +134,7 @@ class EmpresaCuponsControllerTest extends TestCase
     }
 
     /**
-     * PATCH /api/cupons/{id}/toggle-ativo - sucesso
+     * PUT /api/cupons/{id}/toggle-ativo - sucesso
      */
     public function test_toggle_ativo_sucesso(): void
     {
@@ -152,7 +152,7 @@ class EmpresaCuponsControllerTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $response = $this->patchJson("/api/cupons/{$cupom->id}/toggle-ativo");
+        $response = $this->putJson("/api/cupons/{$cupom->id}/toggle-ativo");
 
         $response->assertOk()
             ->assertJsonFragment(['message' => 'Status do cupom alterado com sucesso']);

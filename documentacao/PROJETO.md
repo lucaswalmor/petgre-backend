@@ -171,7 +171,7 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 | `show` | GET /api/cupons/{id} | Detalhes do cupom (auth). |
 | `update` | PUT /api/cupons/{id} | Atualiza cupom (auth). |
 | `destroy` | DELETE /api/cupons/{id} | Exclui cupom (não permite se já foi usado) (auth). |
-| `toggleAtivo` | PATCH /api/cupons/{id}/toggle-ativo | Ativa/desativa cupom (auth). |
+| `toggleAtivo` | PUT /api/cupons/{id}/toggle-ativo | Ativa/desativa cupom (auth). |
 | `usos` | GET /api/cupons/{id}/usos | Lista usos do cupom (auth). |
 | `estatisticas` | GET /api/cupons/estatisticas/cupons | Estatísticas de cupons da empresa (auth). |
 
