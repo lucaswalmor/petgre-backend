@@ -79,17 +79,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/solicitar-moderacao', 'solicitarModeracao')->middleware('check.permission:avaliacoes.index');
     });
 
-    // Rotas de pedidos — exige x-empresa-id
+    // Rotas de pedidos — exige x-empresa-id (painel do lojista)
     Route::controller(PedidoController::class)->prefix('pedidos')->middleware('empresa.context')->group(function () {
         Route::get('/estatisticas', 'estatisticas')->middleware('check.permission:pedidos.index');
         Route::get('/', 'index')->middleware('check.permission:pedidos.index'); // Dashboard empresa
         Route::get('/{id}', 'show'); // Usuários/empresas veem pedidos específicos
         Route::put('/{id}', 'update')->middleware('check.permission:pedidos.update'); // Empresa altera status
         Route::delete('/{id}', 'destroy')->middleware('check.permission:pedidos.destroy'); // Empresa exclui (apenas pendentes)
-        Route::post('/validar-cupom', 'validarCupom'); // Validar cupom antes do pedido
     });
 
-    // Rota de criação de pedidos (pública para clientes)
+    // Validação de cupom para checkout do cliente (não exige x-empresa-id, apenas auth)
+    Route::post('/pedidos/validar-cupom', [PedidoController::class, 'validarCupom']);
+
+    // Rota de criação de pedidos (clientes autenticados)
     Route::post('/pedidos', [PedidoController::class, 'store'])->middleware('auth:sanctum');
 
     // Rotas de teste de faturamento (apenas para desenvolvimento/teste)
