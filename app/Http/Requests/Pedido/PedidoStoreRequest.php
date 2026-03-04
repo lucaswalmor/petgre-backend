@@ -3,9 +3,7 @@
 namespace App\Http\Requests\Pedido;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\Exceptions\HttpResponseException;
 
 class PedidoStoreRequest extends FormRequest
 {
@@ -194,10 +192,6 @@ class PedidoStoreRequest extends FormRequest
                     $quantidadeParaValidar = $produto->vende_granel ? $item['quantidade'] / 1000 : $item['quantidade'];
                     if (isset($produto->estoque) && $produto->estoque < $quantidadeParaValidar) {
                         $validator->errors()->add("itens.{$index}.quantidade", "Estoque insuficiente. Disponível: {$produto->estoque}");
-                    }
-
-                    if ((float)$produto->preco !== (float)$item['preco_unitario']) {
-                        $validator->errors()->add("itens.{$index}.preco_unitario", 'Preço do produto não corresponde ao valor atual.');
                     }
                 }
             }
