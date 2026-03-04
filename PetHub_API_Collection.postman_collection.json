@@ -1487,6 +1487,38 @@
 					}
 				},
 				{
+					"name": "Calcular Promoção",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_empresa}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"preco_original\": 100,\n  \"percentual\": 20\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/produtos/calcular-promocao",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"produtos",
+								"calcular-promocao"
+							]
+						},
+						"description": "Calcula preço promocional ou percentual de desconto (para a aba Promoção do formulário de produto). Body: preco_original (obrigatório), preco_promocional OU percentual. Retorna { preco_promocional, percentual }. Permissão: produtos.index"
+					}
+				},
+				{
 					"name": "Criar Produto",
 					"request": {
 						"method": "POST",

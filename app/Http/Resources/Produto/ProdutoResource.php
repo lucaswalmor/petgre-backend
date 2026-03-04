@@ -41,6 +41,7 @@ class ProdutoResource extends JsonResource
             'comprimento' => $this->comprimento,
             'ordem' => $this->ordem,
             'preco_promocional' => $this->preco_promocional,
+            'preco_promocional_percentual' => $this->preco_promocional_percentual,
             'promocao_ate' => $this->promocao_ate?->format('Y-m-d'),
             'tem_promocao' => $this->tem_promocao,
             'vende_granel' => $this->vende_granel,

@@ -56,6 +56,7 @@ class ProdutoStoreRequest extends FormRequest
             'comprimento' => 'nullable|numeric|min:0|max:9999.99',
             'ordem' => 'nullable|integer|min:0|max:999999',
             'preco_promocional' => 'nullable|numeric|min:0|max:999999.99|required_if:tem_promocao,true',
+            'preco_promocional_percentual' => 'nullable|numeric|min:0|max:100',
             'promocao_ate' => 'nullable|date|after:today|required_if:tem_promocao,true',
             'tem_promocao' => 'nullable|boolean',
             'vende_granel' => 'nullable|boolean',

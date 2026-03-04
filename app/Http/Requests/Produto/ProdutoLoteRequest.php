@@ -45,6 +45,7 @@ class ProdutoLoteRequest extends FormRequest
             'produtos.*.comprimento' => 'nullable|numeric|min:0|max:9999.99',
             'produtos.*.ordem' => 'nullable|integer|min:0|max:999999',
             'produtos.*.preco_promocional' => 'nullable|numeric|min:0|max:999999.99',
+            'produtos.*.preco_promocional_percentual' => 'nullable|numeric|min:0|max:100',
             'produtos.*.promocao_ate' => 'nullable|date|after:today',
             'produtos.*.tem_promocao' => 'nullable|boolean',
             'produtos.*.vende_granel' => 'nullable|boolean',

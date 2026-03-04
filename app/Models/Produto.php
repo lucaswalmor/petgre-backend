@@ -37,6 +37,7 @@ class Produto extends Model
         'comprimento',
         'ordem',
         'preco_promocional',
+        'preco_promocional_percentual',
         'promocao_ate',
         'tem_promocao',
         'vende_granel',
@@ -56,6 +57,7 @@ class Produto extends Model
         'comprimento' => 'decimal:2',
         'ordem' => 'integer',
         'preco_promocional' => 'decimal:2',
+        'preco_promocional_percentual' => 'decimal:2',
         'promocao_ate' => 'date',
         'tem_promocao' => 'boolean',
         'vende_granel' => 'boolean',
@@ -164,12 +166,13 @@ class Produto extends Model
         return true;
     }
 
-    // Método para verificar se está em promoção válida
+    // Método para verificar se está em promoção válida (último dia vale o dia inteiro)
     public function estaEmPromocao()
     {
         return $this->tem_promocao &&
                $this->preco_promocional &&
-               (!$this->promocao_ate || $this->promocao_ate >= now());
+               (float) $this->preco_promocional > 0 &&
+               (!$this->promocao_ate || $this->promocao_ate >= now()->startOfDay());
     }
 
     // Método para obter preço atual (considerando promoção)

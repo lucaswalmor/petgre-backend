@@ -102,6 +102,7 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 | `search` | GET /api/produtos/search/buscar | Busca rápida por nome/descrição, categoria, tipo. Permissão: produtos.index. |
 | `listarCategorias` | GET /api/produtos/categorias | Lista categorias. Permissão: produtos.index. |
 | `listarUnidadesMedidas` | GET /api/produtos/unidades-medidas | Lista unidades de medida. Permissão: produtos.index. |
+| `calcularPromocao` | POST /api/produtos/calcular-promocao | Calcula preço promocional ou percentual de desconto (body: preco_original, preco_promocional? ou percentual?). Retorna preco_promocional e percentual. Permissão: produtos.index. |
 | `storeLote` | POST /api/produtos/lote | Cadastro em lote de produtos. Permissão: produtos.store. |
 | `destroyLote` | DELETE /api/produtos/lote | Exclui produtos em lote (ids). Permissão: produtos.destroy. |
 | `listarTerceiros` | GET /api/produtos/importar/terceiros/lista | Lista ERPs/planilhas de terceiros para importação. Permissão: produtos.store. |

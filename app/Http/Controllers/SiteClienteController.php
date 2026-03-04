@@ -27,8 +27,10 @@ use App\Models\Categorias;
 use App\Models\User;
 use App\Models\UsuarioLog;
 use App\Models\Kit;
+use App\Models\Produto;
 use Illuminate\Support\Facades\Log;
 use App\Services\PushNotificationService;
+use App\Services\CalculosService;
 
 class SiteClienteController extends Controller
 {
@@ -423,7 +425,7 @@ class SiteClienteController extends Controller
                         foreach ($kit->itens as $kitItem) {
                             $produto = $kitItem->produto;
                             $qtdItem = $kitItem->quantidade * $qtdKit;
-                            $precoUnit = $produto ? (float) $produto->preco : 0;
+                            $precoUnit = $produto ? CalculosService::getPrecoEfetivo($produto) : 0;
                             PedidoItems::create([
                                 'pedido_id' => $pedido->id,
                                 'produto_id' => $kitItem->produto_id,
@@ -435,12 +437,15 @@ class SiteClienteController extends Controller
                             ]);
                         }
                     } else {
+                        $produto = Produto::find($item['produto_id']);
+                        $precoUnit = $produto ? CalculosService::getPrecoEfetivo($produto) : (float) ($item['preco_unitario'] ?? 0);
+                        $qtd = (float) ($item['quantidade'] ?? 0);
                         PedidoItems::create([
                             'pedido_id' => $pedido->id,
                             'produto_id' => $item['produto_id'],
-                            'quantidade' => $item['quantidade'],
-                            'preco_unitario' => $item['preco_unitario'],
-                            'preco_total' => $item['subtotal'],
+                            'quantidade' => $qtd,
+                            'preco_unitario' => $precoUnit,
+                            'preco_total' => $precoUnit * $qtd,
                             'observacoes' => $item['observacoes'] ?? null,
                         ]);
                     }

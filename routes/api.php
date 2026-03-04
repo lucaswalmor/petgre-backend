@@ -213,6 +213,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', 'index')->middleware('check.permission:produtos.index');
         Route::get('/categorias', 'listarCategorias')->middleware('check.permission:produtos.index');
         Route::get('/unidades-medidas', 'listarUnidadesMedidas')->middleware('check.permission:produtos.index');
+        Route::post('/calcular-promocao', 'calcularPromocao')->middleware('check.permission:produtos.index');
         Route::post('/', 'store')->middleware('check.permission:produtos.store');
         Route::post('/lote', 'storeLote')->middleware('check.permission:produtos.store');
         Route::delete('/lote', 'destroyLote')->middleware('check.permission:produtos.destroy');

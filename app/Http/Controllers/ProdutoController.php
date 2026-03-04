@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Common\Entity\Style\Color;
 use App\Models\PlanilhaTerceiros;
+use App\Services\CalculosService;
 
 class ProdutoController extends Controller
 {
@@ -109,6 +110,45 @@ class ProdutoController extends Controller
     }
 
     /**
+     * Calcula preço promocional ou percentual de desconto (para uso no frontend ao configurar promoção).
+     * POST /api/produtos/calcular-promocao
+     * Body: { preco_original, preco_promocional?, percentual? }
+     * Retorna: { preco_promocional, percentual }
+     */
+    public function calcularPromocao(Request $request)
+    {
+        $request->validate([
+            'preco_original' => 'required|numeric|min:0',
+            'preco_promocional' => 'nullable|numeric|min:0',
+            'percentual' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        $precoOriginal = (float) $request->preco_original;
+        $precoPromocional = $request->has('preco_promocional') && $request->preco_promocional !== '' && $request->preco_promocional !== null
+            ? (float) $request->preco_promocional
+            : null;
+        $percentual = $request->has('percentual') && $request->percentual !== '' && $request->percentual !== null
+            ? (float) $request->percentual
+            : null;
+
+        if ($percentual !== null) {
+            $precoPromocional = CalculosService::calcularPrecoPromocionalPorPercentual($precoOriginal, $percentual);
+        } elseif ($precoPromocional !== null) {
+            $percentual = CalculosService::calcularPercentualDesconto($precoOriginal, $precoPromocional);
+        } else {
+            return response()->json([
+                'preco_promocional' => $precoOriginal,
+                'percentual' => 0,
+            ]);
+        }
+
+        return response()->json([
+            'preco_promocional' => round($precoPromocional, 2),
+            'percentual' => round($percentual, 2),
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(ProdutoStoreRequest $request)
@@ -138,6 +178,7 @@ class ProdutoController extends Controller
                 'comprimento',
                 'ordem',
                 'preco_promocional',
+                'preco_promocional_percentual',
                 'promocao_ate',
                 'tem_promocao',
                 'vende_granel',
@@ -231,6 +272,7 @@ class ProdutoController extends Controller
                 'comprimento',
                 'ordem',
                 'preco_promocional',
+                'preco_promocional_percentual',
                 'promocao_ate',
                 'tem_promocao',
                 'vende_granel',
@@ -536,6 +578,7 @@ class ProdutoController extends Controller
                         'comprimento' => $produtoDados['comprimento'] ?? null,
                         'ordem' => $produtoDados['ordem'] ?? 0,
                         'preco_promocional' => $produtoDados['preco_promocional'] ?? null,
+                        'preco_promocional_percentual' => $produtoDados['preco_promocional_percentual'] ?? null,
                         'promocao_ate' => $produtoDados['promocao_ate'] ?? null,
                         'tem_promocao' => ($produtoDados['tem_promocao'] ?? false) && !empty($produtoDados['preco_promocional']),
                         'vende_granel' => $produtoDados['vende_granel'] ?? false,

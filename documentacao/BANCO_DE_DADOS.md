@@ -36,7 +36,7 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 
 | Tabela | Descrição |
 |--------|-----------|
-| **produtos** | Catálogo: empresa_id, categoria_id, unidade_medida_id, tipo (produto/serviço), nome, slug, descricao, preco, estoque, estoque_minimo, imagem, destaque, ativo, marca, sku, preco_custo, peso, dimensões, ordem, preco_promocional, promocao_ate, tem_promocao, vende_granel. Soft deletes. |
+| **produtos** | Catálogo: empresa_id, categoria_id, unidade_medida_id, tipo (produto/serviço), nome, slug, descricao, preco, estoque, estoque_minimo, ativar_estoque_minimo, imagem, destaque, ativo, marca, sku, preco_custo, peso, dimensões, ordem, preco_promocional, preco_promocional_percentual (decimal 8,2 nullable), promocao_ate, tem_promocao, vende_granel. Soft deletes. |
 | **categorias** | Categorias de produtos (ex.: Rações, Brinquedos, Serviços). |
 | **unidades_medidas** | Unidade, Pacote, Quilo, Litro, Grama, etc. |
 

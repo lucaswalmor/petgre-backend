@@ -27,6 +27,7 @@ use App\Models\Produto;
 use App\Services\PushNotificationService;
 use App\Services\FaturamentoService;
 use App\Services\EmailService;
+use App\Services\CalculosService;
 use App\Mail\EstoqueMinimoMail;
 use Carbon\Carbon;
 
@@ -170,7 +171,7 @@ class PedidoController extends Controller
                         foreach ($kit->itens as $kitItem) {
                             $produto = $kitItem->produto;
                             $qtdItem = $kitItem->quantidade * $qtdKit;
-                            $precoUnit = $produto ? (float) $produto->preco : 0;
+                            $precoUnit = $produto ? CalculosService::getPrecoEfetivo($produto) : 0;
                             PedidoItems::create([
                                 'pedido_id' => $pedido->id,
                                 'produto_id' => $kitItem->produto_id,
@@ -182,12 +183,15 @@ class PedidoController extends Controller
                             ]);
                         }
                     } else {
+                        $produto = Produto::find($item['produto_id']);
+                        $precoUnit = $produto ? CalculosService::getPrecoEfetivo($produto) : (float) ($item['preco_unitario'] ?? 0);
+                        $qtd = (float) ($item['quantidade'] ?? 0);
                         PedidoItems::create([
                             'pedido_id' => $pedido->id,
                             'produto_id' => $item['produto_id'],
-                            'quantidade' => $item['quantidade'],
-                            'preco_unitario' => $item['preco_unitario'],
-                            'preco_total' => $item['subtotal'],
+                            'quantidade' => $qtd,
+                            'preco_unitario' => $precoUnit,
+                            'preco_total' => $precoUnit * $qtd,
                             'observacoes' => $item['observacoes'] ?? null,
                         ]);
                     }
