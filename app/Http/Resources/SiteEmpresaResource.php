@@ -149,6 +149,7 @@ class SiteEmpresaResource extends JsonResource
                     $itensFormatados[] = [
                         'produto_id' => $item->produto_id,
                         'nome_produto' => $produto ? $produto->nome : null,
+                        'url_imagem' => $produto && $produto->imagem ? $produto->imagem : null,
                         'quantidade' => $quantidade,
                         'preco_produto' => $precoProduto,
                         'preco_produto_formatado' => $precoProduto
