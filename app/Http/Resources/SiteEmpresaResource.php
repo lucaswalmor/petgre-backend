@@ -116,7 +116,13 @@ class SiteEmpresaResource extends JsonResource
         });
 
         $dados['produtos'] = $this->whenLoaded('produtos', function () {
-            $produtosAtivos = $this->produtos->where('ativo', true);
+            $produtosAtivos = $this->produtos->where('ativo', true)
+                ->filter(function ($produto) {
+                    if ($produto->tipo === 'servico') {
+                        return true;
+                    }
+                    return $produto->estoque !== null && (float) $produto->estoque > 0;
+                });
 
             // Agrupar produtos por categoria
             $produtosPorCategoria = $produtosAtivos->groupBy(function ($produto) {
@@ -131,11 +137,17 @@ class SiteEmpresaResource extends JsonResource
             return $produtosPorCategoria;
         });
 
-        // Produtos em destaque (para carrossel no app cliente), limitado a 12
+        // Produtos em destaque (para carrossel no app cliente), limitado a 12 — apenas com estoque
         $dados['destaques'] = $this->whenLoaded('produtos', function () {
             $destaques = $this->produtos
                 ->where('ativo', true)
                 ->where('destaque', true)
+                ->filter(function ($produto) {
+                    if ($produto->tipo === 'servico') {
+                        return true;
+                    }
+                    return $produto->estoque !== null && (float) $produto->estoque > 0;
+                })
                 ->take(12)
                 ->values();
             return \App\Http\Resources\Produto\ProdutoResource::collection($destaques);
@@ -149,26 +161,34 @@ class SiteEmpresaResource extends JsonResource
 
                 $precoSomaItens = 0;
                 $itensFormatados = [];
+                $quantidadeMaximaKit = null;
 
                 foreach ($itens as $item) {
                     $produto = $item->relationLoaded('produto') ? $item->produto : $item->produto;
                     $precoProduto = $produto ? (float) $produto->preco : 0;
-                    $quantidade = (int) $item->quantidade;
-                    $precoSomaItens += $precoProduto * $quantidade;
+                    $qtdItem = (float) $item->quantidade;
+                    $precoSomaItens += $precoProduto * $qtdItem;
 
                     $itensFormatados[] = [
                         'produto_id' => $item->produto_id,
                         'nome_produto' => $produto ? $produto->nome : null,
                         'url_imagem' => $produto && $produto->imagem ? $produto->imagem : null,
-                        'quantidade' => $quantidade,
+                        'quantidade' => (int) $qtdItem,
                         'preco_produto' => $precoProduto,
                         'preco_produto_formatado' => $precoProduto
                             ? 'R$ ' . number_format($precoProduto, 2, ',', '.')
                             : null,
                     ];
+
+                    // Estoque disponível para este item: serviço não limita; senão quantos kits cabem (estoque e qtd por kit na mesma unidade)
+                    if ($produto && $produto->tipo !== 'servico' && $produto->estoque !== null && $qtdItem > 0) {
+                        $maxPorItem = (int) floor((float) $produto->estoque / $qtdItem);
+                        $quantidadeMaximaKit = $quantidadeMaximaKit === null ? $maxPorItem : min($quantidadeMaximaKit, $maxPorItem);
+                    }
                 }
 
                 $precoKit = (float) $kit->preco;
+                $temEstoque = $quantidadeMaximaKit === null || $quantidadeMaximaKit > 0;
 
                 return [
                     'id' => $kit->id,
@@ -180,7 +200,11 @@ class SiteEmpresaResource extends JsonResource
                     'itens' => $itensFormatados,
                     'preco_soma_itens' => $precoSomaItens,
                     'preco_soma_itens_formatado' => 'R$ ' . number_format($precoSomaItens, 2, ',', '.'),
+                    'quantidade_maxima' => $quantidadeMaximaKit ?? 999999,
+                    'tem_estoque' => $temEstoque,
                 ];
+            })->filter(function ($kit) {
+                return $kit['tem_estoque'];
             })->values();
         });
 

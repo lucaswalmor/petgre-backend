@@ -84,6 +84,14 @@ class ProdutoResource extends JsonResource
                 return $this->estoque > 0;
             }),
 
+            // Máximo que o cliente pode pedir (para travar quantidade no carrinho): serviço = null (ilimitado), granel = estoque em gramas, outro = estoque em unidades
+            'quantidade_maxima' => $this->when($this->tipo !== 'servico' && $this->estoque !== null, function () {
+                if ($this->vende_granel) {
+                    return (int) floor((float) $this->estoque * 1000);
+                }
+                return (int) floor((float) $this->estoque);
+            }),
+
             // Campos calculados adicionais
             'preco_atual' => $this->getPrecoAtual(),
             'esta_em_promocao' => $this->estaEmPromocao(),

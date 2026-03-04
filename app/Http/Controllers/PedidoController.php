@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use App\Helpers\VerificaEmpresa;
 use App\Models\EmpresaAvaliacao;
 use App\Models\Kit;
+use App\Models\Produto;
 use App\Services\PushNotificationService;
 use App\Services\FaturamentoService;
 use Carbon\Carbon;
@@ -207,6 +208,20 @@ class PedidoController extends Controller
                 'observacoes' => 'Pedido criado',
             ]);
 
+            // Baixa de estoque dos produtos do pedido
+            $pedido->load('itens.produto');
+            foreach ($pedido->itens as $item) {
+                $produto = $item->produto;
+                if (!$produto || $produto->tipo === 'servico') {
+                    continue;
+                }
+                $qty = (float) $item->quantidade;
+                $qtyEstoque = $produto->vende_granel ? $qty / 1000 : $qty;
+                if ($produto->estoque !== null && $qtyEstoque > 0) {
+                    $produto->reduzirEstoque($qtyEstoque);
+                }
+            }
+
             DB::commit();
 
             $codigo = '#' . str_pad((string) $pedido->id, 6, '0', STR_PAD_LEFT);
@@ -298,6 +313,8 @@ class PedidoController extends Controller
 
         DB::beginTransaction();
         try {
+            $statusAnteriorId = $pedido->status_pedido_id;
+            $idCancelado = StatusPedidos::where('slug', 'cancelado')->first()->id;
             $updateData = [];
 
             // Apenas empresa pode alterar status
@@ -341,6 +358,22 @@ class PedidoController extends Controller
                         ]);
                     }
                 } elseif ($statusSlug === 'cancelado') {
+                    // Reposição de estoque ao cancelar (apenas se não estava já cancelado)
+                    if ($statusAnteriorId != $idCancelado) {
+                        $pedido->load('itens.produto');
+                        foreach ($pedido->itens as $item) {
+                            $produto = $item->produto;
+                            if (!$produto || $produto->tipo === 'servico') {
+                                continue;
+                            }
+                            $qty = (float) $item->quantidade;
+                            $qtyEstoque = $produto->vende_granel ? $qty / 1000 : $qty;
+                            if ($produto->estoque !== null && $qtyEstoque > 0) {
+                                $produto->adicionarEstoque($qtyEstoque);
+                            }
+                        }
+                    }
+
                     // Cancelar o resgate da empresa se estiver pendente ou aprovado
                     $resgate = EmpresaResgateCupom::where('pedido_id', $pedido->id)
                         ->whereIn('status', ['pendente', 'aprovado'])

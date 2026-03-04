@@ -36,8 +36,9 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 ## 4. Pedidos
 
 - **Criação:** apenas cliente (ou lojista em nome do cliente) cria pedido. Campos obrigatórios: empresa_id, usuario_id, itens, totais, forma de pagamento. Se entrega, endereço (endereco_id do usuario). Cupom opcional (cupom_tipo, cupom_id, cupom_valor); uso registrado ao confirmar (não ao criar).
+- **Baixa de estoque:** ao criar o pedido (store), o backend faz a baixa de estoque de cada produto dos itens: produtos do tipo "servico" são ignorados; para produtos com `vende_granel`, a quantidade do item é convertida de gramas para kg (÷ 1000) para atualizar o estoque. A validação de estoque suficiente é feita no PedidoStoreRequest antes de confirmar o pedido.
 - **Itens com kit_id:** cada item pode ter `produto_id` (produto avulso) ou `kit_id` (kit). Quando `kit_id` é enviado, o backend carrega o kit (da mesma empresa), expande em itens do kit (produto_id + quantidade por componente) e cria um `pedido_items` por produto (para estoque e histórico). O subtotal/total do pedido já vêm calculados pelo frontend (preço do kit × quantidade).
-- **Status:** pendente → confirmado → em_preparacao → em_entrega → entregue; pode passar a cancelado em qualquer momento. Ao confirmar: marca cupom como usado (empresa ou sistema). Ao cancelar: devolve cupom ao cliente (sistema/empresa) e cancela resgate de cupom do sistema para a loja.
+- **Status:** pendente → confirmado → em_preparacao → em_entrega → entregue; pode passar a cancelado em qualquer momento. Ao confirmar: marca cupom como usado (empresa ou sistema). Ao cancelar: devolve cupom ao cliente (sistema/empresa), cancela resgate de cupom do sistema para a loja e **recompõe o estoque** dos produtos do pedido (mesma regra de granel; serviços ignorados). A reposição só ocorre quando o status muda para cancelado (não se o pedido já estava cancelado).
 - **Exclusão:** apenas pedidos com status **pendente** podem ser excluídos (DELETE). Retornar 400 para os demais.
 - **Histórico:** toda alteração de status gera registro em pedido_historico_status (status_pedido_id, observacoes).
 - **Push:** ao criar pedido, backend envia notificação Web Push para subscriptions da empresa (PushNotificationService).
@@ -82,6 +83,8 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 ## 9. Produtos
 
 - **Isolamento:** produtos pertencem a uma empresa; listagens e operações devem filtrar por empresa do usuário (lojista).
+- **Estoque:** a baixa de estoque é feita ao criar o pedido (PedidoController::store). A reposição é feita ao cancelar o pedido (PedidoController::update quando status passa a cancelado). Produtos do tipo "servico" não têm movimentação de estoque. Produtos com `vende_granel` usam quantidade em kg no campo estoque (itens do pedido em gramas são convertidos).
+- **Site cliente (página da loja):** na resposta da empresa (SiteEmpresaResource), só são enviados produtos com estoque (tipo "servico" ou estoque > 0) e kits cujos itens tenham todos estoque suficiente para pelo menos 1 unidade do kit. Cada produto e cada kit expõe `quantidade_maxima` (máximo que o cliente pode pedir) para o frontend limitar a quantidade no carrinho. ProdutoResource inclui `quantidade_maxima` (serviço = null; granel = estoque em gramas; outro = estoque em unidades).
 - **Exclusão:** não permitir excluir produto que possui itens em pedidos (pedido_items). Retornar 400 com mensagem adequada.
 - **Nome único:** nome do produto deve ser único por empresa (validar no store/update quando aplicável).
 
