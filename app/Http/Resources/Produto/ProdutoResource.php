@@ -34,6 +34,7 @@ class ProdutoResource extends JsonResource
             'sku' => $this->sku,
             'preco_custo' => $this->preco_custo,
             'estoque_minimo' => $this->estoque_minimo,
+            'ativar_estoque_minimo' => $this->ativar_estoque_minimo ?? false,
             'peso' => $this->peso,
             'altura' => $this->altura,
             'largura' => $this->largura,

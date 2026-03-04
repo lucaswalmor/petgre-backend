@@ -64,6 +64,7 @@ class ProdutoUpdateRequest extends FormRequest
             'sku' => 'sometimes|nullable|string|max:255|unique:produtos,sku,' . $produtoId,
             'preco_custo' => 'sometimes|nullable|numeric|min:0|max:999999.99',
             'estoque_minimo' => 'sometimes|nullable|numeric|min:0|max:999999.999',
+            'ativar_estoque_minimo' => 'sometimes|nullable|boolean',
             'peso' => 'sometimes|nullable|numeric|min:0|max:999.999',
             'altura' => 'sometimes|nullable|numeric|min:0|max:9999.99',
             'largura' => 'sometimes|nullable|numeric|min:0|max:9999.99',

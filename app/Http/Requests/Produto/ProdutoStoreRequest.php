@@ -49,6 +49,7 @@ class ProdutoStoreRequest extends FormRequest
             'sku' => 'nullable|string|max:255|unique:produtos,sku',
             'preco_custo' => 'nullable|numeric|min:0|max:999999.99',
             'estoque_minimo' => 'nullable|numeric|min:0|max:999999.999',
+            'ativar_estoque_minimo' => 'nullable|boolean',
             'peso' => 'nullable|numeric|min:0|max:999.999',
             'altura' => 'nullable|numeric|min:0|max:9999.99',
             'largura' => 'nullable|numeric|min:0|max:9999.99',

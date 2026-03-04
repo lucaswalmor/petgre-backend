@@ -26,6 +26,8 @@ use App\Models\Kit;
 use App\Models\Produto;
 use App\Services\PushNotificationService;
 use App\Services\FaturamentoService;
+use App\Services\EmailService;
+use App\Mail\EstoqueMinimoMail;
 use Carbon\Carbon;
 
 class PedidoController extends Controller
@@ -227,6 +229,36 @@ class PedidoController extends Controller
             $codigo = '#' . str_pad((string) $pedido->id, 6, '0', STR_PAD_LEFT);
             app(PushNotificationService::class)->sendNewOrderToEmpresa($pedido->empresa_id, $codigo);
             app(FaturamentoService::class)->contabilizarPedido($pedido->empresa_id);
+
+            // Notificar lojista quando produto com "Ativar Estoque Mínimo" atingir estoque abaixo do mínimo
+            $pedido->load('itens.produto.empresa');
+            $produtosNotificados = [];
+            foreach ($pedido->itens as $item) {
+                $produto = $item->produto;
+                if (!$produto || $produto->tipo === 'servico') {
+                    continue;
+                }
+                if (in_array($produto->id, $produtosNotificados)) {
+                    continue;
+                }
+                if (!$produto->ativar_estoque_minimo || $produto->estoque_minimo === null) {
+                    continue;
+                }
+                if ((float) $produto->estoque >= (float) $produto->estoque_minimo) {
+                    continue;
+                }
+                $empresa = $produto->empresa;
+                if (!$empresa) {
+                    continue;
+                }
+                $emails = $empresa->usuarios()->with('usuario')->get()->pluck('usuario.email')->filter()->unique();
+                foreach ($emails as $email) {
+                    if ($email) {
+                        app(EmailService::class)->sendMailable($email, new EstoqueMinimoMail($produto, $empresa));
+                    }
+                }
+                $produtosNotificados[] = $produto->id;
+            }
 
             // Carregar relacionamentos
             $pedido->load([

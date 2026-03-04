@@ -38,6 +38,7 @@ class ProdutoLoteRequest extends FormRequest
             'produtos.*.sku' => 'nullable|string|max:255',
             'produtos.*.preco_custo' => 'nullable|numeric|min:0|max:999999.99',
             'produtos.*.estoque_minimo' => 'nullable|numeric|min:0|max:999999.999',
+            'produtos.*.ativar_estoque_minimo' => 'nullable|boolean',
             'produtos.*.peso' => 'nullable|numeric|min:0|max:999.999',
             'produtos.*.altura' => 'nullable|numeric|min:0|max:9999.99',
             'produtos.*.largura' => 'nullable|numeric|min:0|max:9999.99',
