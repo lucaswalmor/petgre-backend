@@ -33,7 +33,8 @@ class SidebarMenuSeeder extends Seeder
 
         $subItens = [
             ['chave' => 'cadastros.produtos', 'label' => 'Produtos', 'path' => '/dashboard/produtos', 'icon' => 'pi pi-shopping-bag', 'permission_slug' => 'produtos.index', 'parent_id' => $cadastrosId, 'ordem' => 1],
-            ['chave' => 'cadastros.cupons', 'label' => 'Cupons', 'path' => '/dashboard/cupons', 'icon' => 'pi pi-tag', 'permission_slug' => 'cupons.index', 'parent_id' => $cadastrosId, 'ordem' => 2],
+            ['chave' => 'cadastros.kits', 'label' => 'KITs', 'path' => '/dashboard/kits', 'icon' => 'pi pi-box', 'permission_slug' => 'kits.index', 'parent_id' => $cadastrosId, 'ordem' => 2],
+            ['chave' => 'cadastros.cupons', 'label' => 'Cupons', 'path' => '/dashboard/cupons', 'icon' => 'pi pi-tag', 'permission_slug' => 'cupons.index', 'parent_id' => $cadastrosId, 'ordem' => 3],
             ['chave' => 'config.empresa', 'label' => 'Empresa', 'path' => '/dashboard/empresa', 'icon' => 'pi pi-building', 'permission_slug' => 'empresas.show', 'parent_id' => $configuracoesId, 'ordem' => 1],
             ['chave' => 'config.usuarios', 'label' => 'Usuários', 'path' => '/dashboard/users', 'icon' => 'pi pi-users', 'permission_slug' => 'usuarios.index', 'parent_id' => $configuracoesId, 'ordem' => 2],
             ['chave' => 'config.pausas-agendadas', 'label' => 'Pausas Agendadas', 'path' => '/dashboard/pausas-agendadas', 'icon' => 'pi pi-pause', 'permission_slug' => 'pausas_agendadas.index', 'parent_id' => $configuracoesId, 'ordem' => 3],

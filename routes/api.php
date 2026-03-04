@@ -25,6 +25,7 @@ use App\Http\Controllers\ChamadosController;
 use App\Http\Controllers\EmpresaFaturamentoController;
 use App\Http\Controllers\EmpresaFaturasController;
 use App\Http\Controllers\AsaasWebhookController;
+use App\Http\Controllers\KitController;
 
 // Webhook Asaas (público, validado por token no header)
 Route::post('/webhooks/asaas', [AsaasWebhookController::class, 'handle']);
@@ -232,6 +233,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:produtos.update');
         Route::post('/{id}/upload-image', 'uploadImage')->middleware('check.permission:produtos.upload_image');
         Route::get('/search/buscar', 'search')->middleware('check.permission:produtos.index');
+    });
+
+    // Rotas de kits — exige x-empresa-id
+    Route::controller(KitController::class)->prefix('kits')->middleware('empresa.context')->group(function () {
+        Route::get('/estatisticas', 'estatisticas')->middleware('check.permission:kits.index');
+        Route::get('/', 'index')->middleware('check.permission:kits.index');
+        Route::post('/', 'store')->middleware('check.permission:kits.store');
+        Route::get('/{id}', 'show')->middleware('check.permission:kits.show');
+        Route::put('/{id}', 'update')->middleware('check.permission:kits.update');
+        Route::delete('/{id}', 'destroy')->middleware('check.permission:kits.destroy');
+        Route::post('/{id}/imagem', 'uploadImagem')->middleware('check.permission:kits.upload_image');
+        Route::patch('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:kits.update');
     });
 
     // Rotas de cupons da empresa — exige x-empresa-id

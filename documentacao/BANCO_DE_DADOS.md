@@ -40,6 +40,13 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **categorias** | Categorias de produtos (ex.: Rações, Brinquedos, Serviços). |
 | **unidades_medidas** | Unidade, Pacote, Quilo, Litro, Grama, etc. |
 
+### Kits
+
+| Tabela | Descrição |
+|--------|-----------|
+| **kits** | Kits de produtos: empresa_id (FK empresas), nome, descricao, imagem, preco (decimal 10,2), ativo (boolean). Soft deletes. |
+| **kit_itens** | Itens do kit: kit_id (FK kits, cascade delete), produto_id (FK produtos), quantidade (integer, default 1). |
+
 ### Pedidos
 
 | Tabela | Descrição |
@@ -114,12 +121,13 @@ As migrations estão em `database/migrations/`. Ordem lógica (dependências):
 6. empresa_endereco, empresa_configuracoes, empresa_horarios, empresa_bairros_entregas, empresa_formas_pagamentos  
 7. usuarios_empresas, usuarios_permissoes  
 8. produtos  
-9. pedidos, pedido_items, pedido_endereco, pedido_historico_status, pedido_forma_pagamento  
-10. empresa_avaliacoes, empresa_cupons, empresa_cupons_usados, sistema_cupons, sistema_cupons_usados, usuarios_cupons  
-11. add_cupom_fields_to_pedidos, empresa_resgates_cupons  
-12. usuario_logs, empresa_favoritos  
-13. faqs  
-14. planilhas_terceiros, avaliacoes_moderacao  
+9. kits, kit_itens  
+10. pedidos, pedido_items, pedido_endereco, pedido_historico_status, pedido_forma_pagamento  
+11. empresa_avaliacoes, empresa_cupons, empresa_cupons_usados, sistema_cupons, sistema_cupons_usados, usuarios_cupons  
+12. add_cupom_fields_to_pedidos, empresa_resgates_cupons  
+13. usuario_logs, empresa_favoritos  
+14. faqs  
+15. planilhas_terceiros, avaliacoes_moderacao  
 15. add_primeiro_login_to_usuarios  
 16. password_resets (nova tabela), sidebar_menu  
 17. empresa_pausas_agendadas  

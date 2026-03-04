@@ -131,6 +131,48 @@ class SiteEmpresaResource extends JsonResource
             return $produtosPorCategoria;
         });
 
+        $dados['kits'] = $this->whenLoaded('kits', function () {
+            $kitsAtivos = $this->kits->where('ativo', true);
+
+            return $kitsAtivos->map(function ($kit) {
+                $itens = $kit->relationLoaded('itens') ? $kit->itens : $kit->itens()->with('produto')->get();
+
+                $precoSomaItens = 0;
+                $itensFormatados = [];
+
+                foreach ($itens as $item) {
+                    $produto = $item->relationLoaded('produto') ? $item->produto : $item->produto;
+                    $precoProduto = $produto ? (float) $produto->preco : 0;
+                    $quantidade = (int) $item->quantidade;
+                    $precoSomaItens += $precoProduto * $quantidade;
+
+                    $itensFormatados[] = [
+                        'produto_id' => $item->produto_id,
+                        'nome_produto' => $produto ? $produto->nome : null,
+                        'quantidade' => $quantidade,
+                        'preco_produto' => $precoProduto,
+                        'preco_produto_formatado' => $precoProduto
+                            ? 'R$ ' . number_format($precoProduto, 2, ',', '.')
+                            : null,
+                    ];
+                }
+
+                $precoKit = (float) $kit->preco;
+
+                return [
+                    'id' => $kit->id,
+                    'nome' => $kit->nome,
+                    'descricao' => $kit->descricao,
+                    'imagem' => $kit->imagem,
+                    'preco' => $precoKit,
+                    'preco_formatado' => 'R$ ' . number_format($precoKit, 2, ',', '.'),
+                    'itens' => $itensFormatados,
+                    'preco_soma_itens' => $precoSomaItens,
+                    'preco_soma_itens_formatado' => 'R$ ' . number_format($precoSomaItens, 2, ',', '.'),
+                ];
+            })->values();
+        });
+
         $dados['avaliacoes_recentes'] = $this->whenLoaded('avaliacoes', function () {
             return $this->avaliacoes->map(function ($avaliacao) {
                 return [

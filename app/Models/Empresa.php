@@ -90,6 +90,14 @@ class Empresa extends Model
         return $this->hasMany(EmpresaFavorito::class, 'empresa_id');
     }
 
+    /**
+     * Relação com kits de produtos da empresa.
+     */
+    public function kits()
+    {
+        return $this->hasMany(Kit::class, 'empresa_id');
+    }
+
     // Relação com produtos
     public function produtos()
     {

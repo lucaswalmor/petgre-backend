@@ -162,6 +162,23 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 
 ---
 
+### KitController
+
+Rotas sob `auth:sanctum`, `empresa.context` e permissões específicas. Header `x-empresa-id` obrigatório.
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `estatisticas` | GET /api/kits/estatisticas | Total de kits, kits ativos, kits inativos, produto mais usado em kits. Permissão: kits.index. |
+| `index` | GET /api/kits | Lista kits da empresa (paginação, filtros: ativo, q por nome). Permissão: kits.index. |
+| `store` | POST /api/kits | Cria kit e itens em transação (nome, descricao, preco, ativo, itens[]). Permissão: kits.store. |
+| `show` | GET /api/kits/{id} | Detalhe do kit com itens. Permissão: kits.show. |
+| `update` | PUT /api/kits/{id} | Atualiza kit e recria itens (delete + insert). Permissão: kits.update. |
+| `destroy` | DELETE /api/kits/{id} | Soft delete do kit. Permissão: kits.destroy. |
+| `uploadImagem` | POST /api/kits/{id}/imagem | Upload de imagem do kit (multipart, campo imagem). Permissão: kits.upload_image. |
+| `toggleAtivo` | PATCH /api/kits/{id}/toggle-ativo | Ativa/desativa kit. Permissão: kits.update. |
+
+---
+
 ### EmpresaCuponsController
 
 | Método | Função | Descrição |
@@ -289,6 +306,7 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 - **Usuários:** UsuarioStoreRequest, UsuarioUpdateRequest
 - **Produto:** ProdutoStoreRequest, ProdutoUpdateRequest, ProdutoLoteRequest, ProdutoUploadImageRequest
 - **Pedido:** PedidoStoreRequest, PedidoUpdateRequest
+- **Kit:** StoreKitRequest, UpdateKitRequest, KitUploadImageRequest
 - **EmpresaCupom:** EmpresaCupomStoreRequest, EmpresaCupomUpdateRequest
 - **EmpresaAvaliacao:** EmpresaAvaliacaoStoreRequest
 - **PausaAgendada:** PausaAgendadaStoreRequest, PausaAgendadaUpdateRequest
@@ -302,6 +320,7 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 - UsuarioResource, UsuarioLoginResource
 - ProdutoResource
 - PedidoResource
+- KitResource, KitCollection
 - EmpresaCupomResource, EmpresaCupomCollection
 - EmpresaAvaliacaoResource
 - PausaAgendadaResource
@@ -329,4 +348,4 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 - **check.permission:slug** — Exige que o usuário tenha a permissão (ou seja master). Usado nas rotas do painel lojista.
 - **empresa.context** (EnsureEmpresaContext) — Exige header `x-empresa-id` com id de empresa; valida se o usuário tem vínculo em usuarios_empresas; em sucesso faz `$request->merge(['empresa_id' => $id])`. Aplicado nas rotas do painel que dependem da empresa atual (dashboard, empresa por id, produtos, pedidos, cupons, avaliações, usuarios, pausas-agendadas).
 
-As rotas exatas estão em `routes/api.php`; para testes manuais use a coleção Postman do projeto. Testes automatizados de API (Feature): `AuthControllerTest`, `UsuarioControllerTest`, `EmpresaControllerTest`, `ProdutoControllerTest`, `PausasAgendadasControllerTest`, `PedidoControllerTest`, `PermissaoControllerTest`, `FaqControllerTest`, `DashboardControllerTest`, `UsuarioEnderecosControllerTest`, `EmpresaFavoritoControllerTest`, `EmpresaAvaliacaoControllerTest`, `EmpresaCuponsControllerTest`, `UsuarioLogControllerTest`, `SiteClienteControllerTest`, `PushSubscriptionControllerTest`.
+As rotas exatas estão em `routes/api.php`; para testes manuais use a coleção Postman do projeto. Testes automatizados de API (Feature): `AuthControllerTest`, `UsuarioControllerTest`, `EmpresaControllerTest`, `ProdutoControllerTest`, `PausasAgendadasControllerTest`, `PedidoControllerTest`, `PermissaoControllerTest`, `FaqControllerTest`, `DashboardControllerTest`, `UsuarioEnderecosControllerTest`, `EmpresaFavoritoControllerTest`, `EmpresaAvaliacaoControllerTest`, `EmpresaCuponsControllerTest`, `KitControllerTest`, `UsuarioLogControllerTest`, `SiteClienteControllerTest`, `PushSubscriptionControllerTest`.

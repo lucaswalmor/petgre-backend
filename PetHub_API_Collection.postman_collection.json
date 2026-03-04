@@ -1908,6 +1908,115 @@
 			]
 		},
 		{
+			"name": "Kits",
+			"item": [
+				{
+					"name": "Estatísticas Kits",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" }
+						],
+						"url": { "raw": "{{base_url}}/api/kits/estatisticas", "host": ["{{base_url}}"], "path": ["api", "kits", "estatisticas"] }
+					}
+				},
+				{
+					"name": "Listar Kits",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/kits?per_page=15",
+							"host": ["{{base_url}}"],
+							"path": ["api", "kits"],
+							"query": [{ "key": "per_page", "value": "15" }, { "key": "q", "value": "" }, { "key": "ativo", "value": "" }]
+						}
+					}
+				},
+				{
+					"name": "Criar Kit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Kit Banho Completo\",\n  \"descricao\": \"Shampoo + condicionador\",\n  \"preco\": 49.90,\n  \"ativo\": true,\n  \"itens\": [\n    { \"produto_id\": 1, \"quantidade\": 1 },\n    { \"produto_id\": 2, \"quantidade\": 2 }\n  ]\n}"
+						},
+						"url": { "raw": "{{base_url}}/api/kits", "host": ["{{base_url}}"], "path": ["api", "kits"] }
+					}
+				},
+				{
+					"name": "Ver Kit",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" }
+						],
+						"url": { "raw": "{{base_url}}/api/kits/{{kit_id}}", "host": ["{{base_url}}"], "path": ["api", "kits", "{{kit_id}}"] }
+					}
+				},
+				{
+					"name": "Editar Kit",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" },
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Kit Banho Completo\",\n  \"descricao\": \"Atualizado\",\n  \"preco\": 44.90,\n  \"ativo\": true,\n  \"itens\": [\n    { \"produto_id\": 1, \"quantidade\": 2 }\n  ]\n}"
+						},
+						"url": { "raw": "{{base_url}}/api/kits/{{kit_id}}", "host": ["{{base_url}}"], "path": ["api", "kits", "{{kit_id}}"] }
+					}
+				},
+				{
+					"name": "Excluir Kit",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" }
+						],
+						"url": { "raw": "{{base_url}}/api/kits/{{kit_id}}", "host": ["{{base_url}}"], "path": ["api", "kits", "{{kit_id}}"] }
+					}
+				},
+				{
+					"name": "Upload Imagem Kit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" }
+						],
+						"body": { "mode": "formdata", "formdata": [{ "key": "imagem", "type": "file", "src": [] }] },
+						"url": { "raw": "{{base_url}}/api/kits/{{kit_id}}/imagem", "host": ["{{base_url}}"], "path": ["api", "kits", "{{kit_id}}", "imagem"] }
+					}
+				},
+				{
+					"name": "Toggle Ativo Kit",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{token_empresa}}" },
+							{ "key": "x-empresa-id", "value": "{{empresa_id}}" }
+						],
+						"url": { "raw": "{{base_url}}/api/kits/{{kit_id}}/toggle-ativo", "host": ["{{base_url}}"], "path": ["api", "kits", "{{kit_id}}", "toggle-ativo"] }
+					}
+				}
+			]
+		},
+		{
 			"name": "Cupons",
 			"item": [
 				{

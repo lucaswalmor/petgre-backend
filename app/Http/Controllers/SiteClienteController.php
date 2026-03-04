@@ -175,6 +175,9 @@ class SiteClienteController extends Controller
                 'produtos' => function($query) {
                     $query->where('ativo', true)->with(['categoria', 'unidadeMedida']);
                 },
+                'kits' => function($query) {
+                    $query->where('ativo', true)->with(['itens.produto']);
+                },
                 'formasPagamentos.formaPagamento',
                 'configuracoes',
                 'avaliacoes' => function($query) {

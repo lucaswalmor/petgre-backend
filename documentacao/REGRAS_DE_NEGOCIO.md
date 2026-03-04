@@ -68,7 +68,17 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 
 ---
 
-## 8. Produtos
+## 8. Kits
+
+- **Isolamento:** kits pertencem a uma empresa; listagens e operações filtram por empresa (header x-empresa-id).
+- **Preço manual:** o preço do kit é definido pelo lojista (não é obrigatório ser a soma dos itens; pode ser promocional).
+- **Itens obrigatórios:** todo kit deve ter pelo menos um produto (validado em StoreKitRequest e UpdateKitRequest).
+- **Produtos da empresa:** os produtos que compõem o kit devem pertencer à mesma empresa do kit (validado nos requests).
+- **Upload de imagem:** após criar o kit, o lojista pode enviar imagem via POST /api/kits/{id}/imagem (mesmo padrão de produtos: R2, formatos e tamanho máx. conforme request).
+
+---
+
+## 9. Produtos
 
 - **Isolamento:** produtos pertencem a uma empresa; listagens e operações devem filtrar por empresa do usuário (lojista).
 - **Exclusão:** não permitir excluir produto que possui itens em pedidos (pedido_items). Retornar 400 com mensagem adequada.
@@ -76,14 +86,14 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 
 ---
 
-## 9. Permissões e menu
+## 10. Permissões e menu
 
 - **Permissões:** middleware check.permission exige que o usuário tenha pelo menos uma das permissões informadas (ou seja master). Rotas do painel lojista devem usar requiresPermission no front e middleware no back.
 - **Menu (sidebar):** itens na tabela sidebar_menu; filtrados por permissão no login (e em GET /api/user). Retornar em user_data.menu para o frontend renderizar. Novos itens via SidebarMenuSeeder (chave única para não duplicar).
 
 ---
 
-## 10. Outros
+## 11. Outros
 
 - **Favoritos:** cliente pode favoritar/desfavoritar empresa (toggle). Listagem de favoritos só retorna empresas ativas e com cadastro completo.
 - **Endereços do cliente:** CRUD apenas do próprio usuario_id; endereço padrão único por usuário; soft delete (ativo = false).
@@ -94,7 +104,7 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 
 ---
 
-## 11. Faturamento e integração Asaas
+## 12. Faturamento e integração Asaas
 
 - **Contagem de pedidos:** a cada criação de pedido (PedidoController::store), FaturamentoService::contabilizarPedido(empresa_id) é chamado. Identifica o master da empresa (usuário is_master vinculado à empresa); se a empresa estiver ativa, incrementa total_pedidos em usuario_faturamento_pedidos para o mês atual. Se total_pedidos ≥ 30 e assinatura_disparada = false, dispara a assinatura e marca assinatura_disparada = true.
 - **Disparo da assinatura:** exige empresa_faturamento com nome_titular e cpf_cnpj. Cria cliente no Asaas se não houver asaas_customer_id; calcula valor pelo plano ativo (valor_base × (1 + quantidade_filiais × 0,5)); cria assinatura PIX mensal com nextDueDate = hoje + 3 dias. Salva asaas_subscription_id, assinatura_ativa, valor_atual, data_ativacao. Envia email faturamento-ativado ao master e ao email do faturamento se diferente.

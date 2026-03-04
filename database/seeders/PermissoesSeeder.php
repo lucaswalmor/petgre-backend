@@ -44,6 +44,14 @@ class PermissoesSeeder extends Seeder
             ['nome' => 'Acessar Painel de Pedidos', 'slug' => 'painel.pedidos'],
             ['nome' => 'Mover Pedidos no Painel',   'slug' => 'painel.mover_pedido'],
 
+            // Kits
+            ['nome' => 'Listar Kits',            'slug' => 'kits.index'],
+            ['nome' => 'Criar Kits',             'slug' => 'kits.store'],
+            ['nome' => 'Visualizar Kit',         'slug' => 'kits.show'],
+            ['nome' => 'Editar Kits',            'slug' => 'kits.update'],
+            ['nome' => 'Deletar Kits',           'slug' => 'kits.destroy'],
+            ['nome' => 'Upload Imagem Kit',      'slug' => 'kits.upload_image'],
+
             // Cupons
             ['nome' => 'Listar Cupons',          'slug' => 'cupons.index'],
             ['nome' => 'Criar Cupons',           'slug' => 'cupons.store'],
