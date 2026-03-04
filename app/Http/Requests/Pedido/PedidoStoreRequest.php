@@ -40,12 +40,13 @@ class PedidoStoreRequest extends FormRequest
             'cupom_id' => 'nullable|integer',
             'cupom_valor' => 'nullable|numeric|min:0',
 
-            // Itens do pedido
+            // Itens do pedido (produto_id ou kit_id por item)
             'itens' => 'required|array|min:1',
-            'itens.*.produto_id' => 'required|exists:produtos,id',
-            'itens.*.quantidade' => 'required|integer|min:1',
+            'itens.*.produto_id' => 'nullable|exists:produtos,id',
+            'itens.*.kit_id' => 'nullable|exists:kits,id',
+            'itens.*.quantidade' => 'required|numeric|min:0.1',
             'itens.*.preco_unitario' => 'required|numeric|min:0',
-            'itens.*.subtotal' => 'required|numeric|min:0', // Campo do JSON, será mapeado para preco_total
+            'itens.*.subtotal' => 'required|numeric|min:0',
             'itens.*.observacoes' => 'nullable|string|max:255',
 
             // Endereço do pedido (obrigatório apenas se foi_entrega = true)
@@ -99,12 +100,11 @@ class PedidoStoreRequest extends FormRequest
             'itens.array' => 'Os itens devem ser enviados como um array.',
             'itens.min' => 'O pedido deve ter pelo menos 1 item.',
 
-            'itens.*.produto_id.required' => 'O produto é obrigatório.',
             'itens.*.produto_id.exists' => 'O produto selecionado não existe.',
+            'itens.*.kit_id.exists' => 'O kit selecionado não existe.',
 
             'itens.*.quantidade.required' => 'A quantidade é obrigatória.',
-            'itens.*.quantidade.integer' => 'A quantidade deve ser um número inteiro.',
-            'itens.*.quantidade.min' => 'A quantidade deve ser pelo menos 1.',
+            'itens.*.quantidade.min' => 'A quantidade deve ser pelo menos 0,1.',
 
             'itens.*.preco_unitario.required' => 'O preço unitário é obrigatório.',
             'itens.*.preco_unitario.numeric' => 'O preço unitário deve ser um valor numérico.',
@@ -153,9 +153,31 @@ class PedidoStoreRequest extends FormRequest
                 }
             }
 
-            // Verificar se os produtos existem e estão ativos
+            // Cada item deve ter produto_id ou kit_id (não ambos)
             if ($this->has('itens') && is_array($this->itens)) {
                 foreach ($this->itens as $index => $item) {
+                    $hasProduto = !empty($item['produto_id'] ?? null);
+                    $hasKit = !empty($item['kit_id'] ?? null);
+                    if (!$hasProduto && !$hasKit) {
+                        $validator->errors()->add("itens.{$index}.produto_id", 'Cada item deve ter produto_id ou kit_id.');
+                        continue;
+                    }
+                    if ($hasProduto && $hasKit) {
+                        $validator->errors()->add("itens.{$index}.produto_id", 'Cada item deve ter apenas produto_id ou kit_id.');
+                        continue;
+                    }
+
+                    if ($hasKit) {
+                        $kit = \App\Models\Kit::where('id', $item['kit_id'])
+                            ->where('empresa_id', $this->empresa_id)
+                            ->where('ativo', true)
+                            ->first();
+                        if (!$kit) {
+                            $validator->errors()->add("itens.{$index}.kit_id", 'Kit não encontrado, inativo ou não pertence à empresa.');
+                        }
+                        continue;
+                    }
+
                     $produto = \App\Models\Produto::where('id', $item['produto_id'])
                         ->where('ativo', true)
                         ->first();
@@ -165,18 +187,15 @@ class PedidoStoreRequest extends FormRequest
                         continue;
                     }
 
-                    // Verificar se produto pertence à empresa
                     if ($produto->empresa_id !== (int)$this->empresa_id) {
                         $validator->errors()->add("itens.{$index}.produto_id", 'Este produto não pertence à empresa selecionada.');
                     }
 
-                    // Verificar estoque
                     $quantidadeParaValidar = $produto->vende_granel ? $item['quantidade'] / 1000 : $item['quantidade'];
                     if (isset($produto->estoque) && $produto->estoque < $quantidadeParaValidar) {
                         $validator->errors()->add("itens.{$index}.quantidade", "Estoque insuficiente. Disponível: {$produto->estoque}");
                     }
 
-                    // Verificar preço
                     if ((float)$produto->preco !== (float)$item['preco_unitario']) {
                         $validator->errors()->add("itens.{$index}.preco_unitario", 'Preço do produto não corresponde ao valor atual.');
                     }

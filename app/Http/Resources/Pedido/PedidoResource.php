@@ -108,9 +108,16 @@ class PedidoResource extends JsonResource
                         }
                     }
                     
+                    $kitData = null;
+                    if ($item->kit_id && $item->relationLoaded('kit') && $item->kit) {
+                        $kitData = ['id' => $item->kit->id, 'nome' => $item->kit->nome];
+                    }
+
                     return [
                         'id' => $item->id,
                         'produto_id' => $item->produto_id,
+                        'kit_id' => $item->kit_id,
+                        'kit' => $kitData,
                         'quantidade' => $item->quantidade,
                         'preco_unitario' => $item->preco_unitario,
                         'preco_total' => $item->preco_total,

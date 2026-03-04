@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\Categorias;
 use App\Models\User;
 use App\Models\UsuarioLog;
+use App\Models\Kit;
 use Illuminate\Support\Facades\Log;
 use App\Services\PushNotificationService;
 
@@ -329,8 +330,9 @@ class SiteClienteController extends Controller
             'cupom_tipo' => 'nullable|in:sistema,empresa',
             'cupom_id' => 'nullable|integer',
             'cupom_valor' => 'nullable|numeric|min:0',
-            'itens' => 'required|array|min:1',
-            'itens.*.produto_id' => 'required|exists:produtos,id',
+            'itens' => ['required', 'array', 'min:1'],
+            'itens.*.produto_id' => 'nullable|exists:produtos,id',
+            'itens.*.kit_id' => 'nullable|exists:kits,id',
             'itens.*.quantidade' => 'required|numeric|min:0.1',
             'itens.*.preco_unitario' => 'required|numeric|min:0',
             'itens.*.subtotal' => 'required|numeric|min:0',
@@ -338,6 +340,25 @@ class SiteClienteController extends Controller
             'endereco.endereco_id' => 'required|exists:usuario_enderecos,id',
             'endereco.observacoes' => 'nullable|string',
         ]);
+
+        foreach ($request->itens as $item) {
+            $hasProduto = !empty($item['produto_id']);
+            $hasKit = !empty($item['kit_id']);
+            if (!$hasProduto && !$hasKit) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cada item deve ter produto_id ou kit_id.',
+                    'message' => 'Cada item deve ter produto_id ou kit_id.',
+                ], 422);
+            }
+            if ($hasProduto && $hasKit) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Cada item deve ter apenas produto_id ou kit_id.',
+                    'message' => 'Cada item deve ter apenas produto_id ou kit_id.',
+                ], 422);
+            }
+        }
 
         $usuario = Auth::user();
 
@@ -390,17 +411,39 @@ class SiteClienteController extends Controller
                 }
             }
 
-            // Criar itens do pedido
+            // Criar itens do pedido (produto direto ou expansão de kit)
             if ($request->has('itens') && is_array($request->itens)) {
                 foreach ($request->itens as $item) {
-                    PedidoItems::create([
-                        'pedido_id' => $pedido->id,
-                        'produto_id' => $item['produto_id'],
-                        'quantidade' => $item['quantidade'],
-                        'preco_unitario' => $item['preco_unitario'],
-                        'preco_total' => $item['subtotal'],
-                        'observacoes' => $item['observacoes'] ?? null,
-                    ]);
+                    if (!empty($item['kit_id'])) {
+                        $kit = Kit::with(['itens.produto'])->where('id', $item['kit_id'])->where('empresa_id', $request->empresa_id)->first();
+                        if (!$kit) {
+                            throw new \InvalidArgumentException('Kit inválido ou não pertence à empresa.');
+                        }
+                        $qtdKit = (float) $item['quantidade'];
+                        foreach ($kit->itens as $kitItem) {
+                            $produto = $kitItem->produto;
+                            $qtdItem = $kitItem->quantidade * $qtdKit;
+                            $precoUnit = $produto ? (float) $produto->preco : 0;
+                            PedidoItems::create([
+                                'pedido_id' => $pedido->id,
+                                'produto_id' => $kitItem->produto_id,
+                                'kit_id' => $kit->id,
+                                'quantidade' => $qtdItem,
+                                'preco_unitario' => $precoUnit,
+                                'preco_total' => $precoUnit * $qtdItem,
+                                'observacoes' => $item['observacoes'] ?? null,
+                            ]);
+                        }
+                    } else {
+                        PedidoItems::create([
+                            'pedido_id' => $pedido->id,
+                            'produto_id' => $item['produto_id'],
+                            'quantidade' => $item['quantidade'],
+                            'preco_unitario' => $item['preco_unitario'],
+                            'preco_total' => $item['subtotal'],
+                            'observacoes' => $item['observacoes'] ?? null,
+                        ]);
+                    }
                 }
             }
 

@@ -36,6 +36,7 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 ## 4. Pedidos
 
 - **Criação:** apenas cliente (ou lojista em nome do cliente) cria pedido. Campos obrigatórios: empresa_id, usuario_id, itens, totais, forma de pagamento. Se entrega, endereço (endereco_id do usuario). Cupom opcional (cupom_tipo, cupom_id, cupom_valor); uso registrado ao confirmar (não ao criar).
+- **Itens com kit_id:** cada item pode ter `produto_id` (produto avulso) ou `kit_id` (kit). Quando `kit_id` é enviado, o backend carrega o kit (da mesma empresa), expande em itens do kit (produto_id + quantidade por componente) e cria um `pedido_items` por produto (para estoque e histórico). O subtotal/total do pedido já vêm calculados pelo frontend (preço do kit × quantidade).
 - **Status:** pendente → confirmado → em_preparacao → em_entrega → entregue; pode passar a cancelado em qualquer momento. Ao confirmar: marca cupom como usado (empresa ou sistema). Ao cancelar: devolve cupom ao cliente (sistema/empresa) e cancela resgate de cupom do sistema para a loja.
 - **Exclusão:** apenas pedidos com status **pendente** podem ser excluídos (DELETE). Retornar 400 para os demais.
 - **Histórico:** toda alteração de status gera registro em pedido_historico_status (status_pedido_id, observacoes).

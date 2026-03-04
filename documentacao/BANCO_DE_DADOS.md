@@ -52,7 +52,7 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | Tabela | Descrição |
 |--------|-----------|
 | **pedidos** | Cabeçalho: usuario_id, empresa_id, status_pedido_id, pagamento_id, subtotal, desconto, frete, total, observacoes, cupom_tipo, cupom_id, cupom_valor, ativo, foi_entrega. Soft deletes. |
-| **pedido_items** | Itens do pedido: produto_id, quantidade, preco_unitario, preco_total, observacoes. |
+| **pedido_items** | Itens do pedido: produto_id, kit_id (nullable, FK kits — preenchido quando o item veio da expansão de um KIT), quantidade, preco_unitario, preco_total, observacoes. |
 | **pedido_endereco** | Snapshot do endereço no pedido (endereco_id referenciando usuarios_enderecos). |
 | **pedido_forma_pagamento** | Forma de pagamento escolhida no pedido (relação com formas_pagamentos). |
 | **pedido_historico_status** | Histórico de mudanças de status (status_pedido_id, observacoes). |

@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\VerificaEmpresa;
 use App\Models\EmpresaAvaliacao;
+use App\Models\Kit;
 use App\Services\PushNotificationService;
 use App\Services\FaturamentoService;
 use Carbon\Carbon;
@@ -75,7 +76,8 @@ class PedidoController extends Controller
             'statusPedido',
             'formaPagamento',
             'endereco.endereco',
-            'itens.produto'
+            'itens.produto',
+            'itens.kit'
         ])->where('empresa_id', $empresaId);
 
         // Filtros opcionais
@@ -153,17 +155,39 @@ class PedidoController extends Controller
                 }
             }
 
-            // Criar itens do pedido
+            // Criar itens do pedido (produto direto ou expansão de kit)
             if ($request->has('itens') && is_array($request->itens)) {
                 foreach ($request->itens as $item) {
-                    PedidoItems::create([
-                        'pedido_id' => $pedido->id,
-                        'produto_id' => $item['produto_id'],
-                        'quantidade' => $item['quantidade'],
-                        'preco_unitario' => $item['preco_unitario'],
-                        'preco_total' => $item['subtotal'],
-                        'observacoes' => $item['observacoes'] ?? null,
-                    ]);
+                    if (!empty($item['kit_id'])) {
+                        $kit = Kit::with(['itens.produto'])->where('id', $item['kit_id'])->where('empresa_id', $request->empresa_id)->first();
+                        if (!$kit) {
+                            throw new \InvalidArgumentException('Kit inválido ou não pertence à empresa.');
+                        }
+                        $qtdKit = (float) $item['quantidade'];
+                        foreach ($kit->itens as $kitItem) {
+                            $produto = $kitItem->produto;
+                            $qtdItem = $kitItem->quantidade * $qtdKit;
+                            $precoUnit = $produto ? (float) $produto->preco : 0;
+                            PedidoItems::create([
+                                'pedido_id' => $pedido->id,
+                                'produto_id' => $kitItem->produto_id,
+                                'kit_id' => $kit->id,
+                                'quantidade' => $qtdItem,
+                                'preco_unitario' => $precoUnit,
+                                'preco_total' => $precoUnit * $qtdItem,
+                                'observacoes' => $item['observacoes'] ?? null,
+                            ]);
+                        }
+                    } else {
+                        PedidoItems::create([
+                            'pedido_id' => $pedido->id,
+                            'produto_id' => $item['produto_id'],
+                            'quantidade' => $item['quantidade'],
+                            'preco_unitario' => $item['preco_unitario'],
+                            'preco_total' => $item['subtotal'],
+                            'observacoes' => $item['observacoes'] ?? null,
+                        ]);
+                    }
                 }
             }
 
@@ -196,7 +220,8 @@ class PedidoController extends Controller
                 'statusPedido',
                 'formaPagamento',
                 'endereco.endereco',
-                'itens.produto'
+                'itens.produto',
+                'itens.kit'
             ]);
 
             // Buscar número do WhatsApp da empresa (formatado, apenas números)
@@ -233,6 +258,7 @@ class PedidoController extends Controller
             'formaPagamento',
             'endereco.endereco',
             'itens.produto',
+            'itens.kit',
             'historicoStatus.statusPedido',
             'avaliacao'
         ])->findOrFail($id);
@@ -343,6 +369,7 @@ class PedidoController extends Controller
                 'formaPagamento',
                 'endereco.endereco',
                 'itens.produto',
+                'itens.kit',
                 'historicoStatus.statusPedido'
             ]);
 
