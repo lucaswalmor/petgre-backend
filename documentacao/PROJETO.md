@@ -130,7 +130,7 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 | Método | Função | Descrição |
 |--------|--------|-----------|
 | `getEmpresas` | GET /api/site/empresas | Público. Lista empresas ativas com cadastro completo (filtros: nicho, busca, bairro, abertas, avaliação, entrega/retirada, favoritos). |
-| `getEmpresa` | GET /api/site/empresa/{slug} | Público. Detalhes da empresa (produtos, horários, avaliações, etc.). Registra log de acesso se usuário logado. |
+| `getEmpresa` | GET /api/site/empresa/{slug} | Público. Detalhes da empresa (produtos, kits, destaques, horários, avaliações, etc.). O array `destaques` contém até 12 produtos ativos com destaque=true (mesmo formato de ProdutoResource). Registra log de acesso se usuário logado. |
 | `getPerfil` | GET /api/site/perfil | Perfil do cliente (auth). |
 | `atualizarPerfil` | PUT /api/site/atualizar-perfil | Atualiza nome e telefone (auth). |
 | `alterarSenha` | PUT /api/site/alterar-senha | Altera senha (senha_atual, senha_nova, confirmação) (auth). |

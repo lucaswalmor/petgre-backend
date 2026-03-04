@@ -131,6 +131,16 @@ class SiteEmpresaResource extends JsonResource
             return $produtosPorCategoria;
         });
 
+        // Produtos em destaque (para carrossel no app cliente), limitado a 12
+        $dados['destaques'] = $this->whenLoaded('produtos', function () {
+            $destaques = $this->produtos
+                ->where('ativo', true)
+                ->where('destaque', true)
+                ->take(12)
+                ->values();
+            return \App\Http\Resources\Produto\ProdutoResource::collection($destaques);
+        });
+
         $dados['kits'] = $this->whenLoaded('kits', function () {
             $kitsAtivos = $this->kits->where('ativo', true);
 

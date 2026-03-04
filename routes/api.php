@@ -229,8 +229,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', 'destroy')->middleware('check.permission:produtos.destroy');
 
         // Rotas especiais
-        Route::patch('/{id}/toggle-destaque', 'toggleDestaque')->middleware('check.permission:produtos.update');
-        Route::patch('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:produtos.update');
+        Route::put('/{id}/toggle-destaque', 'toggleDestaque')->middleware('check.permission:produtos.update');
+        Route::put('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:produtos.update');
         Route::post('/{id}/upload-image', 'uploadImage')->middleware('check.permission:produtos.upload_image');
         Route::get('/search/buscar', 'search')->middleware('check.permission:produtos.index');
     });
@@ -244,7 +244,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}', 'update')->middleware('check.permission:kits.update');
         Route::delete('/{id}', 'destroy')->middleware('check.permission:kits.destroy');
         Route::post('/{id}/imagem', 'uploadImagem')->middleware('check.permission:kits.upload_image');
-        Route::patch('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:kits.update');
+        Route::put('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:kits.update');
     });
 
     // Rotas de cupons da empresa — exige x-empresa-id
