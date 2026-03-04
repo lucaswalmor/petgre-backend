@@ -389,7 +389,7 @@ class ProdutoControllerTest extends TestCase
     }
 
     /**
-     * PATCH /api/produtos/{id}/toggle-destaque - sucesso
+     * PUT /api/produtos/{id}/toggle-destaque - sucesso
      */
     public function test_toggle_destaque_sucesso(): void
     {
@@ -399,7 +399,7 @@ class ProdutoControllerTest extends TestCase
         $produto = $this->criarProduto($empresa->id, $categoria->id, $unidade->id, ['destaque' => false]);
         Sanctum::actingAs($lojista);
 
-        $response = $this->patchJson("/api/produtos/{$produto->id}/toggle-destaque");
+        $response = $this->putJson("/api/produtos/{$produto->id}/toggle-destaque");
 
         $response->assertOk()
             ->assertJsonFragment(['message' => 'Status de destaque alterado com sucesso'])
@@ -407,7 +407,7 @@ class ProdutoControllerTest extends TestCase
     }
 
     /**
-     * PATCH /api/produtos/{id}/toggle-destaque - 403 quando produto de outra empresa
+     * PUT /api/produtos/{id}/toggle-destaque - 403 quando produto de outra empresa
      */
     public function test_toggle_destaque_produto_outra_empresa_retorna_403(): void
     {
@@ -418,14 +418,14 @@ class ProdutoControllerTest extends TestCase
         $produto = $this->criarProduto($empresaOutra->id, $categoria->id, $unidade->id);
         Sanctum::actingAs($lojista);
 
-        $response = $this->patchJson("/api/produtos/{$produto->id}/toggle-destaque");
+        $response = $this->putJson("/api/produtos/{$produto->id}/toggle-destaque");
 
         $response->assertStatus(403)
             ->assertJsonFragment(['error' => 'Acesso negado']);
     }
 
     /**
-     * PATCH /api/produtos/{id}/toggle-ativo - sucesso
+     * PUT /api/produtos/{id}/toggle-ativo - sucesso
      */
     public function test_toggle_ativo_sucesso(): void
     {
@@ -435,7 +435,7 @@ class ProdutoControllerTest extends TestCase
         $produto = $this->criarProduto($empresa->id, $categoria->id, $unidade->id, ['ativo' => true]);
         Sanctum::actingAs($lojista);
 
-        $response = $this->patchJson("/api/produtos/{$produto->id}/toggle-ativo");
+        $response = $this->putJson("/api/produtos/{$produto->id}/toggle-ativo");
 
         $response->assertOk()
             ->assertJsonFragment(['message' => 'Status do produto alterado com sucesso'])
