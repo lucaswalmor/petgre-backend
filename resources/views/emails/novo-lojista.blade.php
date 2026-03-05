@@ -163,7 +163,7 @@
                     <!-- Botão CTA -->
                     <tr>
                         <td align="center" style="padding:10px 40px 30px 40px;">
-                            <a href="{{ url('/') }}"
+                            <a href="https://painel.petgre.com.br/"
                                style="display:inline-block; background-color:#3b82f6; color:#ffffff; text-decoration:none; padding:14px 32px; border-radius:8px; font-weight:600; font-size:15px;">
                                 Acessar Meu Painel
                             </a>
