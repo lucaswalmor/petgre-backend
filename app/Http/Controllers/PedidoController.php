@@ -28,11 +28,20 @@ use App\Services\PushNotificationService;
 use App\Services\FaturamentoService;
 use App\Services\EmailService;
 use App\Services\CalculosService;
+use App\Services\EvolutionMensagensService;
+use App\Helpers\MensagemPedidoHelper;
 use App\Mail\EstoqueMinimoMail;
 use Carbon\Carbon;
 
 class PedidoController extends Controller
 {
+    private EvolutionMensagensService $evolutionMensagens;
+
+    public function __construct(EvolutionMensagensService $evolutionMensagens)
+    {
+        $this->evolutionMensagens = $evolutionMensagens;
+    }
+
     /**
      * Retorna estatísticas consolidadas para os cards da tela de pedidos.
      */
@@ -430,6 +439,11 @@ class PedidoController extends Controller
 
             DB::commit();
 
+            // Enviar notificação WhatsApp ao cliente se o status mudou
+            if ($request->has('status_pedido_id') && $statusAnteriorId != $request->status_pedido_id) {
+                $this->notificarClienteStatusAlterado($pedido, $request->status_pedido_id, $request->status_observacoes ?? null);
+            }
+
             // Recarregar relacionamentos
             $pedido->load([
                 'usuario',
@@ -617,6 +631,70 @@ class PedidoController extends Controller
             'error' => 'Cupom não encontrado',
             'message' => 'O cupom informado não existe ou não é válido para esta empresa.'
         ], 404);
+    }
+
+    /**
+     * Notifica o cliente via WhatsApp quando o status do pedido é alterado.
+     */
+    private function notificarClienteStatusAlterado(Pedido $pedido, int $novoStatusId, ?string $observacao): void
+    {
+        try {
+            // Buscar instância WhatsApp da empresa
+            $instancia = \App\Models\EmpresaEvolutionWhatsapp::where('empresa_id', $pedido->empresa_id)
+                ->where('status', 'open')
+                ->first();
+
+            if (!$instancia) {
+                // Empresa não tem instância conectada, não envia notificação
+                return;
+            }
+
+            // Buscar telefone do cliente (usuário que fez o pedido)
+            $cliente = $pedido->usuario;
+            if (!$cliente || empty($cliente->telefone)) {
+                // Cliente não tem telefone cadastrado
+                return;
+            }
+
+            // Formatar número para internacional
+            $numeroFormatado = $this->evolutionMensagens->formatarNumeroInternacional($cliente->telefone);
+            if (!$numeroFormatado) {
+                \Illuminate\Support\Facades\Log::warning('Número de telefone inválido do cliente', [
+                    'pedido_id' => $pedido->id,
+                    'usuario_id' => $cliente->id,
+                    'telefone' => $cliente->telefone,
+                ]);
+                return;
+            }
+
+            // Buscar slug do novo status
+            $status = StatusPedidos::find($novoStatusId);
+            if (!$status) {
+                return;
+            }
+
+            // Gerar mensagem amigável
+            $mensagem = MensagemPedidoHelper::gerarMensagemStatus($pedido, $status->slug, $observacao);
+
+            // Enviar mensagem
+            $resultado = $this->evolutionMensagens->enviarMensagemTexto(
+                $instancia->instance_name,
+                $numeroFormatado,
+                $mensagem
+            );
+
+            if (!$resultado['success']) {
+                \Illuminate\Support\Facades\Log::warning('Falha ao enviar notificação WhatsApp', [
+                    'pedido_id' => $pedido->id,
+                    'error' => $resultado['message'] ?? 'Erro desconhecido',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Erro ao notificar cliente de status alterado', [
+                'pedido_id' => $pedido->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
 }

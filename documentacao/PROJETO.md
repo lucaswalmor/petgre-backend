@@ -273,6 +273,32 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 
 ---
 
+### EvolutionMensagensService
+
+Service dedicado ao disparo de mensagens via Evolution API (WhatsApp).
+
+| Método | Descrição |
+|--------|-----------|
+| `enviarMensagemTexto(string $instanceName, string $numero, string $mensagem)` | Envia mensagem de texto para um número via WhatsApp. Formata o número (remove não numéricos), adiciona delay e presence. Retorna `['success' => bool, 'message' => string]`. |
+| `formatarNumeroInternacional(string $telefone)` | Formata telefone brasileiro para formato internacional (55 + DDD + número). Retorna string ou null se inválido. |
+
+**Endpoint Evolution utilizado:** `POST /message/sendText/{instance}`
+
+---
+
+### MensagemPedidoHelper
+
+Helper para geração de mensagens amigáveis de pedido para WhatsApp.
+
+| Método | Descrição |
+|--------|-----------|
+| `gerarMensagemStatus(Pedido $pedido, string $statusSlug, ?string $observacao)` | Gera mensagem formatada com emojis quando o status do pedido é alterado. Mensagens adaptadas para contexto pet (sem referências a cozinheiro). Inclui nome da empresa, código do pedido, valor total e mensagem específica por status. |
+| `gerarMensagemNovoPedido(Pedido $pedido)` | Gera mensagem de confirmação quando um novo pedido é criado. Lista os itens do pedido. |
+
+**Fluxo de notificação:** O `PedidoController@update` detecta quando o status é alterado e chama `notificarClienteStatusAlterado()`, que verifica se a empresa tem instância Evolution conectada, formata o telefone do cliente e envia a mensagem via `EvolutionMensagensService`.
+
+---
+
 ### EmpresaEvolutionWhatsappController
 
 Rotas sob `auth:sanctum` e `empresa.context`. Uma instância WhatsApp por empresa (Evolution API); nome da instância: `empresa_{empresa_id}`.
