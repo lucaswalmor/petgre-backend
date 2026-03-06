@@ -12,6 +12,7 @@ class EmpresaEvolutionWhatsapp extends Model
     protected $fillable = [
         'empresa_id',
         'instance_name',
+        'numero',
         'status',
         'conectado_em',
     ];

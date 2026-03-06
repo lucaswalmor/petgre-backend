@@ -16,6 +16,7 @@ class EmpresaEvolutionWhatsappResource extends JsonResource
             'id' => $this->id,
             'empresa_id' => $this->empresa_id,
             'instance_name' => $this->instance_name,
+            'numero' => $this->numero,
             'status' => $this->status,
             'conectado_em' => $this->conectado_em?->toIso8601String(),
         ];

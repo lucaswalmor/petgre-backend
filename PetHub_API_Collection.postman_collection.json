@@ -2387,6 +2387,84 @@
 			]
 		},
 		{
+			"name": "Evolution WhatsApp",
+			"item": [
+				{
+					"name": "Instância WhatsApp (index)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {"raw": "{{base_url}}/api/evolution/whatsapp", "host": ["{{base_url}}"], "path": ["api", "evolution", "whatsapp"]},
+						"description": "Retorna dados da instância da empresa (ou null). Inclui status atualizado pela Evolution API."
+					}
+				},
+				{
+					"name": "Criar Instância WhatsApp",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"},
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"url": {"raw": "{{base_url}}/api/evolution/whatsapp", "host": ["{{base_url}}"], "path": ["api", "evolution", "whatsapp"]},
+						"description": "Cria instância na Evolution API (nome empresa_{empresa_id}). Só se empresa ainda não tem instância."
+					}
+				},
+				{
+					"name": "QR Code WhatsApp",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {"raw": "{{base_url}}/api/evolution/whatsapp/qrcode", "host": ["{{base_url}}"], "path": ["api", "evolution", "whatsapp", "qrcode"]},
+						"description": "Retorna QR Code (base64) e/ou pairing_code. Só se instância existe e status ≠ open."
+					}
+				},
+				{
+					"name": "Status WhatsApp",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {"raw": "{{base_url}}/api/evolution/whatsapp/status", "host": ["{{base_url}}"], "path": ["api", "evolution", "whatsapp", "status"]},
+						"description": "Consulta status na Evolution API, atualiza tabela e retorna status (open, connecting, close)."
+					}
+				},
+				{
+					"name": "Desconectar WhatsApp",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {"raw": "{{base_url}}/api/evolution/whatsapp/desconectar", "host": ["{{base_url}}"], "path": ["api", "evolution", "whatsapp", "desconectar"]},
+						"description": "Logout na Evolution API; atualiza status para close na tabela."
+					}
+				},
+				{
+					"name": "Deletar Instância WhatsApp",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token_empresa}}"},
+							{"key": "x-empresa-id", "value": "{{empresa_id}}"}
+						],
+						"url": {"raw": "{{base_url}}/api/evolution/whatsapp", "host": ["{{base_url}}"], "path": ["api", "evolution", "whatsapp"]},
+						"description": "Deleta instância na Evolution API e remove registro da tabela."
+					}
+				}
+			]
+		},
+		{
 			"name": "Faturas",
 			"item": [
 				{

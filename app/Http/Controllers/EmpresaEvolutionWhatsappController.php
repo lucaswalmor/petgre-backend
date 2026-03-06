@@ -66,7 +66,17 @@ class EmpresaEvolutionWhatsappController extends Controller
             ], 422);
         }
 
-        $nomeInstancia = 'empresa_' . $empresaId;
+        $numero = $request->input('numero');
+        $nomeDispositivo = $this->formatarNomeInstancia($request->input('nome_dispositivo') ?? '');
+
+        if (empty($nomeDispositivo)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nome do dispositivo é obrigatório.',
+            ], 422);
+        }
+
+        $nomeInstancia = $nomeDispositivo . '_' . $empresaId;
         $result = $this->evolutionApi->criarInstancia($nomeInstancia);
         if (!$result['success']) {
             return response()->json([
@@ -78,6 +88,7 @@ class EmpresaEvolutionWhatsappController extends Controller
         $instancia = EmpresaEvolutionWhatsapp::create([
             'empresa_id' => $empresaId,
             'instance_name' => $nomeInstancia,
+            'numero' => $numero,
             'status' => 'close',
         ]);
 
@@ -85,6 +96,27 @@ class EmpresaEvolutionWhatsappController extends Controller
             'success' => true,
             'instancia' => new EmpresaEvolutionWhatsappResource($instancia),
         ], 201);
+    }
+
+    /**
+     * Formata o nome da instância: maiúsculas, espaços → underline, remove acentuação.
+     */
+    private function formatarNomeInstancia(string $nome): string
+    {
+        // Remove acentuação
+        $nome = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $nome);
+        // Remove caracteres especiais exceto espaço e underline
+        $nome = preg_replace('/[^a-zA-Z0-9_ ]/', '', $nome);
+        // Espaços viram underline
+        $nome = str_replace(' ', '_', $nome);
+        // Maiúsculas
+        $nome = strtoupper($nome);
+        // Remove underlines duplicados
+        $nome = preg_replace('/_+/', '_', $nome);
+        // Trim underline no início e fim
+        $nome = trim($nome, '_');
+
+        return $nome;
     }
 
     /**

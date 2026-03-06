@@ -15,6 +15,7 @@ return new class extends Migration
             $tabela->id();
             $tabela->foreignId('empresa_id')->constrained('empresas')->onDelete('cascade');
             $tabela->string('instance_name')->unique();
+            $tabela->string('numero', 20)->nullable();
             $tabela->string('status')->default('close');
             $tabela->timestamp('conectado_em')->nullable();
             $tabela->timestamps();
