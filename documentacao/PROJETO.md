@@ -273,6 +273,21 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 
 ---
 
+### EmpresaEvolutionWhatsappController
+
+Rotas sob `auth:sanctum` e `empresa.context`. Uma instância WhatsApp por empresa (Evolution API); nome da instância: `empresa_{empresa_id}`.
+
+| Método | Função | Descrição |
+|--------|--------|-----------|
+| `index` | GET /api/evolution/whatsapp | Retorna dados da instância da empresa (ou null). Inclui status atualizado consultando a Evolution API. |
+| `criar` | POST /api/evolution/whatsapp | Cria a instância na Evolution API e salva em empresa_evolution_whatsapp. Só permite se a empresa ainda não tem instância. |
+| `buscarQrCode` | GET /api/evolution/whatsapp/qrcode | Retorna QR Code (base64) e/ou pairing_code para conexão. Disponível apenas se instância existir e status ≠ open. |
+| `atualizarStatus` | GET /api/evolution/whatsapp/status | Consulta o status na Evolution API, atualiza a tabela e retorna o status (open, connecting, close). |
+| `desconectar` | POST /api/evolution/whatsapp/desconectar | Chama logout na Evolution API e atualiza status para close na tabela. |
+| `deletar` | DELETE /api/evolution/whatsapp | Deleta a instância na Evolution API e remove o registro da tabela. |
+
+---
+
 ### PermissaoController
 
 | Método | Função | Descrição |
@@ -325,6 +340,7 @@ Acesso restrito a usuários com coluna `desenvolvedor = true`. Todas as ações 
 - EmpresaCupomResource, EmpresaCupomCollection
 - EmpresaAvaliacaoResource
 - PausaAgendadaResource
+- EmpresaEvolutionWhatsappResource
 
 ---
 

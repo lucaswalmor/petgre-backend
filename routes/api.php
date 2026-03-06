@@ -26,6 +26,7 @@ use App\Http\Controllers\EmpresaFaturamentoController;
 use App\Http\Controllers\EmpresaFaturasController;
 use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\KitController;
+use App\Http\Controllers\EmpresaEvolutionWhatsappController;
 
 // Webhook Asaas (público, validado por token no header)
 Route::post('/webhooks/asaas', [AsaasWebhookController::class, 'handle']);
@@ -246,6 +247,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', 'destroy')->middleware('check.permission:kits.destroy');
         Route::post('/{id}/imagem', 'uploadImagem')->middleware('check.permission:kits.upload_image');
         Route::put('/{id}/toggle-ativo', 'toggleAtivo')->middleware('check.permission:kits.update');
+    });
+
+    // Evolution WhatsApp — exige x-empresa-id
+    Route::prefix('evolution')->middleware(['auth:sanctum', 'empresa.context'])->group(function () {
+        Route::get('whatsapp', [EmpresaEvolutionWhatsappController::class, 'index']);
+        Route::post('whatsapp', [EmpresaEvolutionWhatsappController::class, 'criar']);
+        Route::get('whatsapp/qrcode', [EmpresaEvolutionWhatsappController::class, 'buscarQrCode']);
+        Route::get('whatsapp/status', [EmpresaEvolutionWhatsappController::class, 'atualizarStatus']);
+        Route::post('whatsapp/desconectar', [EmpresaEvolutionWhatsappController::class, 'desconectar']);
+        Route::delete('whatsapp', [EmpresaEvolutionWhatsappController::class, 'deletar']);
     });
 
     // Rotas de cupons da empresa — exige x-empresa-id

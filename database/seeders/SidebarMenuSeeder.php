@@ -40,6 +40,7 @@ class SidebarMenuSeeder extends Seeder
             ['chave' => 'config.pausas-agendadas', 'label' => 'Pausas Agendadas', 'path' => '/dashboard/pausas-agendadas', 'icon' => 'pi pi-pause', 'permission_slug' => 'pausas_agendadas.index', 'parent_id' => $configuracoesId, 'ordem' => 3],
             ['chave' => 'config.dados-conta', 'label' => 'Dados da Conta', 'path' => '/dashboard/configuracao', 'icon' => 'pi pi-user', 'permission_slug' => null, 'parent_id' => $configuracoesId, 'ordem' => 4],
             ['chave' => 'config.faturamento', 'label' => 'Faturamento', 'path' => '/dashboard/faturamento', 'icon' => 'pi pi-credit-card', 'permission_slug' => null, 'parent_id' => $configuracoesId, 'ordem' => 5],
+            ['chave' => 'config.whatsapp', 'label' => 'WhatsApp', 'path' => '/dashboard/whatsapp', 'icon' => 'pi pi-whatsapp', 'permission_slug' => null, 'parent_id' => $configuracoesId, 'ordem' => 6],
         ];
 
         foreach ($subItens as $item) {

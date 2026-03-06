@@ -46,4 +46,9 @@ return [
         'webhook_token' => env('ASAAS_WEBHOOK_TOKEN'),
     ],
 
+    'evolution_api' => [
+        'url' => env('EVOLUTION_API_URL', ''),
+        'key' => env('EVOLUTION_API_KEY', ''),
+    ],
+
 ];

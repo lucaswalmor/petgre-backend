@@ -116,3 +116,15 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 - **Disparo da assinatura:** exige empresa_faturamento com nome_titular e cpf_cnpj. Cria cliente no Asaas se não houver asaas_customer_id; calcula valor pelo plano ativo (valor_base × (1 + quantidade_filiais × 0,5)); cria assinatura PIX mensal com nextDueDate = hoje + 3 dias. Salva asaas_subscription_id, assinatura_ativa, valor_atual, data_ativacao. Envia email faturamento-ativado ao master e ao email do faturamento se diferente.
 - **Recálculo ao criar/excluir filial:** ao criar filial (EmpresaController::storeFilial), FaturamentoService::recalcularValorAssinatura(master_id) é chamado. Se já houver assinatura ativa, recalcula o valor e atualiza no Asaas e em empresa_faturamento.valor_atual. (Ao excluir filial, idem quando o destroy for implementado.)
 - **Webhook Asaas (POST /api/webhooks/asaas):** rota pública; valida header asaas-access-token = ASAAS_WEBHOOK_TOKEN. PAYMENT_CREATED: cria registro em empresa_faturas (com PIX do buscarPagamento). PAYMENT_RECEIVED/PAYMENT_CONFIRMED: marca fatura pago, ativa todas as empresas do master e assinatura_ativa. PAYMENT_OVERDUE: marca vencido; se dias de atraso ≥ 5, desativa todas as empresas do master e envia email assinatura-inativa (com link_fatura e pix_copia_cola). PAYMENT_DELETED/PAYMENT_REFUNDED: marca fatura cancelado. Resposta sempre 200; erros apenas logados.
+
+---
+
+## 13. Integração Evolution API (WhatsApp)
+
+- **Uma instância por empresa:** cada empresa pode ter no máximo um registro em `empresa_evolution_whatsapp`. O nome da instância na Evolution API é único e segue o padrão `empresa_{empresa_id}`.
+- **Status da instância:** vindo da Evolution API: `open` (conectado), `connecting` (aguardando QR/conectando), `close` (desconectado). O backend atualiza o campo `status` na tabela ao consultar a API e ao desconectar; ao conectar (status open), preenche `conectado_em` se ainda vazio.
+- **Criar instância:** só é permitido se a empresa ainda não possui registro. Cria na Evolution API (POST /instance/create) e insere em `empresa_evolution_whatsapp` com status inicial `close`.
+- **QR Code:** endpoint GET /api/evolution/whatsapp/qrcode só responde se existir instância e status ≠ open. Retorna base64 e/ou pairing_code conforme a Evolution API.
+- **Desconectar:** chama DELETE /instance/logout na Evolution API e atualiza status para `close` e `conectado_em` = null. A instância continua cadastrada; o lojista pode gerar novo QR e reconectar.
+- **Deletar:** chama DELETE /instance/delete na Evolution API e remove o registro da tabela. Após deletar, o lojista pode criar uma nova instância.
+- **Variáveis de ambiente:** EVOLUTION_API_URL e EVOLUTION_API_KEY (config em config/services.php). Header `apikey` em todas as requisições à Evolution API.
