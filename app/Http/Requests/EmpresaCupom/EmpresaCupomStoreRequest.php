@@ -80,10 +80,10 @@ class EmpresaCupomStoreRequest extends FormRequest
                 $validator->errors()->add('valor', 'O percentual não pode ser maior que 100%.');
             }
 
-            // Validar código único apenas para esta empresa
+            // Validar código único globalmente (cupons têm código único em todo o sistema)
             $existingCupom = \App\Models\EmpresaCupom::where('codigo', $this->codigo)->first();
             if ($existingCupom) {
-                $validator->errors()->add('codigo', 'Este código já está em uso por outra empresa.');
+                $validator->errors()->add('codigo', 'Este código de cupom já está em uso. Escolha outro código.');
             }
         });
     }

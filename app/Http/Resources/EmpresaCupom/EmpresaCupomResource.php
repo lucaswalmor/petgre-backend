@@ -33,6 +33,7 @@ class EmpresaCupomResource extends JsonResource
             'limite_uso' => $this->limite_uso,
             'ativo' => $this->ativo,
             'status' => $this->isValido() ? 'ativo' : 'inativo',
+            'usos_totais' => $this->usos()->count(),
             'usos_atuais' => $this->usos()->count(),
             'empresa' => $this->whenLoaded('empresa', [
                 'id' => $this->empresa->id,
