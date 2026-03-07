@@ -36,30 +36,24 @@ class ProdutoController extends Controller
             ->whereNull('deleted_at') // BUG-004: Excluir produtos deletados (soft delete)
             ->with(['categoria', 'unidadeMedida', 'empresa']);
 
-        // BUG-002: Busca por texto (nome, descrição, SKU, marca) - case insensitive
-        // Usando ILIKE para PostgreSQL (case-insensitive nativo) ou LIKE para MySQL
+        // BUG-002: Busca por texto (nome, descrição, SKU, marca)
+        // MySQL: LIKE já é case-insensitive por padrão com collation utf8mb4_unicode_ci
         if ($request->filled('q')) {
-            $busca = $request->get('q');
-            $likePattern = "%{$busca}%";
-            
-            $query->where(function ($subQuery) use ($busca, $likePattern) {
-                // ILIKE é case-insensitive no PostgreSQL
-                // Para MySQL, LIKE já é case-insensitive por padrão em collation utf8mb4_unicode_ci
+            $busca = '%' . $request->get('q') . '%';
+            $query->where(function ($subQuery) use ($busca) {
                 $subQuery
-                    ->where('nome', 'ILIKE', $likePattern)
-                    ->orWhere('descricao', 'ILIKE', $likePattern)
-                    ->orWhere('sku', 'ILIKE', $likePattern)
-                    ->orWhere('marca', 'ILIKE', $likePattern);
+                    ->where('nome', 'like', $busca)
+                    ->orWhere('descricao', 'like', $busca)
+                    ->orWhere('sku', 'like', $busca)
+                    ->orWhere('marca', 'like', $busca);
             });
         }
 
         // Filtros opcionais
 
-        // BUG-013: Filtro por categoria - garantir que funciona corretamente
-        // Aceita tanto categoria_id quanto categoria (para compatibilidade)
-        $categoriaId = $request->get('categoria_id') ?? $request->get('categoria');
-        if (!empty($categoriaId) && is_numeric($categoriaId)) {
-            $query->where('categoria_id', (int) $categoriaId);
+        // BUG-013: Filtro por categoria_id
+        if ($request->filled('categoria_id') && is_numeric($request->categoria_id)) {
+            $query->where('categoria_id', (int) $request->categoria_id);
         }
 
         if ($request->has('tipo') && $request->tipo) {
