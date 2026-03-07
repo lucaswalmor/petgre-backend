@@ -37,27 +37,29 @@ class ProdutoController extends Controller
             ->with(['categoria', 'unidadeMedida', 'empresa']);
 
         // BUG-002: Busca por texto (nome, descrição, SKU, marca) - case insensitive
+        // Usando ILIKE para PostgreSQL (case-insensitive nativo) ou LIKE para MySQL
         if ($request->filled('q')) {
             $busca = $request->get('q');
-            $buscaLower = mb_strtolower($busca, 'UTF-8');
-            $likePattern = "%{$buscaLower}%";
+            $likePattern = "%{$busca}%";
             
-            $query->where(function ($subQuery) use ($buscaLower, $likePattern) {
-                // Usar whereRaw com parametros bindings para evitar SQL injection
-                // e garantir case-insensitivity
+            $query->where(function ($subQuery) use ($busca, $likePattern) {
+                // ILIKE é case-insensitive no PostgreSQL
+                // Para MySQL, LIKE já é case-insensitive por padrão em collation utf8mb4_unicode_ci
                 $subQuery
-                    ->whereRaw('LOWER(nome) LIKE ?', [$likePattern])
-                    ->orWhereRaw('LOWER(descricao) LIKE ?', [$likePattern])
-                    ->orWhereRaw('LOWER(COALESCE(sku, ?)) LIKE ?', ['', $likePattern])
-                    ->orWhereRaw('LOWER(COALESCE(marca, ?)) LIKE ?', ['', $likePattern]);
+                    ->where('nome', 'ILIKE', $likePattern)
+                    ->orWhere('descricao', 'ILIKE', $likePattern)
+                    ->orWhere('sku', 'ILIKE', $likePattern)
+                    ->orWhere('marca', 'ILIKE', $likePattern);
             });
         }
 
         // Filtros opcionais
 
-        // BUG-006: Filtro por categoria - garantir que funciona corretamente
-        if ($request->filled('categoria_id') && is_numeric($request->categoria_id)) {
-            $query->where('categoria_id', (int) $request->categoria_id);
+        // BUG-013: Filtro por categoria - garantir que funciona corretamente
+        // Aceita tanto categoria_id quanto categoria (para compatibilidade)
+        $categoriaId = $request->get('categoria_id') ?? $request->get('categoria');
+        if (!empty($categoriaId) && is_numeric($categoriaId)) {
+            $query->where('categoria_id', (int) $categoriaId);
         }
 
         if ($request->has('tipo') && $request->tipo) {
