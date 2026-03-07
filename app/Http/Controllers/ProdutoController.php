@@ -32,14 +32,24 @@ class ProdutoController extends Controller
     public function index(Request $request)
     {
         $empresaId = $request->empresa_id;
+
+        Log::info('[ProdutoController@index] Parâmetros recebidos', [
+            'empresa_id'      => $empresaId,
+            'q'               => $request->get('q'),
+            'categoria_id'    => $request->get('categoria_id'),
+            'destaque'        => $request->get('destaque'),
+            'somente_promocao'=> $request->get('somente_promocao'),
+            'todos_params'    => $request->all(),
+        ]);
+
         $query = Produto::where('empresa_id', $empresaId)
-            ->whereNull('deleted_at') // BUG-004: Excluir produtos deletados (soft delete)
+            ->whereNull('deleted_at')
             ->with(['categoria', 'unidadeMedida', 'empresa']);
 
         // BUG-002: Busca por texto (nome, descrição, SKU, marca)
-        // MySQL: LIKE já é case-insensitive por padrão com collation utf8mb4_unicode_ci
         if ($request->filled('q')) {
             $busca = '%' . $request->get('q') . '%';
+            Log::info('[ProdutoController@index] Aplicando filtro q', ['busca' => $busca]);
             $query->where(function ($subQuery) use ($busca) {
                 $subQuery
                     ->where('nome', 'like', $busca)
@@ -49,10 +59,9 @@ class ProdutoController extends Controller
             });
         }
 
-        // Filtros opcionais
-
         // BUG-013: Filtro por categoria_id
         if ($request->filled('categoria_id') && is_numeric($request->categoria_id)) {
+            Log::info('[ProdutoController@index] Aplicando filtro categoria_id', ['categoria_id' => (int) $request->categoria_id]);
             $query->where('categoria_id', (int) $request->categoria_id);
         }
 
@@ -64,8 +73,9 @@ class ProdutoController extends Controller
             $query->where('ativo', $request->boolean('ativo'));
         }
 
-        if ($request->has('destaque') && $request->destaque !== null) {
-            $query->where('destaque', $request->boolean('destaque'));
+        // Só filtra por destaque se o valor for explicitamente "true" (não filtra quando "false")
+        if ($request->filled('destaque') && $request->boolean('destaque') === true) {
+            $query->where('destaque', true);
         }
 
         if ($request->has('somente_promocao') && $request->boolean('somente_promocao')) {
@@ -96,7 +106,15 @@ class ProdutoController extends Controller
 
         // Paginação
         $perPage = $request->get('per_page', 15);
+
+        Log::info('[ProdutoController@index] SQL gerado', [
+            'sql'      => $query->toSql(),
+            'bindings' => $query->getBindings(),
+        ]);
+
         $produtos = $query->paginate($perPage);
+
+        Log::info('[ProdutoController@index] Total de resultados', ['total' => $produtos->total()]);
 
         return response()->json([
             'produtos' => ProdutoResource::collection($produtos),
