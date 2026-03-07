@@ -78,9 +78,10 @@ class ProdutoStoreRequest extends FormRequest
                 'date',
                 'required_if:tem_promocao,true',
                 function ($attribute, $value, $fail) {
-                    // BUG-008: Validar data no fuso horário de São Paulo
-                    $dataPromocao = \Carbon\Carbon::parse($value)->startOfDay();
-                    $hoje = now()->timezone('America/Sao_Paulo')->startOfDay();
+                    // BUG-008: Validar data comparando apenas a data (sem componente de hora)
+                    // Usar timezone America/Sao_Paulo para ambas as datas
+                    $dataPromocao = \Carbon\Carbon::createFromFormat('Y-m-d', $value, 'America/Sao_Paulo')->startOfDay();
+                    $hoje = \Carbon\Carbon::now('America/Sao_Paulo')->startOfDay();
 
                     if ($dataPromocao->lt($hoje)) {
                         $fail('A data de promoção deve ser hoje ou uma data futura.');
