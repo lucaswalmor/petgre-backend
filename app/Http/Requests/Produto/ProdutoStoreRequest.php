@@ -72,7 +72,22 @@ class ProdutoStoreRequest extends FormRequest
             'comprimento' => 'nullable|numeric|min:0|max:9999.99',
             'ordem' => 'nullable|integer|min:0|max:999999',
             'preco_promocional' => 'nullable|numeric|min:0|max:999999.99|required_if:tem_promocao,true',
-            'preco_promocional_percentual' => 'nullable|numeric|min:1|max:99|required_if:tem_promocao,true',
+            'preco_promocional_percentual' => [
+                'nullable',
+                'numeric',
+                'min:1',
+                'max:99',
+                'required_if:tem_promocao,true',
+                function ($attribute, $value, $fail) {
+                    // BUG-N1: Só validar min/max se tem_promocao é true e há um valor
+                    $temPromocao = request()->boolean('tem_promocao', false);
+                    $hasValue = $value !== null && $value !== '' && $value !== false;
+                    
+                    if ($temPromocao && (!$hasValue || $value < 1 || $value > 99)) {
+                        $fail('O percentual de desconto deve ser entre 1% e 99% quando há promoção ativa.');
+                    }
+                },
+            ],
             'promocao_ate' => [
                 'nullable',
                 'date',
@@ -80,11 +95,24 @@ class ProdutoStoreRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     // BUG-008: Validar data comparando apenas a data (sem componente de hora)
                     // Usar timezone America/Sao_Paulo para ambas as datas
-                    $dataPromocao = \Carbon\Carbon::createFromFormat('Y-m-d', $value, 'America/Sao_Paulo')->startOfDay();
-                    $hoje = \Carbon\Carbon::now('America/Sao_Paulo')->startOfDay();
+                    try {
+                        // Tenta criar a data a partir do formato Y-m-d
+                        if (is_string($value)) {
+                            $dataPromocao = \Carbon\Carbon::createFromFormat('Y-m-d', $value, 'America/Sao_Paulo');
+                        } else {
+                            // Se já for uma data, converte para o timezone
+                            $dataPromocao = \Carbon\Carbon::parse($value)->timezone('America/Sao_Paulo');
+                        }
+                        $dataPromocao = $dataPromocao->startOfDay();
+                        
+                        // Hoje no timezone de São Paulo, também no início do dia
+                        $hoje = \Carbon\Carbon::now('America/Sao_Paulo')->startOfDay();
 
-                    if ($dataPromocao->lt($hoje)) {
-                        $fail('A data de promoção deve ser hoje ou uma data futura.');
+                        if ($dataPromocao->lt($hoje)) {
+                            $fail('A data de promoção deve ser hoje ou uma data futura.');
+                        }
+                    } catch (\Exception $e) {
+                        $fail('A data de promoção é inválida.');
                     }
                 },
             ],

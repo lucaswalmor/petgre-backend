@@ -40,12 +40,13 @@ class ProdutoController extends Controller
         if ($request->filled('q')) {
             $busca = $request->get('q');
             $buscaLower = mb_strtolower($busca, 'UTF-8');
-            $query->where(function ($subQuery) use ($buscaLower) {
+            $query->where(function ($subQuery) use ($busca, $buscaLower) {
+                // Usar LOWER() para comparação case-insensitive compatível com MySQL e PostgreSQL
                 $subQuery
-                    ->whereRaw('LOWER(nome) LIKE ?', ["%{$buscaLower}%"])
-                    ->orWhereRaw('LOWER(descricao) LIKE ?', ["%{$buscaLower}%"])
-                    ->orWhereRaw('LOWER(sku) LIKE ?', ["%{$buscaLower}%"])
-                    ->orWhereRaw('LOWER(marca) LIKE ?', ["%{$buscaLower}%"]);
+                    ->whereRaw('LOWER(nome) LIKE LOWER(?)', ["%{$busca}%"])
+                    ->orWhereRaw('LOWER(descricao) LIKE LOWER(?)', ["%{$busca}%"])
+                    ->orWhereRaw('LOWER(COALESCE(sku, \'\')) LIKE LOWER(?)', ["%{$busca}%"])
+                    ->orWhereRaw('LOWER(COALESCE(marca, \'\')) LIKE LOWER(?)', ["%{$busca}%"]);
             });
         }
 
@@ -346,7 +347,9 @@ class ProdutoController extends Controller
         $produto->delete();
 
         return response()->json([
-            'message' => 'Produto deletado com sucesso'
+            'success' => true,
+            'message' => 'Produto deletado com sucesso',
+            'produto_id' => $id
         ]);
     }
 
