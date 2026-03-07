@@ -88,7 +88,7 @@ class ProdutoUpdateRequest extends FormRequest
             'comprimento' => 'sometimes|nullable|numeric|min:0|max:9999.99',
             'ordem' => 'sometimes|nullable|integer|min:0|max:999999',
             'preco_promocional' => 'sometimes|nullable|numeric|min:0|max:999999.99|required_if:tem_promocao,true',
-            'preco_promocional_percentual' => 'sometimes|nullable|numeric|min:0|max:100',
+            'preco_promocional_percentual' => 'sometimes|nullable|numeric|min:1|max:99|required_if:tem_promocao,true',
             'promocao_ate' => [
                 'sometimes',
                 'nullable',
@@ -187,6 +187,11 @@ class ProdutoUpdateRequest extends FormRequest
             'preco_promocional.numeric' => 'O preço promocional deve ser um valor numérico.',
             'preco_promocional.min' => 'O preço promocional não pode ser negativo.',
             'preco_promocional.max' => 'O preço promocional não pode ser maior que 999.999,99.',
+
+            'preco_promocional_percentual.numeric' => 'O percentual de desconto deve ser um valor numérico.',
+            'preco_promocional_percentual.min' => 'O percentual de desconto deve ser no mínimo 1%.',
+            'preco_promocional_percentual.max' => 'O percentual de desconto deve ser no máximo 99%.',
+            'preco_promocional_percentual.required_if' => 'O percentual de desconto é obrigatório quando há promoção.',
 
             'promocao_ate.date' => 'A data de promoção deve ser uma data válida.',
 

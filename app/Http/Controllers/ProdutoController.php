@@ -33,24 +33,27 @@ class ProdutoController extends Controller
     {
         $empresaId = $request->empresa_id;
         $query = Produto::where('empresa_id', $empresaId)
+            ->whereNull('deleted_at') // BUG-004: Excluir produtos deletados (soft delete)
             ->with(['categoria', 'unidadeMedida', 'empresa']);
 
-        // Busca por texto (nome, descrição, SKU, marca)
+        // BUG-005: Busca por texto (nome, descrição, SKU, marca) - case insensitive
         if ($request->filled('q')) {
             $busca = $request->get('q');
-            $query->where(function ($subQuery) use ($busca) {
+            $buscaLower = mb_strtolower($busca, 'UTF-8');
+            $query->where(function ($subQuery) use ($buscaLower) {
                 $subQuery
-                    ->where('nome', 'like', "%{$busca}%")
-                    ->orWhere('descricao', 'like', "%{$busca}%")
-                    ->orWhere('sku', 'like', "%{$busca}%")
-                    ->orWhere('marca', 'like', "%{$busca}%");
+                    ->whereRaw('LOWER(nome) LIKE ?', ["%{$buscaLower}%"])
+                    ->orWhereRaw('LOWER(descricao) LIKE ?', ["%{$buscaLower}%"])
+                    ->orWhereRaw('LOWER(sku) LIKE ?', ["%{$buscaLower}%"])
+                    ->orWhereRaw('LOWER(marca) LIKE ?', ["%{$buscaLower}%"]);
             });
         }
 
         // Filtros opcionais
 
-        if ($request->has('categoria_id') && $request->categoria_id) {
-            $query->where('categoria_id', $request->categoria_id);
+        // BUG-006: Filtro por categoria - garantir que funciona corretamente
+        if ($request->filled('categoria_id') && is_numeric($request->categoria_id)) {
+            $query->where('categoria_id', (int) $request->categoria_id);
         }
 
         if ($request->has('tipo') && $request->tipo) {
@@ -189,7 +192,10 @@ class ProdutoController extends Controller
             $dados['estoque'] = $request->tipo === 'servico' ? 0 : ($request->estoque ?? 0);
             $dados['destaque'] = $request->boolean('destaque', false);
             $dados['ativo'] = $request->boolean('ativo', true);
-            $dados['tem_promocao'] = $request->boolean('tem_promocao', false) && $request->preco_promocional;
+            // BUG-003: Manter promoção ativa se tem percentual OU preço promocional
+            $temPrecoPromocional = $request->filled('preco_promocional') && $request->preco_promocional > 0;
+            $temPercentual = $request->filled('preco_promocional_percentual') && $request->preco_promocional_percentual > 0;
+            $dados['tem_promocao'] = $request->boolean('tem_promocao', false) && ($temPrecoPromocional || $temPercentual);
             $dados['slug'] = $request->slug ?: Str::slug($request->nome);
 
             $produto = Produto::create($dados);
@@ -287,7 +293,10 @@ class ProdutoController extends Controller
             }
 
             if ($request->has('tem_promocao')) {
-                $updateData['tem_promocao'] = $request->boolean('tem_promocao', false) && $request->preco_promocional;
+                // BUG-003: Manter promoção ativa se tem percentual OU preço promocional
+                $temPrecoPromocional = $request->filled('preco_promocional') && $request->preco_promocional > 0;
+                $temPercentual = $request->filled('preco_promocional_percentual') && $request->preco_promocional_percentual > 0;
+                $updateData['tem_promocao'] = $request->boolean('tem_promocao', false) && ($temPrecoPromocional || $temPercentual);
             }
 
             $produto->update($updateData);
@@ -580,7 +589,9 @@ class ProdutoController extends Controller
                         'preco_promocional' => $produtoDados['preco_promocional'] ?? null,
                         'preco_promocional_percentual' => $produtoDados['preco_promocional_percentual'] ?? null,
                         'promocao_ate' => $produtoDados['promocao_ate'] ?? null,
-                        'tem_promocao' => ($produtoDados['tem_promocao'] ?? false) && !empty($produtoDados['preco_promocional']),
+                        // BUG-003: Manter promoção ativa se tem percentual OU preço promocional
+                        'tem_promocao' => ($produtoDados['tem_promocao'] ?? false)
+                            && (!empty($produtoDados['preco_promocional']) || !empty($produtoDados['preco_promocional_percentual'])),
                         'vende_granel' => $produtoDados['vende_granel'] ?? false,
                     ];
 
