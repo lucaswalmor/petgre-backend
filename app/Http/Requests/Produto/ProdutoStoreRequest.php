@@ -57,7 +57,20 @@ class ProdutoStoreRequest extends FormRequest
             'ordem' => 'nullable|integer|min:0|max:999999',
             'preco_promocional' => 'nullable|numeric|min:0|max:999999.99|required_if:tem_promocao,true',
             'preco_promocional_percentual' => 'nullable|numeric|min:0|max:100',
-            'promocao_ate' => 'nullable|date|after:today|required_if:tem_promocao,true',
+            'promocao_ate' => [
+                'nullable',
+                'date',
+                'required_if:tem_promocao,true',
+                function ($attribute, $value, $fail) {
+                    // BUG-008: Validar data no fuso horário de São Paulo
+                    $dataPromocao = \Carbon\Carbon::parse($value)->startOfDay();
+                    $hoje = now()->timezone('America/Sao_Paulo')->startOfDay();
+
+                    if ($dataPromocao->lt($hoje)) {
+                        $fail('A data de promoção deve ser hoje ou uma data futura.');
+                    }
+                },
+            ],
             'tem_promocao' => 'nullable|boolean',
             'vende_granel' => 'nullable|boolean',
         ];
@@ -151,7 +164,6 @@ class ProdutoStoreRequest extends FormRequest
             'preco_promocional.max' => 'O preço promocional não pode ser maior que 999.999,99.',
 
             'promocao_ate.date' => 'A data de promoção deve ser uma data válida.',
-            'promocao_ate.after' => 'A data de promoção deve ser futura.',
 
             'tem_promocao.boolean' => 'O campo promoção deve ser verdadeiro ou falso.',
             'vende_granel.boolean' => 'O campo vende a granel deve ser verdadeiro ou falso.',

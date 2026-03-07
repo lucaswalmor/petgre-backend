@@ -46,7 +46,19 @@ class ProdutoLoteRequest extends FormRequest
             'produtos.*.ordem' => 'nullable|integer|min:0|max:999999',
             'produtos.*.preco_promocional' => 'nullable|numeric|min:0|max:999999.99',
             'produtos.*.preco_promocional_percentual' => 'nullable|numeric|min:0|max:100',
-            'produtos.*.promocao_ate' => 'nullable|date|after:today',
+            'produtos.*.promocao_ate' => [
+                'nullable',
+                'date',
+                function ($attribute, $value, $fail) {
+                    // BUG-008: Validar data no fuso horário de São Paulo
+                    $dataPromocao = \Carbon\Carbon::parse($value)->startOfDay();
+                    $hoje = now()->timezone('America/Sao_Paulo')->startOfDay();
+
+                    if ($dataPromocao->lt($hoje)) {
+                        $fail('A data de promoção deve ser hoje ou uma data futura.');
+                    }
+                },
+            ],
             'produtos.*.tem_promocao' => 'nullable|boolean',
             'produtos.*.vende_granel' => 'nullable|boolean',
         ];
