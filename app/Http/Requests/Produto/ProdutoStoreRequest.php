@@ -75,16 +75,33 @@ class ProdutoStoreRequest extends FormRequest
             'preco_promocional_percentual' => [
                 'nullable',
                 'numeric',
-                'min:1',
-                'max:99',
+                // BUG-001: Removido min:1 e max:99 daqui - validação condicional na closure abaixo
                 'required_if:tem_promocao,true',
                 function ($attribute, $value, $fail) {
-                    // BUG-N1: Só validar min/max se tem_promocao é true e há um valor
+                    // BUG-001: Só validar min/max se tem_promocao é true
                     $temPromocao = request()->boolean('tem_promocao', false);
+                    
+                    // Se não tem promoção, não valida o percentual (pode ser null, 0 ou vazio)
+                    if (!$temPromocao) {
+                        return;
+                    }
+                    
+                    // Se tem promoção, valida que o percentual está entre 1 e 99
                     $hasValue = $value !== null && $value !== '' && $value !== false;
                     
-                    if ($temPromocao && (!$hasValue || $value < 1 || $value > 99)) {
-                        $fail('O percentual de desconto deve ser entre 1% e 99% quando há promoção ativa.');
+                    if (!$hasValue) {
+                        $fail('O percentual de desconto é obrigatório quando há promoção ativa.');
+                        return;
+                    }
+                    
+                    if ($value < 1) {
+                        $fail('O percentual de desconto deve ser no mínimo 1%.}');
+                        return;
+                    }
+                    
+                    if ($value > 99) {
+                        $fail('O percentual de desconto deve ser no máximo 99%.}');
+                        return;
                     }
                 },
             ],

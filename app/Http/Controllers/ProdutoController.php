@@ -36,17 +36,20 @@ class ProdutoController extends Controller
             ->whereNull('deleted_at') // BUG-004: Excluir produtos deletados (soft delete)
             ->with(['categoria', 'unidadeMedida', 'empresa']);
 
-        // BUG-005: Busca por texto (nome, descrição, SKU, marca) - case insensitive
+        // BUG-002: Busca por texto (nome, descrição, SKU, marca) - case insensitive
         if ($request->filled('q')) {
             $busca = $request->get('q');
             $buscaLower = mb_strtolower($busca, 'UTF-8');
-            $query->where(function ($subQuery) use ($busca, $buscaLower) {
-                // Usar LOWER() para comparação case-insensitive compatível com MySQL e PostgreSQL
+            $likePattern = "%{$buscaLower}%";
+            
+            $query->where(function ($subQuery) use ($buscaLower, $likePattern) {
+                // Usar whereRaw com parametros bindings para evitar SQL injection
+                // e garantir case-insensitivity
                 $subQuery
-                    ->whereRaw('LOWER(nome) LIKE LOWER(?)', ["%{$busca}%"])
-                    ->orWhereRaw('LOWER(descricao) LIKE LOWER(?)', ["%{$busca}%"])
-                    ->orWhereRaw('LOWER(COALESCE(sku, \'\')) LIKE LOWER(?)', ["%{$busca}%"])
-                    ->orWhereRaw('LOWER(COALESCE(marca, \'\')) LIKE LOWER(?)', ["%{$busca}%"]);
+                    ->whereRaw('LOWER(nome) LIKE ?', [$likePattern])
+                    ->orWhereRaw('LOWER(descricao) LIKE ?', [$likePattern])
+                    ->orWhereRaw('LOWER(COALESCE(sku, ?)) LIKE ?', ['', $likePattern])
+                    ->orWhereRaw('LOWER(COALESCE(marca, ?)) LIKE ?', ['', $likePattern]);
             });
         }
 
