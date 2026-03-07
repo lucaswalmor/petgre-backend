@@ -95,8 +95,8 @@ class EmpresaCuponsController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Erro ao criar cupom',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível criar o cupom',
+                'message' => 'Verifique os dados e tente novamente.'
             ], 500);
         }
     }
@@ -152,8 +152,8 @@ class EmpresaCuponsController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Erro ao atualizar cupom',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível atualizar o cupom',
+                'message' => 'Verifique os dados e tente novamente.'
             ], 500);
         }
     }
@@ -171,8 +171,8 @@ class EmpresaCuponsController extends Controller
         if ($usos > 0) {
             return response()->json([
                 'success' => false,
-                'error' => 'Cupom não pode ser excluído',
-                'message' => "Este cupom já foi usado {$usos} vez(es) e não pode ser excluído."
+                'error' => 'Não foi possível excluir',
+                'message' => 'Cupons já utilizados não podem ser removidos.'
             ], 400);
         }
 

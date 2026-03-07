@@ -63,7 +63,7 @@ class StoreKitRequest extends FormRequest
     {
         throw new ValidationException($validator, response()->json([
             'success' => false,
-            'message' => 'Dados inválidos para o kit.',
+            'message' => 'Verifique os dados do kit e tente novamente.',
             'errors' => $validator->errors(),
         ], 422));
     }

@@ -293,8 +293,8 @@ class ProdutoUpdateRequest extends FormRequest
         throw new HttpResponseException(
             response()->json([
                 'success' => false,
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para editar este produto.'
+                'error' => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.'
             ], 403)
         );
     }
@@ -311,7 +311,7 @@ class ProdutoUpdateRequest extends FormRequest
     {
         $response = response()->json([
             'success' => false,
-            'message' => 'Dados inválidos. Verifique os erros abaixo.',
+            'message' => 'Verifique os dados informados e tente novamente.',
             'errors' => $validator->errors()
         ], 422);
 

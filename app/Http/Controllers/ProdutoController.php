@@ -230,8 +230,8 @@ class ProdutoController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'error' => 'Erro ao criar produto',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível criar o produto',
+                'message' => 'Verifique os dados e tente novamente.'
             ], 500);
         }
     }
@@ -246,8 +246,8 @@ class ProdutoController extends Controller
         // Verificar se o usuário tem acesso ao produto (mesma empresa)
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
             return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para visualizar este produto.'
+                'error' => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.'
             ], 403);
         }
 
@@ -266,8 +266,8 @@ class ProdutoController extends Controller
         // Verificar se o usuário tem acesso ao produto (mesma empresa)
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
             return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para editar este produto.'
+                'error' => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.'
             ], 403);
         }
 
@@ -331,8 +331,8 @@ class ProdutoController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'error' => 'Erro ao atualizar produto',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível atualizar o produto',
+                'message' => 'Verifique os dados e tente novamente.'
             ], 500);
         }
     }
@@ -347,16 +347,16 @@ class ProdutoController extends Controller
         // Verificar se o usuário tem acesso ao produto (mesma empresa)
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
             return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para deletar este produto.'
+                'error' => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.'
             ], 403);
         }
 
         // Verificar se o produto está sendo usado em pedidos
         if ($produto->itens()->exists()) {
             return response()->json([
-                'error' => 'Não é possível deletar este produto',
-                'message' => 'O produto está sendo usado em pedidos existentes.'
+                'error' => 'Não foi possível excluir',
+                'message' => 'Este produto está sendo usado em pedidos e não pode ser removido.'
             ], 400);
         }
 
@@ -380,8 +380,8 @@ class ProdutoController extends Controller
         // Verificar se o usuário tem acesso ao produto (mesma empresa)
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
             return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para alterar este produto.'
+                'error' => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.'
             ], 403);
         }
 
@@ -404,8 +404,8 @@ class ProdutoController extends Controller
         // Verificar se o usuário tem acesso ao produto (mesma empresa)
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
             return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para alterar este produto.'
+                'error' => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.'
             ], 403);
         }
 
@@ -462,8 +462,8 @@ class ProdutoController extends Controller
             if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Acesso negado',
-                    'message' => 'Você não tem permissão para acessar este produto.'
+                    'error' => 'Acesso não permitido',
+                    'message' => 'Você não tem acesso a este produto.'
                 ], 403);
             }
 
@@ -502,8 +502,8 @@ class ProdutoController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Erro interno do servidor',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível processar',
+                'message' => 'Tente novamente em alguns instantes.'
             ], 500);
         }
     }
@@ -518,7 +518,7 @@ class ProdutoController extends Controller
         if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Você não tem permissão para duplicar este produto.'
+                'message' => 'Você não tem acesso a este produto.'
             ], 403);
         }
 
@@ -552,8 +552,7 @@ class ProdutoController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao duplicar produto',
-                'error' => $e->getMessage()
+                'message' => 'Não foi possível duplicar o produto. Tente novamente.'
             ], 500);
         }
     }
@@ -578,7 +577,7 @@ class ProdutoController extends Controller
                 if (!$empresaId || !in_array($empresaId, $empresasIds)) {
                     $erros[] = [
                         'index' => $index,
-                        'message' => 'Empresa inválida para o usuário autenticado'
+                        'message' => 'Empresa não reconhecida para este usuário'
                     ];
                     continue;
                 }
@@ -646,8 +645,7 @@ class ProdutoController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao cadastrar produtos em lote.',
-                'error' => $e->getMessage(),
+                'message' => 'Não foi possível cadastrar os produtos. Verifique os dados e tente novamente.',
             ], 500);
         }
     }
@@ -677,8 +675,8 @@ class ProdutoController extends Controller
 
         if (empty($ids)) {
             return response()->json([
-                'error' => 'IDs inválidos',
-                'message' => 'Nenhum ID de produto foi fornecido.'
+                'error' => 'Dados inválidos',
+                'message' => 'Selecione pelo menos um produto para remover.'
             ], 400);
         }
 
@@ -688,16 +686,16 @@ class ProdutoController extends Controller
         foreach ($produtos as $produto) {
             if (!in_array($produto->empresa_id, $empresasIds)) {
                 return response()->json([
-                    'error' => 'Acesso negado',
-                    'message' => 'Você não tem permissão para deletar alguns dos produtos selecionados.'
+                    'error' => 'Acesso não permitido',
+                    'message' => 'Você não tem acesso a alguns dos produtos selecionados.'
                 ], 403);
             }
 
             // Verificar se o produto está sendo usado em pedidos
             if ($produto->itens()->exists()) {
                 return response()->json([
-                    'error' => 'Não é possível deletar produtos em lote',
-                    'message' => "O produto '{$produto->nome}' está sendo usado em pedidos existentes."
+                    'error' => 'Não foi possível remover',
+                    'message' => "O produto '{$produto->nome}' está sendo usado em pedidos."
                 ], 400);
             }
         }
@@ -715,8 +713,8 @@ class ProdutoController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'error' => 'Erro ao deletar produtos',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível remover',
+                'message' => 'Tente novamente em alguns instantes.'
             ], 500);
         }
     }
@@ -763,8 +761,8 @@ class ProdutoController extends Controller
         $extensao = strtolower($arquivo->getClientOriginalExtension());
         if (!in_array($extensao, ['xlsx', 'xls'])) {
             return response()->json([
-                'error' => 'Formato de arquivo inválido',
-                'message' => 'Apenas arquivos Excel (.xlsx, .xls) são aceitos.'
+                'error' => 'Formato não suportado',
+                'message' => 'Envie um arquivo Excel (.xlsx ou .xls).'
             ], 400);
         }
 
@@ -775,7 +773,7 @@ class ProdutoController extends Controller
             if ($arquivo->getSize() > 5242880) {
                 return response()->json([
                     'error' => 'Arquivo muito grande',
-                    'message' => 'O arquivo deve ter no máximo 5MB'
+                    'message' => 'O arquivo deve ter no máximo 5MB.'
                 ], 400);
             }
 
@@ -788,8 +786,8 @@ class ProdutoController extends Controller
 
                 if (!class_exists($serviceClass)) {
                     return response()->json([
-                        'error' => 'Importação para este ERP ainda não implementada',
-                        'message' => 'A importação para o ERP "' . $tipo . '" ainda não está disponível. Entre em contato com o suporte.'
+                        'error' => 'Importação não disponível',
+                        'message' => 'Este tipo de importação ainda não está disponível. Entre em contato com o suporte.'
                     ], 422);
                 }
             }
@@ -801,8 +799,8 @@ class ProdutoController extends Controller
                 $cabecalho = $this->lerCabecalhoPlanilha($arquivo);
                 if (!$service->validarEstrutura($cabecalho)) {
                     return response()->json([
-                        'error' => 'Formato de planilha não reconhecido',
-                        'message' => 'A estrutura da planilha não corresponde ao formato Petgre. Baixe o modelo correto.'
+                        'error' => 'Formato incorreto',
+                        'message' => 'A planilha não está no formato esperado. Baixe o modelo e tente novamente.'
                     ], 400);
                 }
             }
@@ -821,8 +819,8 @@ class ProdutoController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Erro na importação',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível importar',
+                'message' => 'Verifique o arquivo e tente novamente.'
             ], 500);
         }
     }
@@ -875,8 +873,8 @@ class ProdutoController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Erro ao gerar modelo',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível gerar o modelo',
+                'message' => 'Tente novamente em alguns instantes.'
             ], 500);
         }
     }
@@ -916,7 +914,7 @@ class ProdutoController extends Controller
             return [];
         } catch (\Exception $e) {
             Log::error('Erro ao ler cabeçalho com FastExcel', ['erro' => $e->getMessage()]);
-            throw new \Exception('Erro ao ler o cabeçalho do arquivo Excel: ' . $e->getMessage());
+            throw new \Exception('Não foi possível ler o arquivo. Verifique se é um Excel válido.');
         }
     }
 
@@ -933,7 +931,7 @@ class ProdutoController extends Controller
             if (!$empresaId) {
                 return response()->json([
                     'error' => 'Empresa não encontrada',
-                    'message' => 'Usuário não possui empresa associada'
+                    'message' => 'Selecione uma empresa para continuar.'
                 ], 403);
             }
 
@@ -942,7 +940,7 @@ class ProdutoController extends Controller
             if (!Storage::disk('local')->exists($path)) {
                 return response()->json([
                     'error' => 'Arquivo não encontrado',
-                    'message' => 'Não há planilha de erros disponível para download'
+                    'message' => 'Não há relatório de erros disponível no momento.'
                 ], 404);
             }
 
@@ -952,8 +950,8 @@ class ProdutoController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Erro no download',
-                'message' => $e->getMessage()
+                'error' => 'Não foi possível baixar',
+                'message' => 'Tente novamente em alguns instantes.'
             ], 500);
         }
     }

@@ -299,7 +299,7 @@ class ProdutoStoreRequest extends FormRequest
     {
         $response = response()->json([
             'success' => false,
-            'message' => 'Dados inválidos. Verifique os erros abaixo.',
+            'message' => 'Verifique os dados informados e tente novamente.',
             'errors' => $validator->errors()
         ], 422);
 

@@ -78,8 +78,8 @@ class KitController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Erro ao criar kit',
-                'message' => $e->getMessage(),
+                'error' => 'Não foi possível criar o kit',
+                'message' => 'Verifique os dados e tente novamente.',
             ], 500);
         }
     }
@@ -132,8 +132,8 @@ class KitController extends Controller
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'error' => 'Erro ao atualizar kit',
-                'message' => $e->getMessage(),
+                'error' => 'Não foi possível atualizar o kit',
+                'message' => 'Verifique os dados e tente novamente.',
             ], 500);
         }
     }
@@ -157,16 +157,16 @@ class KitController extends Controller
             if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($kit->empresa_id)) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Acesso negado',
-                    'message' => 'Você não tem permissão para acessar este kit.',
+                    'error' => 'Acesso não permitido',
+                    'message' => 'Você não tem acesso a este kit.',
                 ], 403);
             }
 
             if (!$request->hasFile('imagem')) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Nenhuma imagem enviada',
-                ], 400);
+            return response()->json([
+                'success' => false,
+                'message' => 'Selecione uma imagem para enviar.',
+            ], 400);
             }
 
             if ($kit->imagem) {
@@ -189,13 +189,13 @@ class KitController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Kit não encontrado',
+                'message' => 'Kit não encontrado.',
             ], 404);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Erro ao enviar imagem',
-                'message' => $e->getMessage(),
+                'error' => 'Não foi possível enviar a imagem',
+                'message' => 'Verifique o formato e tamanho do arquivo.',
             ], 500);
         }
     }
