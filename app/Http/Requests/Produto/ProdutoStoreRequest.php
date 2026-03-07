@@ -38,7 +38,23 @@ class ProdutoStoreRequest extends FormRequest
             'nome' => 'required|string|min:3|max:255',
             'imagem' => 'nullable|string|max:500',
             'slug' => 'nullable|string|max:255',
-            'descricao' => 'nullable|string|max:1000',
+            'descricao' => [
+                'nullable',
+                'string',
+                'max:1000',
+                function ($attribute, $value, $fail) {
+                    // BUG-005 (Crítico): Validar caracteres potencialmente perigosos
+                    if (!empty($value)) {
+                        $caracteresPerigosos = ["'", '"', '--', ';', '<', '>'];
+                        foreach ($caracteresPerigosos as $caractere) {
+                            if (str_contains($value, $caractere)) {
+                                $fail('A descrição contém caracteres não permitidos.');
+                                return;
+                            }
+                        }
+                    }
+                },
+            ],
             'preco' => 'required|numeric|min:0|max:999999.99',
             'estoque' => 'nullable|numeric|min:0|max:999999.999',
             'destaque' => 'nullable|boolean',

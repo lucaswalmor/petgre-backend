@@ -53,7 +53,24 @@ class ProdutoUpdateRequest extends FormRequest
             'nome' => 'sometimes|nullable|string|min:3|max:255',
             'imagem' => 'sometimes|nullable|string|max:500',
             'slug' => 'sometimes|nullable|string|max:255',
-            'descricao' => 'sometimes|nullable|string|max:1000',
+            'descricao' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:1000',
+                function ($attribute, $value, $fail) {
+                    // BUG-005 (Crítico): Validar caracteres potencialmente perigosos
+                    if (!empty($value)) {
+                        $caracteresPerigosos = ["'", '"', '--', ';', '<', '>'];
+                        foreach ($caracteresPerigosos as $caractere) {
+                            if (str_contains($value, $caractere)) {
+                                $fail('A descrição contém caracteres não permitidos.');
+                                return;
+                            }
+                        }
+                    }
+                },
+            ],
             'preco' => 'sometimes|nullable|numeric|min:0|max:999999.99',
             'estoque' => 'sometimes|nullable|numeric|min:0|max:999999.999',
             'destaque' => 'sometimes|nullable|boolean',
