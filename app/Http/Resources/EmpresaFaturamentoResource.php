@@ -13,6 +13,7 @@ class EmpresaFaturamentoResource extends JsonResource
             'id' => $this->id,
             'usuario_id' => $this->usuario_id,
             'nome_titular' => $this->nome_titular,
+            'tipo_documento_titular' => $this->tipo_documento_titular,
             'cpf_cnpj' => $this->cpf_cnpj,
             'email' => $this->email,
             'telefone' => $this->telefone,

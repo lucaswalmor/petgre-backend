@@ -22,6 +22,7 @@ class EmpresaFaturamentoRequest extends FormRequest
         ];
         if ($store) {
             $rules['nome_titular'] = 'required|string|max:255';
+            $rules['tipo_documento_titular'] = 'required|in:cpf,cnpj';
             $rules['cpf_cnpj'] = 'required|string|max:20';
         }
         return $rules;

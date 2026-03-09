@@ -86,7 +86,7 @@ O banco é **MySQL**, gerenciado via **migrations** do Laravel. A estrutura é m
 | **sidebar_menu** | Itens do menu do painel lojista (parent_id, chave, label, path, icon, permission_slug, ordem). Filtrado por permissão no login. |
 | **faqs** | Perguntas frequentes (público). |
 | **planilhas_terceiros** | Cadastro de ERPs/planilhas para importação de produtos. |
-| **empresa_faturamento** | Dados de faturamento do master: usuario_id (FK usuarios), nome_titular, cpf_cnpj, email, telefone, chave_pix (nullable), tipo_chave_pix (enum: cpf, cnpj, email, telefone, aleatoria; nullable), assinatura_ativa (boolean, default false), asaas_customer_id (nullable), asaas_subscription_id (nullable), valor_atual (decimal 8,2 nullable), data_ativacao (timestamp nullable). nome_titular e cpf_cnpj não são atualizáveis via API. |
+| **empresa_faturamento** | Dados de faturamento do master: usuario_id (FK usuarios), nome_titular, tipo_documento_titular (enum: cpf, cnpj; default cpf), cpf_cnpj, email, telefone, chave_pix (nullable), tipo_chave_pix (enum: cpf, cnpj, email, telefone, aleatoria; nullable), assinatura_ativa (boolean, default false), asaas_customer_id (nullable), asaas_subscription_id (nullable), valor_atual (decimal 8,2 nullable), data_ativacao (timestamp nullable). nome_titular, tipo_documento_titular e cpf_cnpj não são atualizáveis via API após assinatura ativa. |
 | **empresa_faturas** | Histórico de faturas por usuário master: usuario_id, asaas_payment_id (unique nullable), mes_referencia (YYYY-MM), valor, status (pendente, pago, vencido, cancelado), vencimento (date), pago_em (date nullable), pix_qrcode_base64 (text nullable), pix_copia_cola (text nullable), link_fatura (string nullable). |
 | **usuario_faturamento_pedidos** | Contagem de pedidos por mês para disparo de assinatura: usuario_id (FK usuarios), mes_referencia (YYYY-MM), total_pedidos (default 0), assinatura_disparada (boolean default false). Unique (usuario_id, mes_referencia). |
 | **empresa_evolution_whatsapp** | Integração Evolution API (WhatsApp): empresa_id (FK empresas, cascade), instance_name (unique, ex.: empresa_42), status (open \| connecting \| close), conectado_em (timestamp nullable). Uma instância por empresa. |
@@ -141,7 +141,8 @@ As migrations estão em `database/migrations/`. Ordem lógica (dependências):
 24. add_asaas_fields_to_empresa_faturamento_table (asaas_customer_id, asaas_subscription_id, valor_atual, data_ativacao)
 25. add_asaas_fields_to_empresa_faturas_table (asaas_payment_id, pix_qrcode_base64, pix_copia_cola, link_fatura; status com cancelado)
 26. create_usuario_faturamento_pedidos_table
-27. create_empresa_evolution_whatsapp_table
+27. add_tipo_documento_to_empresa_faturamento_table (tipo_documento_titular enum cpf/cnpj, default cpf)
+28. create_empresa_evolution_whatsapp_table
 
 (Os nomes exatos dos arquivos podem variar; o importante é rodar `php artisan migrate` na ordem padrão do Laravel.)
 

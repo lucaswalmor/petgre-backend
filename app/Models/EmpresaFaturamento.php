@@ -11,6 +11,9 @@ class EmpresaFaturamento extends Model
 
     protected $fillable = [
         'usuario_id',
+        'nome_titular',
+        'tipo_documento_titular',
+        'cpf_cnpj',
         'email',
         'telefone',
         'chave_pix',

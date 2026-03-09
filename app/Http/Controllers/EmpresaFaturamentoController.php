@@ -43,6 +43,7 @@ class EmpresaFaturamentoController extends Controller
         $faturamento = new EmpresaFaturamento();
         $faturamento->usuario_id = $user->id;
         $faturamento->nome_titular = $request->input('nome_titular');
+        $faturamento->tipo_documento_titular = $request->input('tipo_documento_titular', 'cpf');
         $faturamento->cpf_cnpj = $request->input('cpf_cnpj');
         $faturamento->fill($request->only(['email', 'telefone', 'chave_pix', 'tipo_chave_pix']));
         $faturamento->save();
