@@ -826,6 +826,7 @@ class EmpresaController extends Controller
 
     /**
      * Calcula o progresso do cadastro da empresa e identifica itens pendentes
+     * Inclui navegação/instruções para cada item pendente
      */
     private function calcularProgressoCadastro(Empresa $empresa)
     {
@@ -835,20 +836,32 @@ class EmpresaController extends Controller
 
         // Verifica se existe endereço
         if (!$empresa->endereco) {
-            $itensPendentes[] = 'Endereço da empresa';
+            $itensPendentes[] = [
+                'titulo' => 'Endereço da empresa',
+                'navegacao' => 'Configurações → Empresa → Aba "Informações Gerais"',
+                'campo' => 'Preencha CEP, Logradouro, Número, Bairro, Cidade e Estado'
+            ];
         } else {
             $itensCompletos++;
         }
 
         // Verifica se existe configurações
         if (!$empresa->configuracoes) {
-            $itensPendentes[] = 'Configurações da empresa';
+            $itensPendentes[] = [
+                'titulo' => 'Configurações da empresa',
+                'navegacao' => 'Configurações → Empresa → Aba "Configurações"',
+                'campo' => 'Configure os dados básicos da empresa'
+            ];
         } else {
             $itensCompletos++;
 
             // Verifica se o WhatsApp de pedidos está preenchido (essencial para receber pedidos)
             if (empty($empresa->configuracoes->whatsapp_pedidos)) {
-                $itensPendentes[] = 'Número do WhatsApp para receber pedidos';
+                $itensPendentes[] = [
+                    'titulo' => 'Número do WhatsApp para receber pedidos',
+                    'navegacao' => 'Configurações → Empresa → Aba "Configurações"',
+                    'campo' => 'Campo "WhatsApp Pedidos" (ESSENCIAL para receber pedidos dos clientes)'
+                ];
             } else {
                 $itensCompletos++;
             }
@@ -856,21 +869,33 @@ class EmpresaController extends Controller
 
         // Verifica se existe pelo menos uma forma de pagamento
         if ($empresa->formasPagamentos->isEmpty()) {
-            $itensPendentes[] = 'Formas de pagamento';
+            $itensPendentes[] = [
+                'titulo' => 'Formas de pagamento',
+                'navegacao' => 'Configurações → Empresa → Aba "Horários & Pagamento"',
+                'campo' => 'Ative pelo menos uma forma de pagamento (Dinheiro, PIX, Cartão, etc.)'
+            ];
         } else {
             $itensCompletos++;
         }
 
         // Verifica se existe pelo menos um horário
         if ($empresa->horarios->isEmpty()) {
-            $itensPendentes[] = 'Horários de funcionamento';
+            $itensPendentes[] = [
+                'titulo' => 'Horários de funcionamento',
+                'navegacao' => 'Configurações → Empresa → Aba "Horários & Pagamento"',
+                'campo' => 'Configure o horário de abertura e fechamento para pelo menos um dia da semana'
+            ];
         } else {
             $itensCompletos++;
         }
 
         // Verifica se existe pelo menos um bairro de entrega
         if ($empresa->bairrosEntregas->isEmpty()) {
-            $itensPendentes[] = 'Bairros de entrega';
+            $itensPendentes[] = [
+                'titulo' => 'Bairros de entrega',
+                'navegacao' => 'Configurações → Empresa → Aba "Entregas"',
+                'campo' => 'Ative pelo menos um bairro para entrega e defina o valor do frete'
+            ];
         } else {
             $itensCompletos++;
         }
@@ -886,12 +911,20 @@ class EmpresaController extends Controller
             if ($master) {
                 $faturamento = EmpresaFaturamento::where('usuario_id', $master->id)->first();
                 if (!$faturamento || empty($faturamento->nome_titular) || empty($faturamento->cpf_cnpj)) {
-                    $itensPendentes[] = 'Dados de faturamento';
+                    $itensPendentes[] = [
+                        'titulo' => 'Dados de faturamento',
+                        'navegacao' => 'Configurações → Empresa → Aba "Dados de Faturamento"',
+                        'campo' => 'Preencha nome do titular, CPF/CNPJ, email, telefone e chave PIX'
+                    ];
                 } else {
                     $itensCompletos++;
                 }
             } else {
-                $itensPendentes[] = 'Dados de faturamento';
+                $itensPendentes[] = [
+                    'titulo' => 'Dados de faturamento',
+                    'navegacao' => 'Configurações → Empresa → Aba "Dados de Faturamento"',
+                    'campo' => 'Preencha nome do titular, CPF/CNPJ, email, telefone e chave PIX'
+                ];
             }
         } else {
             // Para filiais, não conta dados de faturamento no progresso
