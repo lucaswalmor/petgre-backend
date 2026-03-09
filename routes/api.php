@@ -28,6 +28,10 @@ use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\KitController;
 use App\Http\Controllers\EmpresaEvolutionWhatsappController;
 
+Route::get('/', function () {
+    return response()->json(['message' => 'Hello World']);
+});
+
 // Webhook Asaas (público, validado por token no header)
 Route::post('/webhooks/asaas', [AsaasWebhookController::class, 'handle']);
 
