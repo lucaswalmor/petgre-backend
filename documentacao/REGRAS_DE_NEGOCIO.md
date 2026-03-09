@@ -28,6 +28,7 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 ## 3. Empresa e cadastro completo
 
 - **Cadastro completo:** a empresa só fica visível para clientes (listagem site) e “ativa” para receber pedidos quando cadastro_completo = true. Itens obrigatórios: (1) endereço da empresa, (2) configurações, (3) whatsapp_pedidos preenchido, (4) pelo menos uma forma de pagamento, (5) pelo menos um horário de funcionamento, (6) pelo menos um bairro de entrega. GET /api/empresa/:id/verificar-cadastro retorna percentual e itens_pendentes; ao salvar dados, o backend pode recalcular e atualizar cadastro_completo.
+- **Itens pendentes com navegação:** O endpoint `verificar-cadastro` retorna itens pendentes como objetos estruturados: `{ titulo, navegacao, campo }`. Exemplo: `{ titulo: "Número do WhatsApp para receber pedidos", navegacao: "Configurações → Empresa → Aba 'Configurações'", campo: "Campo 'WhatsApp Pedidos' (ESSENCIAL para receber pedidos dos clientes)" }`. Isso permite o frontend mostrar ao usuário exatamente onde ir para completar cada item pendente.
 - **WhatsApp para pedidos:** campo crítico em empresa_configuracoes. Sem ele o cadastro não é considerado completo.
 - **Status da loja (aberta/fechada):** empresa_aberta considera horários, timezone America/Sao_Paulo, pausas agendadas e fechada_manual. fechada_manual: null = usa horário e pausas; true = fechada; false = aberta (força). getFechadoAte() retorna texto para exibição (ex.: "Abre às 14:00", "quando o lojista reabrir").
 
@@ -96,6 +97,7 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 
 - **Permissões:** middleware check.permission exige que o usuário tenha pelo menos uma das permissões informadas (ou seja master). Rotas do painel lojista devem usar requiresPermission no front e middleware no back.
 - **Menu (sidebar):** itens na tabela sidebar_menu; filtrados por permissão no login (e em GET /api/user). Retornar em user_data.menu para o frontend renderizar. Novos itens via SidebarMenuSeeder (chave única para não duplicar).
+- **Menu reativo por cadastro:** O frontend (AppSidebar.vue) verifica periodicamente (a cada 30 segundos) o endpoint `GET /api/empresa/{id}/verificar-cadastro`. Se o cadastro estiver incompleto, o menu é filtrado para mostrar apenas Dashboard e Configurações da Empresa; itens como Usuários, Produtos, Pedidos, Cupons, Avaliações, Chamados são ocultados até o cadastro ficar 100% completo. Isso garante que o lojista complete as informações essenciais antes de operar.
 
 ---
 
@@ -107,6 +109,7 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 - **Pausas agendadas:** datas em horário local (America/Sao_Paulo); considerar em Empresa::isAberta() e getFechadoAte().
 - **Imagens:** upload para storage configurado (ex.: R2); tamanho e formatos conforme EmpresaUploadImageRequest / ProdutoUploadImageRequest (ex.: até 15MB, JPEG/PNG/GIF/WebP para empresa).
 - **Faturamento:** apenas usuário master (sistema.acesso_total) acessa GET/POST/PUT /api/faturamento, GET /api/faturamento/resumo e GET /api/faturas (lista e show). Um único registro por usuario_id em empresa_faturamento; nome_titular e cpf_cnpj definidos apenas no store e nunca alterados via API. Resumo: plano gratuito até 30 pedidos/mês (todas as empresas do master); valor_plano conforme plano ativo (PlanosSeeder); faturas vêm de empresa_faturas. Ao atualizar faturamento (email/telefone), se existir asaas_customer_id o cliente é sincronizado no Asaas.
+- **Tipo de documento do titular:** O faturamento suporta `tipo_documento_titular` (enum: 'cpf', 'cnpj'; padrão 'cpf') na tabela `empresa_faturamento`. O campo determina a máscara de input no frontend (CPF: 000.000.000-00; CNPJ: 00.000.000/0000-00).
 
 ---
 

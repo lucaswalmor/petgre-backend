@@ -43,7 +43,7 @@ API REST Laravel 11 que atende o painel lojista e o site/app do cliente. Autenti
 | `update` | PUT /api/empresa/{id} | Atualiza empresa, configurações, horários, endereço, formas de pagamento, bairros. Permissão: empresas.update. |
 | `destroy` | DELETE /api/empresa/{id} | Remove empresa. Permissão: empresas.destroy. |
 | `uploadImage` | POST /api/empresa/{id}/upload-image | Upload de logo e/ou banner (query `tipo`: logo ou banner). Permissão: empresas.upload_image. |
-| `verificarCadastro` | GET /api/empresa/{id}/verificar-cadastro | Retorna se cadastro está completo, percentual e itens pendentes. Permissão: empresas.verificar_cadastro. |
+| `verificarCadastro` | GET /api/empresa/{id}/verificar-cadastro | Retorna se cadastro está completo, percentual, itens_completos, total_itens e itens_pendentes. Cada item pendente inclui `titulo`, `navegacao` (caminho no menu) e `campo` (descrição do que preencher). Permissão: empresas.verificar_cadastro. |
 | `status` | GET /api/empresa/{id}/status | Retorna empresa_aberta, fechado_ate e fechada_manual (indicador no painel). Permissão: empresas.show. |
 | `statusManual` | PUT /api/empresa/{id}/status-manual | Fecha ou abre loja manualmente (body: fechada_manual boolean). Permissão: empresas.update. |
 | `bairrosDisponiveis` | GET /api/empresa/{empresaId}/bairros-disponiveis | Bairros da cidade da empresa para entrega. Permissão: empresas.show. |
@@ -59,7 +59,7 @@ Rotas sob `auth:sanctum`, `empresa.context` e `check.permission:sistema.acesso_t
 | Método | Função | Descrição |
 |--------|--------|-----------|
 | `show` | GET /api/faturamento | Retorna dados de faturamento do usuário master autenticado. Se não existir, retorna faturamento: null. Inclui asaas_customer_id, asaas_subscription_id, valor_atual, data_ativacao. |
-| `store` | POST /api/faturamento | Cria registro de faturamento (usuario_id = auth). Apenas se ainda não existir para esse usuário. Body: nome_titular, cpf_cnpj, email, telefone, chave_pix (opcional), tipo_chave_pix (opcional). |
+| `store` | POST /api/faturamento | Cria registro de faturamento (usuario_id = auth). Apenas se ainda não existir para esse usuário. Body: nome_titular, tipo_documento_titular ('cpf' ou 'cnpj'; padrão 'cpf'), cpf_cnpj, email, telefone, chave_pix (opcional), tipo_chave_pix (opcional). |
 | `update` | PUT /api/faturamento | Atualiza apenas email, telefone, chave_pix e tipo_chave_pix. nome_titular e cpf_cnpj são ignorados se enviados. Se existir asaas_customer_id, sincroniza email e telefone no Asaas (AsaasService::atualizarCliente). |
 | `resumo` | GET /api/faturamento/resumo | Retorna plano_status (gratuito/ativo), pedidos_mes_atual, limite_gratuito (30), proxima_cobranca (dd/mm/yyyy ou null), valor_plano (39.90), faturas (array de empresa_faturas). Pedidos do mês somam todas as empresas do master (usuarios_empresas). |
 
@@ -392,3 +392,23 @@ Rotas sob `auth:sanctum` e `empresa.context`. Uma instância WhatsApp por empres
 - **empresa.context** (EnsureEmpresaContext) — Exige header `x-empresa-id` com id de empresa; valida se o usuário tem vínculo em usuarios_empresas; em sucesso faz `$request->merge(['empresa_id' => $id])`. Aplicado nas rotas do painel que dependem da empresa atual (dashboard, empresa por id, produtos, pedidos, cupons, avaliações, usuarios, pausas-agendadas).
 
 As rotas exatas estão em `routes/api.php`; para testes manuais use a coleção Postman do projeto. Testes automatizados de API (Feature): `AuthControllerTest`, `UsuarioControllerTest`, `EmpresaControllerTest`, `ProdutoControllerTest`, `PausasAgendadasControllerTest`, `PedidoControllerTest`, `PermissaoControllerTest`, `FaqControllerTest`, `DashboardControllerTest`, `UsuarioEnderecosControllerTest`, `EmpresaFavoritoControllerTest`, `EmpresaAvaliacaoControllerTest`, `EmpresaCuponsControllerTest`, `KitControllerTest`, `UsuarioLogControllerTest`, `SiteClienteControllerTest`, `PushSubscriptionControllerTest`.
+
+---
+
+## Notas sobre integração com Frontend (Painel Lojista)
+
+### Verificação de cadastro e menu reativo
+O painel lojista (`petgre-lojista`) implementa verificação reativa do status do cadastro:
+- O componente `AppSidebar.vue` consome `GET /api/empresa/{id}/verificar-cadastro` a cada 30 segundos (polling)
+- Se `cadastro_completo = false`, o menu é filtrado automaticamente para mostrar apenas:
+  - Dashboard
+  - Configurações da Empresa (Informações Gerais, Endereço, Configurações, Horários & Pagamento, Entregas, Dados de Faturamento, WhatsApp)
+- Menus ocultados até cadastro completo: Usuários, Pausas Agendadas, Dados da Conta, Faturamento (menu), Cadastros (Produtos, Categorias, Kits, Cupons), Pedidos, Avaliações, Chamados
+- O frontend exibe um alerta visual destacado quando o cadastro está incompleto, com link direto para completar
+
+### Máscaras dinâmicas de documento (CPF/CNPJ)
+O formulário de Dados de Faturamento (`DadosFaturamento.vue`) implementa máscaras dinâmicas baseadas no `tipo_documento_titular`:
+- Select "Tipo de Documento": CPF (padrão) ou CNPJ
+- CPF: máscara `000.000.000-00`, placeholder `000.000.000-00`
+- CNPJ: máscara `00.000.000/0000-00`, placeholder `00.000.000/0000-00`
+- O valor é salvo no backend no campo `tipo_documento_titular` (enum: 'cpf', 'cnpj')

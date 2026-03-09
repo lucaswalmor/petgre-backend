@@ -24,7 +24,7 @@ Pagamento e entrega ficam entre **cliente e empresa**; o backend só registra e 
 
 - **Autenticação:** Login duplo (lojista vs cliente) via Laravel Sanctum (tokens).
 - **Multiempresa:** Isolamento total por empresa; lojistas só veem dados das suas empresas.
-- **Gestão de empresas:** CRUD, configurações, horários, bairros de entrega, formas de pagamento, logo/banner, verificação de cadastro completo.
+- **Gestão de empresas:** CRUD, configurações, horários, bairros de entrega, formas de pagamento, logo/banner, verificação de cadastro completo com navegação guiada (itens pendentes incluem caminho no menu para o usuário saber onde preencher).
 - **Gestão de produtos:** CRUD, categorias, unidades de medida, upload de imagem, importação por planilha, duplicar, toggle destaque/ativo.
 - **Pedidos:** Criação pelo cliente, atualização de status pelo lojista, histórico, cupons (empresa e sistema), validação de cupom, push para lojista em novo pedido.
 - **Cupons:** Cupons da empresa (criados pelo lojista) e cupons do sistema (atribuídos a clientes); validação e rastreamento de uso.
@@ -35,6 +35,8 @@ Pagamento e entrega ficam entre **cliente e empresa**; o backend só registra e 
 - **Fechar/abrir loja manual:** Override rápido via `fechada_manual` (sem usar pausas).
 - **Logs de comportamento:** Adicionar/remover do carrinho, trocar de loja, acesso à loja (aberta/fechada) para analytics.
 - **Push (Web Push):** Notificação de novo pedido para o lojista no navegador (VAPID).
+- **Menu reativo no painel:** O sidebar do lojista verifica periodicamente o status do cadastro; se incompleto, oculta menus secundários (produtos, pedidos, etc.) até que o cadastro esteja 100% completo.
+- **Máscaras dinâmicas de documento:** No faturamento, o usuário seleciona CPF ou CNPJ e o campo de input se adapta automaticamente com a máscara correta.
 - **Recuperação de senha:** Envio de código por e-mail, verificação e alteração de senha.
 - **Primeiro login (funcionário):** Troca obrigatória de senha no primeiro acesso ao painel lojista.
 
