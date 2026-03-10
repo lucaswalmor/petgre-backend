@@ -54,6 +54,7 @@ Route::controller(EmpresaController::class)->prefix('empresa')->group(function (
 Route::controller(SiteClienteController::class)->prefix('site')->group(function () {
     Route::get('/empresas', 'getEmpresas');
     Route::get('/empresa/{slug}', 'getEmpresa');
+    Route::get('/produtos', 'getProdutos');
 });
 
 // Rotas públicas de FAQ
