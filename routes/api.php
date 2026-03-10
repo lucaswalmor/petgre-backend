@@ -78,10 +78,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rota para listar permissões (não exige empresa)
     Route::get('/permissoes', [PermissaoController::class, 'index']);
 
-    // Rotas de avaliações protegidas — exige x-empresa-id
+    // Rota para cliente criar avaliação (autenticado, sem x-empresa-id)
+    Route::post('/avaliacoes', [EmpresaAvaliacaoController::class, 'store']);
+
+    // Rotas de avaliações protegidas — exige x-empresa-id (painel do lojista)
     Route::controller(EmpresaAvaliacaoController::class)->prefix('avaliacoes')->middleware('empresa.context')->group(function () {
         Route::get('/', 'index')->middleware('check.permission:avaliacoes.index');
-        Route::post('/', 'store');
         Route::get('/{id}', 'show')->middleware('check.permission:avaliacoes.show');
         Route::post('/{id}/solicitar-moderacao', 'solicitarModeracao')->middleware('check.permission:avaliacoes.index');
     });
