@@ -88,4 +88,27 @@ class AsaasService
     {
         return $this->request('GET', '/payments/' . $paymentId);
     }
+
+    /**
+     * Criar uma cobrança única (avulsa) no Asaas
+     * Usado no modelo de cobrança condicional mensal (não é assinatura recorrente)
+     *
+     * @param string $customerId ID do cliente no Asaas
+     * @param float $valor Valor da cobrança
+     * @param string $dueDate Data de vencimento (Y-m-d)
+     * @param string $descricao Descrição da cobrança
+     * @return array Resposta da API do Asaas
+     */
+    public function criarCobrancaUnica(string $customerId, float $valor, string $dueDate, string $descricao): array
+    {
+        $payload = [
+            'customer' => $customerId,
+            'billingType' => 'PIX',
+            'value' => $valor,
+            'dueDate' => $dueDate,
+            'description' => $descricao,
+        ];
+
+        return $this->request('POST', '/payments', $payload);
+    }
 }

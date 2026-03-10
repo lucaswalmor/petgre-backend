@@ -108,17 +108,119 @@ Este documento reúne as regras de negócio implementadas no backend. Controller
 - **Logs de comportamento:** registrar ações como adicionar_carrinho, remover_carrinho, trocar_loja, acesso_loja_aberta, acesso_loja_fechada (usuario_id, empresa_id, produto_id quando aplicável, ip, user_agent) para analytics do dashboard lojista.
 - **Pausas agendadas:** datas em horário local (America/Sao_Paulo); considerar em Empresa::isAberta() e getFechadoAte().
 - **Imagens:** upload para storage configurado (ex.: R2); tamanho e formatos conforme EmpresaUploadImageRequest / ProdutoUploadImageRequest (ex.: até 15MB, JPEG/PNG/GIF/WebP para empresa).
-- **Faturamento:** apenas usuário master (sistema.acesso_total) acessa GET/POST/PUT /api/faturamento, GET /api/faturamento/resumo e GET /api/faturas (lista e show). Um único registro por usuario_id em empresa_faturamento; nome_titular e cpf_cnpj definidos apenas no store e nunca alterados via API. Resumo: plano gratuito até 30 pedidos/mês (todas as empresas do master); valor_plano conforme plano ativo (PlanosSeeder); faturas vêm de empresa_faturas. Ao atualizar faturamento (email/telefone), se existir asaas_customer_id o cliente é sincronizado no Asaas.
+- **Faturamento:** apenas usuário master (sistema.acesso_total) acessa GET/POST/PUT /api/faturamento, GET /api/faturamento/resumo e GET /api/faturas (lista e show). Um único registro por usuario_id em empresa_faturamento; nome_titular e cpf_cnpj definidos apenas no store e nunca alterados via API. **Modelo MVP de Cobrança Condicional Mensal:** não há mais assinatura recorrente automática. A cobrança é gerada mensalmente com base no volume de pedidos do mês anterior.
 - **Tipo de documento do titular:** O faturamento suporta `tipo_documento_titular` (enum: 'cpf', 'cnpj'; padrão 'cpf') na tabela `empresa_faturamento`. O campo determina a máscara de input no frontend (CPF: 000.000.000-00; CNPJ: 00.000.000/0000-00).
 
 ---
 
-## 12. Faturamento e integração Asaas
+## 12. Faturamento e integração Asaas (Cobrança Condicional Mensal - MVP)
 
-- **Contagem de pedidos:** a cada criação de pedido (PedidoController::store), FaturamentoService::contabilizarPedido(empresa_id) é chamado. Identifica o master da empresa (usuário is_master vinculado à empresa); se a empresa estiver ativa, incrementa total_pedidos em usuario_faturamento_pedidos para o mês atual. Se total_pedidos ≥ 30 e assinatura_disparada = false, dispara a assinatura e marca assinatura_disparada = true.
-- **Disparo da assinatura:** exige empresa_faturamento com nome_titular e cpf_cnpj. Cria cliente no Asaas se não houver asaas_customer_id; calcula valor pelo plano ativo (valor_base × (1 + quantidade_filiais × 0,5)); cria assinatura PIX mensal com nextDueDate = hoje + 3 dias. Salva asaas_subscription_id, assinatura_ativa, valor_atual, data_ativacao. Envia email faturamento-ativado ao master e ao email do faturamento se diferente.
-- **Recálculo ao criar/excluir filial:** ao criar filial (EmpresaController::storeFilial), FaturamentoService::recalcularValorAssinatura(master_id) é chamado. Se já houver assinatura ativa, recalcula o valor e atualiza no Asaas e em empresa_faturamento.valor_atual. (Ao excluir filial, idem quando o destroy for implementado.)
-- **Webhook Asaas (POST /api/webhooks/asaas):** rota pública; valida header asaas-access-token = ASAAS_WEBHOOK_TOKEN. PAYMENT_CREATED: cria registro em empresa_faturas (com PIX do buscarPagamento). PAYMENT_RECEIVED/PAYMENT_CONFIRMED: marca fatura pago, ativa todas as empresas do master e assinatura_ativa. PAYMENT_OVERDUE: marca vencido; se dias de atraso ≥ 5, desativa todas as empresas do master e envia email assinatura-inativa (com link_fatura e pix_copia_cola). PAYMENT_DELETED/PAYMENT_REFUNDED: marca fatura cancelado. Resposta sempre 200; erros apenas logados.
+### 12.1 Modelo de Cobrança Condicional Mensal
+
+O sistema utiliza um modelo **pay-as-you-go** (pague conforme usa) ao invés de assinatura recorrente fixa:
+
+- **Regra de cobrança:** Todo dia 01 às 08:00, o sistema verifica os pedidos do **mês anterior** de cada empresa matriz ativa.
+- **Limite para cobrança:** Se o total de pedidos (matriz + todas as filiais) foi **16 ou mais** → gera cobrança única no Asaas. Se foi **15 ou menos** → mês é **gratuito**, sem cobrança.
+- **Cálculo do valor:** `valor_base + (quantidade_filiais_ativas × valor_base × 0.5)`
+  - Valor base vem da tabela `planos` (campo `valor`)
+  - Cada filial ativa adiciona 50% do valor base
+  - Exemplo: R$39,90 base + 2 filiais = R$39,90 + R$39,90 = R$79,80
+
+### 12.2 Geração de Cobranças (Cron Job)
+
+- **Command:** `faturamento:gerar-cobrancas-mensais` (roda mensalmente no dia 01 às 08:00 via Schedule)
+- **Processo:**
+  1. Percorre todas as empresas matriz ativas (`is_matriz = true`, `ativo = true`)
+  2. Conta pedidos do mês anterior (matriz + filiais ativas)
+  3. Se ≥ 16 pedidos e não existe cobrança para o mês: calcula valor, cria cliente Asaas (se necessário), cria **cobrança única** (não assinatura) via PIX, vencimento em 5 dias
+  4. Salva em `empresa_faturas`: empresa_id, mes_referencia, quantidade_pedidos, quantidade_filiais, asaas_payment_id, valor, status='pendente'
+  5. Envia email de notificação ao master
+
+### 12.3 Inadimplência e Bloqueio
+
+- **Prazo:** 5 dias de vencimento para pagamento
+- **Cron job:** `faturamento:desativar-empresas-inadimplentes` (diário às 09:00)
+- **Processo:**
+  1. Busca faturas com status 'vencido' há 5+ dias
+  2. Para cada fatura: inativa a **matriz** (`empresa_faturas.empresa_id`) e **todas as suas filiais** (`empresas.empresa_matriz_id`)
+  3. Envia email de suspensão ao master
+  4. Empresa inativa não aparece no site para clientes
+
+### 12.4 Reativação após Pagamento
+
+- **Webhook Asaas:** `POST /api/webhooks/asaas` recebe eventos do Asaas
+- **PAYMENT_RECEIVED / PAYMENT_CONFIRMED:**
+  1. Marca fatura como 'pago' em `empresa_faturas`
+  2. Reativa a matriz e todas as filiais automaticamente (`ativo = true`)
+  3. Atualiza `assinatura_ativa = true` em `empresa_faturamento`
+
+### 12.5 Webhook Asaas - Eventos Tratados
+
+Rota pública; valida header `asaas-access-token` = `ASAAS_WEBHOOK_TOKEN`:
+
+- **PAYMENT_CREATED:** Cria registro em `empresa_faturas` (caso não exista) com PIX (qrcode e copia-cola)
+- **PAYMENT_RECEIVED/PAYMENT_CONFIRMED:** Marca fatura como 'pago', ativa matriz + filiais
+- **PAYMENT_OVERDUE:** Marca fatura como 'vencido', envia email de notificação; se 5+ dias de atraso no webhook, desativa empresas
+- **PAYMENT_DELETED/PAYMENT_REFUNDED:** Marca fatura como 'cancelado'
+
+Resposta sempre HTTP 200; erros apenas logados.
+
+### 12.6 API de Resumo para o Painel (Em Tempo Real)
+
+**Endpoint:** `GET /api/faturamento/resumo`
+
+Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de cobrança:
+
+- **Contagem de pedidos:** Soma pedidos do mês atual (matriz + filiais ativas) em tempo real via consulta SQL
+- **Limite gratuito:** Retorna `limite_gratuito: 15` e `pedidos_para_cobranca` (quantos faltam para 16 ou 0 se já atingiu)
+- **Projeção de cobrança:** Se já atingiu 16+ pedidos, retorna `vai_ser_cobrado: true` e `valor_estimado_proxima_cobranca` calculado
+- **Valor base:** Vem da tabela `planos` (campo `valor`)
+- **Filiais:** Retorna `quantidade_filiais` ativas no momento
+- **Próxima avaliação:** Dia 01 do próximo mês (quando a cobrança será gerada, se aplicável)
+- **Fatura em aberto:** Se houver fatura pendente ou vencida, retorna detalhes com link de pagamento
+- **Histórico:** Lista de faturas anteriores (mes_referencia, valor, status, quantidade_pedidos, quantidade_filiais)
+
+**Importante:** A contagem é feita em tempo real a cada requisição (não é salva no banco continuamente). O lojista pode atualizar a tela para ver o número atualizado de pedidos a qualquer momento.
+
+### 12.7 Tabela `empresa_faturas` (Campos Principais)
+
+| Campo | Descrição |
+|-------|-----------|
+| `empresa_id` | ID da matriz (FK empresas) |
+| `usuario_id` | ID do master (FK usuarios) |
+| `mes_referencia` | Mês cobrado (YYYY-MM, ex: 2026-02) |
+| `quantidade_pedidos` | Total de pedidos contados (matriz + filiais) |
+| `quantidade_filiais` | Quantidade de filiais ativas consideradas |
+| `valor` | Valor total da cobrança |
+| `asaas_payment_id` | ID do pagamento no Asaas |
+| `status` | pendente / pago / vencido / cancelado |
+| `vencimento` | Data de vencimento (5 dias após geração) |
+| `pix_qrcode_base64` | QR Code PIX em base64 |
+| `pix_copia_cola` | Código PIX copia-e-cola |
+| `link_fatura` | Link direto de pagamento Asaas |
+
+### 12.8 Email de Notificação de Cobrança
+
+**Template:** `emails.faturamento-ativado` (Blade)
+
+**Classe:** `FaturamentoAtivadoMail`
+
+**Quando é enviado:** Após a geração da cobrança mensal (`gerarCobrancaMensal`)
+
+**Dados incluídos:**
+- Mês de referência (ex: 2026-02)
+- Quantidade de pedidos no período
+- Quantidade de filiais ativas
+- Valor total da cobrança
+- Data de vencimento (5 dias após geração)
+- Instruções de pagamento (acessar painel, link PIX)
+- Aviso de inativação após 5 dias de atraso
+
+**Destinatários:**
+- Email do usuário master
+- Email do titular do faturamento (se diferente do master)
+
+**Assunto:** `Cobrança PetGre - {mes_referencia}`
 
 ---
 

@@ -33,6 +33,12 @@ class AsaasWebhookController extends Controller
         $event = $request->input('event');
         $payment = $request->input('payment', []);
 
+        Log::info('Asaas Webhook recebido', [
+            'event' => $event,
+            'payment_id' => $payment['id'] ?? null,
+            'customer' => $payment['customer'] ?? null,
+        ]);
+
         try {
             switch ($event) {
                 case 'PAYMENT_CREATED':
@@ -68,30 +74,63 @@ class AsaasWebhookController extends Controller
             return;
         }
 
-        $faturamento = EmpresaFaturamento::where('asaas_customer_id', $payment['customer'] ?? '')->first();
-        if (!$faturamento) {
-            Log::warning('AsaasWebhook PAYMENT_CREATED: customer não encontrado', ['customer' => $payment['customer'] ?? null]);
+        // Verificar se a fatura já existe (foi criada pelo nosso sistema)
+        $faturaExistente = EmpresaFatura::where('asaas_payment_id', $paymentId)->first();
+        if ($faturaExistente) {
+            Log::info('AsaasWebhook PAYMENT_CREATED: fatura já existe no sistema', [
+                'payment_id' => $paymentId,
+                'fatura_id' => $faturaExistente->id,
+            ]);
             return;
         }
 
+        // Buscar dados de faturamento pelo customer_id
+        $faturamento = EmpresaFaturamento::where('asaas_customer_id', $payment['customer'] ?? '')->first();
+        if (!$faturamento) {
+            Log::warning('AsaasWebhook PAYMENT_CREATED: customer não encontrado', [
+                'customer' => $payment['customer'] ?? null,
+            ]);
+            return;
+        }
+
+        // Buscar detalhes completos do pagamento na API do Asaas
         $dados = $this->asaasService->buscarPagamento($paymentId);
         if (empty($dados['id'])) {
+            Log::error('AsaasWebhook PAYMENT_CREATED: falha ao buscar pagamento na API', [
+                'payment_id' => $paymentId,
+            ]);
             return;
         }
 
         $dueDate = $dados['dueDate'] ?? null;
         $mesRef = $dueDate ? Carbon::parse($dueDate)->format('Y-m') : now()->format('Y-m');
 
-        EmpresaFatura::create([
+        // Extrair mês de referência da descrição se disponível
+        $descricao = $dados['description'] ?? '';
+        if (preg_match('/Cobrança mensal (\d{4}-\d{2})/', $descricao, $matches)) {
+            $mesRef = $matches[1];
+        }
+
+        // Criar fatura no sistema
+        $fatura = EmpresaFatura::create([
             'usuario_id' => $faturamento->usuario_id,
+            'empresa_id' => null, // Será atualizado manualmente ou via descrição
             'asaas_payment_id' => $paymentId,
             'mes_referencia' => $mesRef,
             'valor' => (float) ($dados['value'] ?? 0),
             'status' => 'pendente',
-            'vencimento' => $dueDate ? Carbon::parse($dueDate)->format('Y-m-d') : now()->addDays(3)->format('Y-m-d'),
+            'vencimento' => $dueDate ? Carbon::parse($dueDate)->format('Y-m-d') : now()->addDays(5)->format('Y-m-d'),
+            'quantidade_pedidos' => 0,
+            'quantidade_filiais' => 0,
             'pix_qrcode_base64' => $dados['pixTransaction']['encodedImage'] ?? null,
             'pix_copia_cola' => $dados['pixTransaction']['payload'] ?? null,
             'link_fatura' => $dados['invoiceUrl'] ?? null,
+        ]);
+
+        Log::info('AsaasWebhook PAYMENT_CREATED: fatura criada', [
+            'payment_id' => $paymentId,
+            'fatura_id' => $fatura->id,
+            'usuario_id' => $faturamento->usuario_id,
         ]);
     }
 
@@ -104,15 +143,62 @@ class AsaasWebhookController extends Controller
 
         $fatura = EmpresaFatura::where('asaas_payment_id', $paymentId)->first();
         if (!$fatura) {
+            Log::warning('AsaasWebhook PAYMENT_RECEIVED: fatura não encontrada', [
+                'payment_id' => $paymentId,
+            ]);
             return;
         }
 
         $pagoEm = isset($payment['paymentDate']) ? Carbon::parse($payment['paymentDate'])->format('Y-m-d') : now()->format('Y-m-d');
         $fatura->update(['status' => 'pago', 'pago_em' => $pagoEm]);
 
-        $empresaIds = DB::table('usuarios_empresas')->where('usuario_id', $fatura->usuario_id)->pluck('empresa_id');
-        Empresa::whereIn('id', $empresaIds)->update(['ativo' => true]);
+        // Ativar matriz e todas as filiais do grupo
+        $this->ativarMatrizEFiliais($fatura);
+
+        Log::info('AsaasWebhook PAYMENT_RECEIVED: fatura paga, empresas ativadas', [
+            'payment_id' => $paymentId,
+            'fatura_id' => $fatura->id,
+            'empresa_id' => $fatura->empresa_id,
+        ]);
+    }
+
+    /**
+     * Ativar matriz e todas as suas filiais
+     */
+    private function ativarMatrizEFiliais(EmpresaFatura $fatura): void
+    {
+        // Se tem empresa_id na fatura, usar ela como matriz
+        if ($fatura->empresa_id) {
+            $matrizId = $fatura->empresa_id;
+        } else {
+            // Senão, buscar matriz pelo usuário
+            $matriz = Empresa::whereHas('usuarioEmpresas', fn ($q) => $q->where('usuario_id', $fatura->usuario_id))
+                ->where('is_matriz', true)
+                ->first();
+
+            if (!$matriz) {
+                Log::warning('AsaasWebhook: matriz não encontrada para ativação', [
+                    'usuario_id' => $fatura->usuario_id,
+                ]);
+                return;
+            }
+
+            $matrizId = $matriz->id;
+        }
+
+        // Ativar matriz
+        Empresa::where('id', $matrizId)->update(['ativo' => true]);
+
+        // Ativar todas as filiais da matriz
+        Empresa::where('empresa_matriz_id', $matrizId)->update(['ativo' => true]);
+
+        // Atualizar flag de assinatura ativa no faturamento
         EmpresaFaturamento::where('usuario_id', $fatura->usuario_id)->update(['assinatura_ativa' => true]);
+
+        Log::info('AsaasWebhook: matriz e filiais ativadas', [
+            'matriz_id' => $matrizId,
+            'fatura_id' => $fatura->id,
+        ]);
     }
 
     private function handlePaymentOverdue(array $payment): void
@@ -124,73 +210,56 @@ class AsaasWebhookController extends Controller
 
         $fatura = EmpresaFatura::where('asaas_payment_id', $paymentId)->first();
         if (!$fatura) {
+            Log::warning('AsaasWebhook PAYMENT_OVERDUE: fatura não encontrada', [
+                'payment_id' => $paymentId,
+            ]);
             return;
         }
 
         $fatura->update(['status' => 'vencido']);
 
-        // Enviar email imediatamente informando que a fatura venceu
+        Log::info('AsaasWebhook PAYMENT_OVERDUE: fatura marcada como vencida', [
+            'payment_id' => $paymentId,
+            'fatura_id' => $fatura->id,
+        ]);
+
+        // Notificar usuário sobre vencimento
+        $this->notificarVencimento($fatura);
+    }
+
+    /**
+     * Notificar usuário sobre vencimento da fatura
+     */
+    private function notificarVencimento(EmpresaFatura $fatura): void
+    {
         $usuario = User::find($fatura->usuario_id);
-        if ($usuario) {
-            try {
-                $this->emailService->sendMailable(
-                    $usuario->email,
-                    new AssinaturaInativaMail(
-                        $usuario,
-                        (float) $fatura->valor,
-                        $fatura->vencimento?->format('d/m/Y') ?? '',
-                        $fatura->link_fatura,
-                        $fatura->pix_copia_cola,
-                        'vencida'
-                    )
-                );
-                Log::info('Email de fatura vencida enviado', [
-                    'usuario_id' => $usuario->id,
-                    'fatura_id' => $fatura->id,
-                    'email' => $usuario->email
-                ]);
-            } catch (\Exception $e) {
-                Log::error('Erro ao enviar email de fatura vencida', [
-                    'usuario_id' => $usuario->id,
-                    'fatura_id' => $fatura->id,
-                    'erro' => $e->getMessage()
-                ]);
-            }
+        if (!$usuario) {
+            return;
         }
 
-        $vencimento = $fatura->vencimento ? Carbon::parse($fatura->vencimento) : now();
-        $diasAtraso = (int) $vencimento->diffInDays(now(), false);
-        if ($diasAtraso >= 5) {
-            $empresaIds = DB::table('usuarios_empresas')->where('usuario_id', $fatura->usuario_id)->pluck('empresa_id');
-            Empresa::whereIn('id', $empresaIds)->update(['ativo' => false]);
+        try {
+            $this->emailService->sendMailable(
+                $usuario->email,
+                new AssinaturaInativaMail(
+                    $usuario,
+                    (float) $fatura->valor,
+                    $fatura->vencimento?->format('d/m/Y') ?? '',
+                    $fatura->link_fatura,
+                    $fatura->pix_copia_cola,
+                    'vencida'
+                )
+            );
 
-            // Enviar email de desativação (empresas desativadas)
-            if ($usuario) {
-                try {
-                    $this->emailService->sendMailable(
-                        $usuario->email,
-                        new AssinaturaInativaMail(
-                            $usuario,
-                            (float) $fatura->valor,
-                            $fatura->vencimento?->format('d/m/Y') ?? '',
-                            $fatura->link_fatura,
-                            $fatura->pix_copia_cola,
-                            'desativada'
-                        )
-                    );
-                    Log::info('Email de empresas desativadas enviado', [
-                        'usuario_id' => $usuario->id,
-                        'fatura_id' => $fatura->id,
-                        'empresas_desativadas' => $empresaIds->toArray()
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('Erro ao enviar email de empresas desativadas', [
-                        'usuario_id' => $usuario->id,
-                        'fatura_id' => $fatura->id,
-                        'erro' => $e->getMessage()
-                    ]);
-                }
-            }
+            Log::info('AsaasWebhook: email de vencimento enviado', [
+                'usuario_id' => $usuario->id,
+                'fatura_id' => $fatura->id,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('AsaasWebhook: erro ao enviar email de vencimento', [
+                'usuario_id' => $usuario->id,
+                'fatura_id' => $fatura->id,
+                'erro' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -202,5 +271,9 @@ class AsaasWebhookController extends Controller
         }
 
         EmpresaFatura::where('asaas_payment_id', $paymentId)->update(['status' => 'cancelado']);
+
+        Log::info('AsaasWebhook PAYMENT_CANCELED/REFUNDED: fatura cancelada', [
+            'payment_id' => $paymentId,
+        ]);
     }
 }

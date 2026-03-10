@@ -39,6 +39,13 @@ Pagamento e entrega ficam entre **cliente e empresa**; o backend só registra e 
 - **Máscaras dinâmicas de documento:** No faturamento, o usuário seleciona CPF ou CNPJ e o campo de input se adapta automaticamente com a máscara correta.
 - **Recuperação de senha:** Envio de código por e-mail, verificação e alteração de senha.
 - **Primeiro login (funcionário):** Troca obrigatória de senha no primeiro acesso ao painel lojista.
+- **Faturamento Condicional Mensal (MVP):** Sistema de cobrança baseado em volume (pay-as-you-go) integrado com Asaas:
+  - Dia 01 às 08:00: gera cobranças automaticamente para matrizes com 16+ pedidos no mês anterior
+  - 15 ou menos pedidos = mês gratuito
+  - Valor: plano base + 50% por filial ativa
+  - Cobrança única (não assinatura) via PIX, vencimento em 5 dias
+  - Dia 06 às 09:00: desativa matriz + filiais automaticamente se não pagou
+  - Webhook Asaas reativa empresas automaticamente após pagamento
 
 ## Tecnologias
 

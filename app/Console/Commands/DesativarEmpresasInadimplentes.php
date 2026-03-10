@@ -26,7 +26,7 @@ class DesativarEmpresasInadimplentes extends Command
      *
      * @var string
      */
-    protected $description = 'Desativa empresas com faturas vencidas há mais de 5 dias e envia notificações';
+    protected $description = 'Desativa matriz e filiais com faturas vencidas há mais de 5 dias e envia notificações';
 
     /**
      * Execute the console command.

@@ -15,14 +15,17 @@ class FaturamentoAtivadoMail extends Mailable
     public function __construct(
         public $usuario,
         public float $valor,
-        public string $vencimento
+        public string $vencimento,
+        public string $mesReferencia,
+        public int $quantidadePedidos = 0,
+        public int $quantidadeFiliais = 0
     ) {
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Assinatura PetGre ativada',
+            subject: "Cobrança PetGre - {$this->mesReferencia}",
         );
     }
 

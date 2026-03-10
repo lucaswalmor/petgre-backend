@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Mail\FaturamentoAtivadoMail;
 use App\Models\Empresa;
+use App\Models\EmpresaFatura;
 use App\Models\EmpresaFaturamento;
+use App\Models\Pedido;
 use App\Models\Plano;
 use App\Models\User;
-use App\Models\UsuarioFaturamentoPedidos;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -19,59 +21,158 @@ class FaturamentoService
     ) {
     }
 
-    public function calcularValorPlano(int $usuarioId): float
+    /**
+     * Calcular valor da cobrança para uma empresa matriz
+     * Fórmula: valor_base + (filiais_ativas × valor_base × 0.5)
+     *
+     * @param int $empresaMatrizId ID da empresa matriz
+     * @return array ['valor_total' => float, 'valor_base' => float, 'quantidade_filiais' => int]
+     */
+    public function calcularValorCobranca(int $empresaMatrizId): array
     {
         $plano = Plano::withoutTrashed()->where('ativo', true)->first();
         $valorBase = $plano ? (float) $plano->valor : 39.90;
 
-        $empresaIds = DB::table('usuarios_empresas')->where('usuario_id', $usuarioId)->pluck('empresa_id');
-        $quantidadeFiliais = Empresa::whereIn('id', $empresaIds)->where('is_matriz', false)->count();
+        // Contar filiais ativas da matriz
+        $quantidadeFiliais = Empresa::where('empresa_matriz_id', $empresaMatrizId)
+            ->where('ativo', true)
+            ->where('is_matriz', false)
+            ->count();
 
-        $valor = $valorBase * (1 + ($quantidadeFiliais * 0.5));
-        return round($valor, 2);
+        $valorTotal = $valorBase * (1 + ($quantidadeFiliais * 0.5));
+
+        return [
+            'valor_total' => round($valorTotal, 2),
+            'valor_base' => $valorBase,
+            'quantidade_filiais' => $quantidadeFiliais,
+        ];
     }
 
-    public function contabilizarPedido(int $empresaId): void
+    /**
+     * Contar pedidos do mês para uma matriz e suas filiais
+     *
+     * @param int $empresaMatrizId ID da empresa matriz
+     * @param string $mesReferencia Formato YYYY-MM
+     * @return array ['total_pedidos' => int, 'empresas_consideradas' => array]
+     */
+    public function contarPedidosMes(int $empresaMatrizId, string $mesReferencia): array
     {
-        $master = User::where('is_master', true)
-            ->whereHas('usuarioEmpresas', fn ($q) => $q->where('empresa_id', $empresaId))
-            ->first();
-        if (!$master) {
-            return;
-        }
+        // Buscar IDs da matriz e todas as filiais ativas
+        $idsEmpresas = Empresa::where('id', $empresaMatrizId)
+            ->orWhere(function ($query) use ($empresaMatrizId) {
+                $query->where('empresa_matriz_id', $empresaMatrizId)
+                    ->where('ativo', true);
+            })
+            ->pluck('id')
+            ->toArray();
 
-        $empresa = Empresa::find($empresaId);
-        if (!$empresa || !$empresa->ativo) {
-            return;
-        }
+        // Calcular período do mês de referência
+        $dataInicio = Carbon::createFromFormat('Y-m', $mesReferencia)->startOfMonth();
+        $dataFim = Carbon::createFromFormat('Y-m', $mesReferencia)->endOfMonth();
 
-        $mesRef = now()->format('Y-m');
-        $registro = UsuarioFaturamentoPedidos::firstOrCreate(
-            ['usuario_id' => $master->id, 'mes_referencia' => $mesRef],
-            ['total_pedidos' => 0, 'assinatura_disparada' => false]
-        );
-        $registro->increment('total_pedidos');
+        $totalPedidos = Pedido::whereIn('empresa_id', $idsEmpresas)
+            ->whereBetween('created_at', [$dataInicio, $dataFim])
+            ->count();
 
-        if ($registro->total_pedidos >= QTD_PEDIDOS_COBRAR && !$registro->assinatura_disparada) {
-            $this->dispararAssinatura($master->id);
-            $registro->update(['assinatura_disparada' => true]);
-        }
+        return [
+            'total_pedidos' => $totalPedidos,
+            'empresas_consideradas' => $idsEmpresas,
+        ];
     }
 
-    public function dispararAssinatura(int $usuarioMasterId): void
+    /**
+     * Verificar se já existe cobrança para o mês/empresa
+     *
+     * @param int $empresaMatrizId
+     * @param string $mesReferencia Formato YYYY-MM
+     * @return bool
+     */
+    public function existeCobrancaParaMes(int $empresaMatrizId, string $mesReferencia): bool
+    {
+        return EmpresaFatura::where('empresa_id', $empresaMatrizId)
+            ->where('mes_referencia', $mesReferencia)
+            ->exists();
+    }
+
+    /**
+     * Gerar cobrança mensal condicional para uma empresa matriz
+     * Executado pelo cron job no dia 1º de cada mês
+     *
+     * @param int $empresaMatrizId
+     * @param string $mesReferencia Formato YYYY-MM (mês a ser cobrado - normalmente o anterior)
+     * @return array|null Dados da cobrança gerada ou null se não gerar
+     */
+    public function gerarCobrancaMensal(int $empresaMatrizId, string $mesReferencia): ?array
     {
         // Verificar se Asaas está configurado
         if (!$this->asaasService->isConfigured()) {
-            Log::warning('FaturamentoService::dispararAssinatura - Asaas não configurado, pulando assinatura');
-            return;
+            Log::warning('FaturamentoService::gerarCobrancaMensal - Asaas não configurado');
+            return null;
         }
 
-        $faturamento = EmpresaFaturamento::where('usuario_id', $usuarioMasterId)->first();
+        // Verificar se matriz existe e está ativa
+        $matriz = Empresa::where('id', $empresaMatrizId)
+            ->where('is_matriz', true)
+            ->first();
+
+        if (!$matriz) {
+            Log::warning('FaturamentoService::gerarCobrancaMensal - Matriz não encontrada', [
+                'empresa_id' => $empresaMatrizId,
+            ]);
+            return null;
+        }
+
+        // Verificar se já existe cobrança para este mês
+        if ($this->existeCobrancaParaMes($empresaMatrizId, $mesReferencia)) {
+            Log::info('FaturamentoService::gerarCobrancaMensal - Cobrança já existe', [
+                'empresa_id' => $empresaMatrizId,
+                'mes_referencia' => $mesReferencia,
+            ]);
+            return null;
+        }
+
+        // Contar pedidos do mês (matriz + filiais)
+        $contagem = $this->contarPedidosMes($empresaMatrizId, $mesReferencia);
+        $totalPedidos = $contagem['total_pedidos'];
+
+        // Se tiver 15 ou menos pedidos → mês gratuito, sem cobrança
+        if ($totalPedidos <= 15) {
+            Log::info('FaturamentoService::gerarCobrancaMensal - Mês gratuito (<=15 pedidos)', [
+                'empresa_id' => $empresaMatrizId,
+                'mes_referencia' => $mesReferencia,
+                'total_pedidos' => $totalPedidos,
+            ]);
+            return null;
+        }
+
+        // Calcular valor da cobrança (16+ pedidos)
+        $calculo = $this->calcularValorCobranca($empresaMatrizId);
+        $valorTotal = $calculo['valor_total'];
+        $quantidadeFiliais = $calculo['quantidade_filiais'];
+
+        // Buscar dados de faturamento do master
+        $usuarioMaster = User::where('is_master', true)
+            ->whereHas('usuarioEmpresas', fn ($q) => $q->where('empresa_id', $empresaMatrizId))
+            ->first();
+
+        if (!$usuarioMaster) {
+            Log::error('FaturamentoService::gerarCobrancaMensal - Master não encontrado', [
+                'empresa_id' => $empresaMatrizId,
+            ]);
+            return null;
+        }
+
+        $faturamento = EmpresaFaturamento::where('usuario_id', $usuarioMaster->id)->first();
+
         if (!$faturamento || empty($faturamento->nome_titular) || empty($faturamento->cpf_cnpj)) {
-            Log::warning('FaturamentoService::dispararAssinatura - dados incompletos', ['usuario_id' => $usuarioMasterId]);
-            return;
+            Log::warning('FaturamentoService::gerarCobrancaMensal - Dados de faturamento incompletos', [
+                'empresa_id' => $empresaMatrizId,
+                'usuario_id' => $usuarioMaster->id,
+            ]);
+            return null;
         }
 
+        // Criar cliente no Asaas se não existir
         if (empty($faturamento->asaas_customer_id)) {
             $resposta = $this->asaasService->criarCliente([
                 'name' => $faturamento->nome_titular,
@@ -79,59 +180,134 @@ class FaturamentoService
                 'email' => $faturamento->email,
                 'phone' => preg_replace('/\D/', '', $faturamento->telefone ?? ''),
             ]);
+
             if (empty($resposta['id'])) {
                 Log::error('Asaas criarCliente falhou', ['response' => $resposta]);
-                return;
+                return null;
             }
+
             $faturamento->update(['asaas_customer_id' => $resposta['id']]);
             $faturamento->refresh();
         }
 
-        $valor = $this->calcularValorPlano($usuarioMasterId);
-        $nextDueDate = now()->addDays(3)->format('Y-m-d');
+        // Criar cobrança única no Asaas (não assinatura)
+        $dueDate = now()->addDays(5)->format('Y-m-d'); // Vencimento em 5 dias
+        $descricao = "PetGre - Cobrança mensal {$mesReferencia} ({$totalPedidos} pedidos)";
 
-        $respostaSub = $this->asaasService->criarAssinatura(
+        $respostaCobranca = $this->asaasService->criarCobrancaUnica(
             $faturamento->asaas_customer_id,
-            $valor,
-            $nextDueDate
+            $valorTotal,
+            $dueDate,
+            $descricao
         );
-        if (empty($respostaSub['id'])) {
-            Log::error('Asaas criarAssinatura falhou', ['response' => $respostaSub]);
-            return;
+
+        if (empty($respostaCobranca['id'])) {
+            Log::error('Asaas criarCobrancaUnica falhou', ['response' => $respostaCobranca]);
+            return null;
         }
 
-        $faturamento->update([
-            'asaas_subscription_id' => $respostaSub['id'],
-            'assinatura_ativa' => true,
-            'valor_atual' => $valor,
-            'data_ativacao' => now(),
+        // Salvar fatura no banco
+        $fatura = EmpresaFatura::create([
+            'usuario_id' => $usuarioMaster->id,
+            'empresa_id' => $empresaMatrizId,
+            'asaas_payment_id' => $respostaCobranca['id'],
+            'mes_referencia' => $mesReferencia,
+            'valor' => $valorTotal,
+            'status' => 'pendente',
+            'vencimento' => $dueDate,
+            'quantidade_pedidos' => $totalPedidos,
+            'quantidade_filiais' => $quantidadeFiliais,
+            'pix_qrcode_base64' => $respostaCobranca['pixTransaction']['encodedImage'] ?? null,
+            'pix_copia_cola' => $respostaCobranca['pixTransaction']['payload'] ?? null,
+            'link_fatura' => $respostaCobranca['invoiceUrl'] ?? null,
         ]);
 
-        $usuario = User::find($usuarioMasterId);
-        $this->emailService->sendMailable($usuario->email, new FaturamentoAtivadoMail($usuario, $valor, $nextDueDate));
-        if ($faturamento->email && $faturamento->email !== $usuario->email) {
-            $this->emailService->sendMailable($faturamento->email, new FaturamentoAtivadoMail($usuario, $valor, $nextDueDate));
+        // Enviar email de notificação
+        try {
+            $this->emailService->sendMailable(
+                $usuarioMaster->email,
+                new FaturamentoAtivadoMail($usuarioMaster, $valorTotal, $dueDate, $mesReferencia, $totalPedidos, $quantidadeFiliais)
+            );
+
+            if ($faturamento->email && $faturamento->email !== $usuarioMaster->email) {
+                $this->emailService->sendMailable(
+                    $faturamento->email,
+                    new FaturamentoAtivadoMail($usuarioMaster, $valorTotal, $dueDate, $mesReferencia, $totalPedidos, $quantidadeFiliais)
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar email de cobrança', [
+                'empresa_id' => $empresaMatrizId,
+                'erro' => $e->getMessage(),
+            ]);
         }
+
+        Log::info('FaturamentoService::gerarCobrancaMensal - Cobrança gerada com sucesso', [
+            'empresa_id' => $empresaMatrizId,
+            'mes_referencia' => $mesReferencia,
+            'fatura_id' => $fatura->id,
+            'asaas_payment_id' => $respostaCobranca['id'],
+            'valor' => $valorTotal,
+            'total_pedidos' => $totalPedidos,
+        ]);
+
+        return [
+            'fatura_id' => $fatura->id,
+            'asaas_payment_id' => $respostaCobranca['id'],
+            'valor' => $valorTotal,
+            'total_pedidos' => $totalPedidos,
+            'quantidade_filiais' => $quantidadeFiliais,
+        ];
     }
 
+    /**
+     * @deprecated Não usar - método legado do modelo de assinatura recorrente
+     * Removido no novo modelo de cobrança condicional mensal
+     */
+    public function contabilizarPedido(int $empresaId): void
+    {
+        // Método descontinuado - não faz nada no novo modelo
+        // A contagem de pedidos agora é feita pelo cron job mensal
+        Log::info('FaturamentoService::contabilizarPedido - Método descontinuado, ignorando', [
+            'empresa_id' => $empresaId,
+        ]);
+    }
+
+    /**
+     * @deprecated Usar gerarCobrancaMensal() no novo modelo
+     */
+    public function calcularValorPlano(int $usuarioId): float
+    {
+        // Buscar empresa matriz do usuário
+        $empresaMatriz = Empresa::whereHas('usuarioEmpresas', fn ($q) => $q->where('usuario_id', $usuarioId))
+            ->where('is_matriz', true)
+            ->first();
+
+        if (!$empresaMatriz) {
+            return 39.90;
+        }
+
+        $calculo = $this->calcularValorCobranca($empresaMatriz->id);
+        return $calculo['valor_total'];
+    }
+
+    /**
+     * @deprecated Usar gerarCobrancaMensal() no novo modelo
+     */
+    public function dispararAssinatura(int $usuarioMasterId): void
+    {
+        Log::warning('FaturamentoService::dispararAssinatura - Método descontinuado', [
+            'usuario_id' => $usuarioMasterId,
+        ]);
+    }
+
+    /**
+     * @deprecated Não usado no novo modelo de cobrança condicional
+     */
     public function recalcularValorAssinatura(int $usuarioMasterId): void
     {
-        // Verificar se Asaas está configurado
-        if (!$this->asaasService->isConfigured()) {
-            return;
-        }
-
-        $faturamento = EmpresaFaturamento::where('usuario_id', $usuarioMasterId)->first();
-        if (!$faturamento || !$faturamento->assinatura_ativa || empty($faturamento->asaas_subscription_id)) {
-            return;
-        }
-
-        $novoValor = $this->calcularValorPlano($usuarioMasterId);
-        if ((float) $faturamento->valor_atual === (float) $novoValor) {
-            return;
-        }
-
-        $this->asaasService->atualizarAssinatura($faturamento->asaas_subscription_id, $novoValor);
-        $faturamento->update(['valor_atual' => $novoValor]);
+        Log::warning('FaturamentoService::recalcularValorAssinatura - Método descontinuado', [
+            'usuario_id' => $usuarioMasterId,
+        ]);
     }
 }

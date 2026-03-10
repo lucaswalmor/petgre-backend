@@ -2,13 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\EmpresaFatura;
-use App\Models\Pedido;
-use App\Models\PedidoEndereco;
-use App\Models\PedidoHistoricoStatus;
-use App\Models\PedidoItems;
 use App\Models\StatusPedidos;
-use App\Models\UsuarioFaturamentoPedidos;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -16,16 +11,17 @@ class CreatePedidosSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Cria 29 pedidos para testar o limite de cobrança automática
+     * Cria 16 pedidos para o mês 02/2026 para testar a cobrança condicional mensal
      */
     public function run(): void
     {
-        $timestamp = now();
-
         // Dados fixos conforme solicitado
         $usuarioId = 3; // ID do cliente
         $empresaId = 1; // ID da empresa
         $produtoId = 1; // ID do produto
+
+        // Data base: fevereiro/2026 (mês 02)
+        $dataBase = Carbon::create(2026, 2, 15, 14, 30, 0);
 
         // Buscar status "pendente"
         $statusPendente = StatusPedidos::where('slug', 'pendente')->first();
@@ -45,11 +41,19 @@ class CreatePedidosSeeder extends Seeder
         $quantidade = 1; // 1 unidade por pedido
         $subtotal = $precoProduto * $quantidade;
 
-        $this->command->info('Criando 29 pedidos para teste de cobrança automática...');
+        $this->command->info('🧪 Criando 16 pedidos para Fevereiro/2026 (mês 02)...');
+        $this->command->info('📅 Data base: ' . $dataBase->format('d/m/Y'));
+        $this->command->info('');
+        $this->command->info('💡 Com 16 pedidos, a cobrança será gerada no dia 01/03/2026.');
+        $this->command->info('   Execute: php artisan faturamento:gerar-cobrancas-mensais --mes=2026-02');
+        $this->command->info('');
 
-        for ($i = 1; $i <= 29; $i++) {
+        for ($i = 1; $i <= 16; $i++) {
             DB::beginTransaction();
             try {
+                // Criar timestamp variando ao longo do mês de fevereiro
+                $timestamp = $dataBase->copy()->addDays(rand(0, 27))->addHours(rand(8, 22));
+
                 // Criar pedido
                 $pedidoId = DB::table('pedidos')->insertGetId([
                     'usuario_id' => $usuarioId,
@@ -60,7 +64,7 @@ class CreatePedidosSeeder extends Seeder
                     'desconto' => 0,
                     'frete' => 0,
                     'total' => $subtotal,
-                    'observacoes' => "Pedido de teste #{$i}",
+                    'observacoes' => "Pedido de teste #{$i} - Fevereiro/2026",
                     'foi_entrega' => false, // Retirada na loja
                     'ativo' => true,
                     'created_at' => $timestamp,
@@ -83,64 +87,33 @@ class CreatePedidosSeeder extends Seeder
                 DB::table('pedido_historico_status')->insert([
                     'pedido_id' => $pedidoId,
                     'status_pedido_id' => $statusPendente->id,
-                    'observacoes' => 'Pedido criado via seeder',
+                    'observacoes' => 'Pedido criado via seeder para teste de cobrança condicional',
                     'created_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ]);
 
-                // Atualizar contagem de pedidos para faturamento
-                $this->atualizarContagemPedidos($empresaId);
-
                 DB::commit();
 
-                if ($i <= 5 || $i >= 25) { // Mostrar progresso apenas no início e fim
-                    $this->command->info("Pedido #{$i} criado (ID: {$pedidoId})");
-                } elseif ($i == 15) {
-                    $this->command->info("... criando pedido #{$i} ...");
-                }
+                $this->command->info("✅ Pedido #{$i} criado (ID: {$pedidoId}) - {$timestamp->format('d/m/Y H:i')}");
 
             } catch (\Exception $e) {
                 DB::rollBack();
-                $this->command->error("Erro ao criar pedido #{$i}: {$e->getMessage()}");
+                $this->command->error("❌ Erro ao criar pedido #{$i}: {$e->getMessage()}");
                 continue;
             }
         }
 
-        $this->command->info('✅ CreatePedidosSeeder executado: 29 pedidos criados!');
-        $this->command->info('📊 Verifique se a cobrança automática foi disparada (30º pedido).');
-    }
-
-    /**
-     * Atualiza a contagem de pedidos para o sistema de faturamento
-     */
-    private function atualizarContagemPedidos(int $empresaId): void
-    {
-        // Buscar o master da empresa
-        $master = DB::table('usuarios_empresas')
-            ->join('usuarios', 'usuarios_empresas.usuario_id', '=', 'usuarios.id')
-            ->where('usuarios_empresas.empresa_id', $empresaId)
-            ->where('usuarios.is_master', true)
-            ->select('usuarios.id')
-            ->first();
-
-        if (!$master) {
-            return; // Não há master para esta empresa
-        }
-
-        $mesAtual = now()->format('Y-m');
-
-        // Buscar ou criar registro de contagem
-        $registro = UsuarioFaturamentoPedidos::firstOrCreate(
-            ['usuario_id' => $master->id, 'mes_referencia' => $mesAtual],
-            ['total_pedidos' => 0, 'assinatura_disparada' => false]
-        );
-
-        // Incrementar contagem
-        $registro->increment('total_pedidos');
-
-        // Log para debug
-        if ($registro->total_pedidos >= QTD_PEDIDOS_COBRAR) {
-            $this->command->warn("🚨 LIMITE ATINGIDO: {$registro->total_pedidos} pedidos - Assinatura deveria ser disparada!");
-        }
+        $this->command->info('');
+        $this->command->info('✅ CreatePedidosSeeder executado: 16 pedidos criados para Fevereiro/2026!');
+        $this->command->info('');
+        $this->command->info('📋 PRÓXIMOS PASSOS PARA TESTAR:');
+        $this->command->info('   1. Verifique os pedidos: SELECT * FROM pedidos WHERE MONTH(created_at) = 2;');
+        $this->command->info('   2. Teste a geração de cobrança (dry-run):');
+        $this->command->info('      php artisan faturamento:gerar-cobrancas-mensais --mes=2026-02 --dry-run');
+        $this->command->info('   3. Gere a cobrança real:');
+        $this->command->info('      php artisan faturamento:gerar-cobrancas-mensais --mes=2026-02');
+        $this->command->info('');
+        $this->command->info('💰 Com 16 pedidos, a empresa ATINGIU o limite para cobrança (limite gratuito: 15).');
+        $this->command->info('   Valor será calculado conforme: base + (filiais × base × 0.5)');
     }
 }

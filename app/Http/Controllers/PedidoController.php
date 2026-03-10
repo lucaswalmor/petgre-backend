@@ -241,7 +241,6 @@ class PedidoController extends Controller
 
             $codigo = '#' . str_pad((string) $pedido->id, 6, '0', STR_PAD_LEFT);
             app(PushNotificationService::class)->sendNewOrderToEmpresa($pedido->empresa_id, $codigo);
-            app(FaturamentoService::class)->contabilizarPedido($pedido->empresa_id);
 
             // Notificar lojista quando produto com "Ativar Estoque Mínimo" atingir estoque abaixo do mínimo
             $pedido->load('itens.produto.empresa');

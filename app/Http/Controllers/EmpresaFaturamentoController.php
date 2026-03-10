@@ -90,27 +90,58 @@ class EmpresaFaturamentoController extends Controller
             return response()->json(['success' => false, 'message' => 'Acesso negado.'], 403);
         }
 
-        $empresaIds = DB::table('usuarios_empresas')->where('usuario_id', $user->id)->pluck('empresa_id');
+        // Buscar empresa matriz do usuário
+        $matriz = \App\Models\Empresa::whereHas('usuarioEmpresas', fn ($q) => $q->where('usuario_id', $user->id))
+            ->where('is_matriz', true)
+            ->first();
+
+        if (!$matriz) {
+            return response()->json(['success' => false, 'message' => 'Empresa matriz não encontrada.'], 404);
+        }
+
         $mesAtual = Carbon::now()->format('Y-m');
         $inicioMes = Carbon::now()->startOfMonth();
         $fimMes = Carbon::now()->endOfMonth();
 
-        $pedidosMesAtual = Pedido::whereIn('empresa_id', $empresaIds)
+        // Contar pedidos do mês atual (matriz + filiais ativas)
+        $idsEmpresas = \App\Models\Empresa::where('id', $matriz->id)
+            ->orWhere(function ($query) use ($matriz) {
+                $query->where('empresa_matriz_id', $matriz->id)
+                    ->where('ativo', true);
+            })
+            ->pluck('id');
+
+        $pedidosMesAtual = Pedido::whereIn('empresa_id', $idsEmpresas)
             ->whereBetween('created_at', [$inicioMes, $fimMes])
             ->count();
 
+        // Contar filiais ativas
+        $quantidadeFiliais = \App\Models\Empresa::where('empresa_matriz_id', $matriz->id)
+            ->where('ativo', true)
+            ->where('is_matriz', false)
+            ->count();
+
+        // Calcular valor estimado da próxima cobrança
+        $faturamentoService = app(\App\Services\FaturamentoService::class);
+        $calculo = $faturamentoService->calcularValorCobranca($matriz->id);
+        $valorEstimado = $calculo['valor_total'];
+        $valorBase = $calculo['valor_base'];
+
+        // Status do plano
         $faturamento = EmpresaFaturamento::where('usuario_id', $user->id)->first();
-        $planoStatus = 'gratuito';
-        $proximaCobranca = null;
-        if ($faturamento && $faturamento->assinatura_ativa) {
-            $planoStatus = 'ativo';
-            $proximaCobranca = Carbon::now()->addMonth()->endOfMonth()->format('d/m/Y');
-        }
+        $assinaturaAtiva = $faturamento && $faturamento->assinatura_ativa;
 
-        $valorPlano = 39.90;
-        $limiteGratuito = 30;
+        // Verificar se há fatura em aberto (pendente ou vencida)
+        $faturaEmAberto = EmpresaFatura::where('empresa_id', $matriz->id)
+            ->whereIn('status', ['pendente', 'vencido'])
+            ->first();
 
+        // Próxima avaliação: dia 01 do próximo mês
+        $proximaAvaliacao = Carbon::now()->addMonth()->startOfMonth()->format('d/m/Y');
+
+        // Histórico de faturas
         $faturas = EmpresaFatura::where('usuario_id', $user->id)
+            ->orWhere('empresa_id', $matriz->id)
             ->orderBy('mes_referencia', 'desc')
             ->get()
             ->map(fn ($f) => [
@@ -121,15 +152,31 @@ class EmpresaFaturamentoController extends Controller
                 'vencimento' => $f->vencimento?->format('Y-m-d'),
                 'pago_em' => $f->pago_em?->format('Y-m-d'),
                 'link_fatura' => $f->link_fatura,
+                'quantidade_pedidos' => $f->quantidade_pedidos,
+                'quantidade_filiais' => $f->quantidade_filiais,
             ]);
 
         return response()->json([
             'success' => true,
-            'plano_status' => $planoStatus,
+            'modelo_cobranca' => 'condicional_mensal',
+            'matriz_id' => $matriz->id,
+            'mes_referencia_atual' => $mesAtual,
             'pedidos_mes_atual' => $pedidosMesAtual,
-            'limite_gratuito' => $limiteGratuito,
-            'proxima_cobranca' => $proximaCobranca,
-            'valor_plano' => $valorPlano,
+            'quantidade_filiais' => $quantidadeFiliais,
+            'limite_gratuito' => 15,
+            'pedidos_para_cobranca' => max(0, 16 - $pedidosMesAtual),
+            'vai_ser_cobrado' => $pedidosMesAtual >= 16,
+            'valor_base' => $valorBase,
+            'valor_estimado_proxima_cobranca' => $pedidosMesAtual >= 16 ? $valorEstimado : 0,
+            'proxima_avaliacao' => $proximaAvaliacao,
+            'assinatura_ativa' => $assinaturaAtiva,
+            'fatura_em_aberto' => $faturaEmAberto ? [
+                'id' => $faturaEmAberto->id,
+                'valor' => (float) $faturaEmAberto->valor,
+                'status' => $faturaEmAberto->status,
+                'vencimento' => $faturaEmAberto->vencimento?->format('Y-m-d'),
+                'link_fatura' => $faturaEmAberto->link_fatura,
+            ] : null,
             'faturas' => $faturas,
         ]);
     }

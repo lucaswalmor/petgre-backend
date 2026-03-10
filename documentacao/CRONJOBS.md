@@ -22,6 +22,20 @@ Adicione estas linhas no final do arquivo:
 
 ## 📅 Cron Jobs Agendados
 
+### ⏰ **Dia 01 de cada mês às 08:00** - Geração de Cobranças Mensais (NOVO MVP)
+```bash
+faturamento:gerar-cobrancas-mensais
+```
+- **Função:** Gera cobranças únicas (não assinaturas) para empresas com 16+ pedidos no mês anterior
+- **Arquivo:** `app/Console/Commands/GerarCobrancasMensais.php`
+- **Regras:**
+  - Verifica pedidos do **mês anterior** (matriz + todas as filiais)
+  - 16 ou mais pedidos → gera cobrança no Asaas (cobrança única PIX, vencimento 5 dias)
+  - 15 ou menos pedidos → mês gratuito, sem cobrança
+  - Valor: plano base + 50% por filial ativa
+- **Duplicidade:** Verifica se já existe cobrança para o mês/empresa antes de criar
+- **Notificação:** Envia email ao master com link de pagamento
+
 ### ⏰ **Diariamente às 08:00** - Avisos de Vencimento Próximo
 ```bash
 faturamento:avisar-vencimento-proximo
@@ -34,9 +48,13 @@ faturamento:avisar-vencimento-proximo
 ```bash
 faturamento:desativar-empresas-inadimplentes
 ```
-- **Função:** Desativa empresas com faturas vencidas há 5+ dias
+- **Função:** Desativa matriz e todas as filiais com faturas vencidas há 5+ dias
 - **Arquivo:** `app/Console/Commands/DesativarEmpresasInadimplentes.php`
-- **Ação:** Define `ativo = false` nas empresas + envia email de suspensão
+- **Ação:** 
+  - Define `ativo = false` na matriz (`empresa_faturas.empresa_id`)
+  - Define `ativo = false` em todas as filiais (`empresas.empresa_matriz_id`)
+  - Envia email de suspensão ao master
+- **Ciclo de cobrança:** Dia 01 (gera) → Dia 06 (inativa se não pagou)
 
 ### ⏰ **Diariamente às 02:00** - Backup do Banco
 ```bash
@@ -47,6 +65,15 @@ backup:database
 - **Destino:** `storage/app/backups/` (local) + R2 (nuvem)
 
 ## 🔧 Comandos Manuais para Teste
+
+### Teste de Geração de Cobranças (Modo Seguro):
+```bash
+# Simula a geração sem criar cobranças reais
+php artisan faturamento:gerar-cobrancas-mensais --dry-run
+
+# Gera cobrança para um mês específico (ex: fevereiro/2026)
+php artisan faturamento:gerar-cobrancas-mensais --mes=2026-02 --dry-run
+```
 
 ### Teste de Avisos de Vencimento (Modo Seguro):
 ```bash
@@ -60,6 +87,12 @@ php artisan faturamento:desativar-empresas-inadimplentes --dry-run
 
 ### Execução Manual:
 ```bash
+# Geração de cobranças (para o mês anterior)
+php artisan faturamento:gerar-cobrancas-mensais
+
+# Geração para mês específico
+php artisan faturamento:gerar-cobrancas-mensais --mes=2026-02
+
 # Avisos de vencimento
 php artisan faturamento:avisar-vencimento-proximo
 
@@ -70,15 +103,40 @@ php artisan faturamento:desativar-empresas-inadimplentes
 php artisan backup:database
 ```
 
+## 📊 Fluxo Completo do Faturamento
+
+```
+DIA 01 (08:00) - faturamento:gerar-cobrancas-mensais
+├── Para cada matriz ativa:
+│   ├── Conta pedidos do mês anterior (matriz + filiais)
+│   ├── Se >= 16 pedidos → cria cobrança única no Asaas
+│   ├── Se <= 15 pedidos → mês gratuito
+│   └── Envia email com link de pagamento
+│
+DIA 02-05 - Período de pagamento
+├── Cliente pode pagar via PIX pelo link do Asaas
+├── Webhook atualiza status automaticamente
+│
+DIA 06 (09:00) - faturamento:desativar-empresas-inadimplentes
+├── Verifica faturas vencidas há 5+ dias
+├── Inativa matriz + todas as filiais
+└── Envia email de suspensão
+│
+APÓS PAGAMENTO - Webhook Asaas
+├── PAYMENT_RECEIVED/CONFIRMED
+├── Marca fatura como 'pago'
+└── Reativa matriz + todas as filiais automaticamente
+```
+
 ## 📊 Monitoramento
 
 ### Verificar Logs:
 ```bash
 # Logs do Laravel
-tail -f storage/logs/laravel.log | grep -i "faturamento\|asaas"
+ tail -f storage/logs/laravel.log | grep -i "faturamento\|asaas\|cobranca"
 
 # Logs específicos de comandos
-grep "AvisarVencimentoProximo\|DesativarEmpresas" storage/logs/laravel.log
+grep "GerarCobrancasMensais\|DesativarEmpresas\|AvisarVencimento" storage/logs/laravel.log
 ```
 
 ### Verificar Status dos Cron Jobs:
@@ -90,6 +148,13 @@ php artisan schedule:list
 php artisan schedule:run
 ```
 
+### Verificar Cobranças Geradas:
+```bash
+# Listar faturas do mês atual
+php artisan tinker
+>>> \App\Models\EmpresaFatura::where('mes_referencia', date('Y-m'))->get();
+```
+
 ## ⚠️ Observações Importantes
 
 1. **Horário do Servidor:** Certifique-se que o servidor está no horário correto (America/Sao_Paulo)
@@ -99,6 +164,7 @@ php artisan schedule:run
    - Conectar ao banco de dados
 3. **Monitoramento:** Configure alertas para quando os crons falharem
 4. **Backup:** Sempre teste o restore dos backups gerados
+5. **Webhook Asaas:** Certifique-se de que a URL `/api/webhooks/asaas` está acessível publicamente para receber confirmações de pagamento
 
 ## 🚨 Troubleshooting
 
@@ -126,7 +192,18 @@ chmod -R 755 /home4/lksoft04/pet.lksoftware.com.br/storage
 - Verificar logs: `storage/logs/laravel.log`
 - Testar envio manual: `php artisan tinker` → `app(EmailService::class)->sendTestEmail()`
 
+### Webhook não funciona:
+- Verificar se a rota `/api/webhooks/asaas` está acessível
+- Confirmar `ASAAS_WEBHOOK_TOKEN` no `.env` corresponde ao configurado no Asaas
+- Verificar logs: `storage/logs/laravel.log | grep -i webhook`
+
+### Cobranças não geradas:
+- Verificar se Asaas está configurado (`ASAAS_API_KEY` no `.env`)
+- Verificar se existem empresas matriz ativas: `Empresa::where('is_matriz', true)->where('ativo', true)->count()`
+- Verificar logs: `storage/logs/laravel.log | grep -i "gerar.*cobranca"`
+
 ---
 
-**📅 Última atualização:** Fevereiro 2026
+**📅 Última atualização:** Março 2026
 **🔧 Configurado para:** HostGator/LK Software
+**📝 Versão:** MVP - Cobrança Condicional Mensal
