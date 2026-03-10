@@ -79,10 +79,7 @@ class TicketController extends Controller
                 'mensagem' => $request->input('body'),
             ]);
             DB::commit();
-            $admins = User::where('desenvolvedor', true)->pluck('email');
-            foreach ($admins as $email) {
-                $this->emailService->sendMailable($email, new NovoTicketMail($ticket->fresh(['criadoPor', 'empresa', 'mensagens'])));
-            }
+            $this->emailService->sendMailable('lucaswsb52@gmail.com', new NovoTicketMail($ticket->fresh(['criadoPor', 'empresa', 'mensagens'])));
             return response()->json([
                 'success' => true,
                 'message' => 'Chamado aberto com sucesso.',
