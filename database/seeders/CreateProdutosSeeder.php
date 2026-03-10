@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Categoria;
+use App\Models\Categorias;
 use App\Models\UnidadeMedida;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -365,10 +365,10 @@ class CreateProdutosSeeder extends Seeder
         $categorias = [];
 
         foreach ($nomesCategorias as $nome) {
-            $categoria = Categoria::where('nome', $nome)->first();
+            $categoria = Categorias::where('nome', $nome)->first();
             
             if (!$categoria) {
-                $categoria = Categoria::create([
+                $categoria = Categorias::create([
                     'nome' => $nome,
                     'slug' => Str::slug($nome),
                     'ativo' => true,
