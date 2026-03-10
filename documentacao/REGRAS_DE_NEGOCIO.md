@@ -236,9 +236,32 @@ Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de 
 
 ---
 
-## 14. CORS e Upload de Imagens
+## 14. Autenticação e Tokens (Multi-Dispositivo)
 
-### 14.1 CORS (Cross-Origin Resource Sharing)
+### 14.1 Múltiplas Sessões Simultâneas
+
+**Regra:** O sistema permite que um usuário tenha múltiplas sessões ativas simultaneamente (vários dispositivos/computadores).
+
+**Implementação:**
+- Ao fazer login, um novo token é criado sem deletar tokens existentes
+- Cada dispositivo possui seu próprio token independente
+- O logout revoga apenas o token do dispositivo atual (`$request->user()->currentAccessToken()->delete()`)
+- Tokens expiram automaticamente após período de inatividade (configurado no Sanctum)
+
+**Motivo:** Permitir que lojistas acessem a conta de diferentes dispositivos (computador do escritório, notebook, celular) sem serem desconectados.
+
+### 14.2 Segurança de Tokens
+
+- Tokens são únicos por sessão (dispositivo/navegador)
+- Logout em um dispositivo não afeta outros dispositivos
+- Tokens podem ser revogados individualmente via API (logout)
+- Revogação em massa só ocorre manualmente ou em casos específicos de segurança
+
+---
+
+## 15. CORS e Upload de Imagens
+
+### 15.1 CORS (Cross-Origin Resource Sharing)
 
 **Middleware:** `App\Http\Middleware\CorsMiddleware` - aplicado globalmente em todas as requisições via `bootstrap/app.php`.
 
@@ -251,7 +274,7 @@ Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de 
 
 **Objetivo:** Garantir que requisições cross-origin funcionem corretamente, especialmente para uploads de arquivos e requisições autenticadas do painel lojista.
 
-### 14.2 Limites de Upload
+### 15.2 Limites de Upload
 
 **Tamanho máximo:** 5MB (5120 KB) para todas as imagens
 - Logo da empresa: 5MB
@@ -267,9 +290,9 @@ Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de 
 
 ---
 
-## 15. Validações de Campos de Redes Sociais
+## 16. Validações de Campos de Redes Sociais
 
-### 14.1 Instagram e TikTok
+### 16.1 Instagram e TikTok
 
 **Regra:** Os campos `configuracoes.instagram` e `configuracoes.tiktok` aceitam dois formatos:
 1. **Handle/Username:** `@usuario` (ex: `@rbshop`, `@Rbshop`)
@@ -291,9 +314,9 @@ Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de 
 
 ---
 
-## 15. Validações de Dados de Faturamento
+## 17. Validações de Dados de Faturamento
 
-### 15.1 CPF/CNPJ do Titular (Não Obrigatório)
+### 17.1 CPF/CNPJ do Titular (Não Obrigatório)
 
 **Regra:** No cadastro de dados de faturamento (`EmpresaFaturamentoRequest`), os campos são **opcionais** para permitir que o usuário salve parcialmente:
 - `nome_titular`: nullable|string|max:255

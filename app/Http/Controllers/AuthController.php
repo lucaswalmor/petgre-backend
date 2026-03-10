@@ -57,10 +57,7 @@ class AuthController extends Controller
                 $user->load(['enderecos']);
             }
 
-            // Revogar tokens anteriores
-            $user->tokens()->delete();
-
-            // Criar novo token
+            // Criar novo token (não revogar tokens anteriores - permite acesso simultâneo)
             $token = $user->createToken('auth_token')->plainTextToken;
 
             $empresas = $request->tipo_login === 'lojista'
