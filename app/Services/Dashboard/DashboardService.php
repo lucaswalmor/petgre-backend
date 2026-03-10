@@ -7,6 +7,7 @@ use App\Models\PedidoItems;
 use App\Models\EmpresaAvaliacao;
 use App\Models\UsuarioLog;
 use App\Models\Produto;
+use App\Models\EmpresaFavorito;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +38,8 @@ class DashboardService
             ->count();
 
         $avaliacaoMedia = EmpresaAvaliacao::where('empresa_id', $empresaId)->avg('nota');
+
+        $totalFavoritos = EmpresaFavorito::where('empresa_id', $empresaId)->count();
 
         $dias = (int) ($params['dias'] ?? 7);
         $vendasDias = $this->vendasPorDias($empresaId, $dias);
@@ -84,6 +87,7 @@ class DashboardService
                 'pedidos_pendentes' => $pedidosPendentes,
                 'avaliacao_media' => $avaliacaoMedia ? round((float) $avaliacaoMedia, 1) : null,
                 'vendas_semana_total' => round((float) $vendasSemanaTotal, 2),
+                'total_favoritos' => $totalFavoritos,
             ],
             'vendas_7_dias' => $vendasDias,
             'ultimos_pedidos' => $ultimosPedidos,
