@@ -233,3 +233,44 @@ Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de 
 - **Desconectar:** chama DELETE /instance/logout na Evolution API e atualiza status para `close` e `conectado_em` = null. A instância continua cadastrada; o lojista pode gerar novo QR e reconectar.
 - **Deletar:** chama DELETE /instance/delete na Evolution API e remove o registro da tabela. Após deletar, o lojista pode criar uma nova instância.
 - **Variáveis de ambiente:** EVOLUTION_API_URL e EVOLUTION_API_KEY (config em config/services.php). Header `apikey` em todas as requisições à Evolution API.
+
+---
+
+## 14. Validações de Campos de Redes Sociais
+
+### 14.1 Instagram e TikTok
+
+**Regra:** Os campos `configuracoes.instagram` e `configuracoes.tiktok` aceitam dois formatos:
+1. **Handle/Username:** `@usuario` (ex: `@rbshop`, `@Rbshop`)
+2. **URL completa:** `https://instagram.com/usuario` ou `https://tiktok.com/@usuario`
+
+**Implementação:** Validação customizada no `EmpresaUpdateRequest.php` usando closure:
+- Aceita padrão `@[a-zA-Z0-9_.]+` para handles
+- Aceita URLs válidas via `filter_var()`
+- Aceita URLs específicas do domínio (instagram.com, tiktok.com)
+
+**Mensagens de erro:**
+- Instagram: "O Instagram deve ser um link válido ou @usuario."
+- TikTok: "O TikTok deve ser um link válido ou @usuario."
+
+**Campos relacionados:**
+- Facebook: aceita qualquer string (não valida URL estritamente)
+- YouTube: aceita qualquer string (não valida URL estritamente)
+- LinkedIn: mantém validação de URL completa
+
+---
+
+## 15. Validações de Dados de Faturamento
+
+### 15.1 CPF/CNPJ do Titular (Não Obrigatório)
+
+**Regra:** No cadastro de dados de faturamento (`EmpresaFaturamentoRequest`), os campos são **opcionais** para permitir que o usuário salve parcialmente:
+- `nome_titular`: nullable|string|max:255
+- `tipo_documento_titular`: nullable|in:cpf,cnpj
+- `cpf_cnpj`: nullable|string|max:20
+- `email`: nullable|email|max:255
+- `telefone`: nullable|string|max:20
+
+**Objetivo:** Permitir que o lojista preencha as informações de faturamento de forma gradual, sem impedir o salvamento de outras abas quando ainda não tiver todos os dados do titular.
+
+**Observação:** Os dados completos são necessários apenas quando houver geração de fatura (cobrança mensal).

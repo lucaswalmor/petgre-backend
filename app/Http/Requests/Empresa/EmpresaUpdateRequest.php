@@ -149,11 +149,45 @@ class EmpresaUpdateRequest extends FormRequest
             'configuracoes.celular_comercial' => 'nullable|string|max:20',
             'configuracoes.whatsapp_pedidos' => 'nullable|string|max:20',
             'configuracoes.email' => 'nullable|email|max:255',
-            'configuracoes.facebook' => 'nullable|url|max:500',
-            'configuracoes.instagram' => 'nullable|url|max:500',
+            'configuracoes.facebook' => 'nullable|string|max:500',
+            'configuracoes.instagram' => [
+                'nullable',
+                'string',
+                'max:500',
+                function ($attribute, $value, $fail) {
+                    if (empty($value)) {
+                        return;
+                    }
+                    // Aceita @usuario ou URL completa do Instagram
+                    $isHandle = preg_match('/^@[a-zA-Z0-9_.]+$/', $value);
+                    $isUrl = filter_var($value, FILTER_VALIDATE_URL) !== false;
+                    $isInstagramUrl = preg_match('/^https?:\/\/(www\.)?instagram\.com\/.+/', $value);
+
+                    if (!$isHandle && !$isUrl && !$isInstagramUrl) {
+                        $fail('O Instagram deve ser um link válido ou @usuario.');
+                    }
+                }
+            ],
             'configuracoes.linkedin' => 'nullable|url|max:500',
-            'configuracoes.youtube' => 'nullable|url|max:500',
-            'configuracoes.tiktok' => 'nullable|url|max:500',
+            'configuracoes.youtube' => 'nullable|string|max:500',
+            'configuracoes.tiktok' => [
+                'nullable',
+                'string',
+                'max:500',
+                function ($attribute, $value, $fail) {
+                    if (empty($value)) {
+                        return;
+                    }
+                    // Aceita @usuario ou URL completa do TikTok
+                    $isHandle = preg_match('/^@[a-zA-Z0-9_.]+$/', $value);
+                    $isUrl = filter_var($value, FILTER_VALIDATE_URL) !== false;
+                    $isTiktokUrl = preg_match('/^https?:\/\/(www\.)?tiktok\.com\/.+/', $value);
+
+                    if (!$isHandle && !$isUrl && !$isTiktokUrl) {
+                        $fail('O TikTok deve ser um link válido ou @usuario.');
+                    }
+                }
+            ],
 
             // Horários de funcionamento (opcionais)
             'horarios' => 'nullable|array',
@@ -285,20 +319,16 @@ class EmpresaUpdateRequest extends FormRequest
             'configuracoes.email.email' => 'O email das configurações deve ter um formato válido.',
             'configuracoes.email.max' => 'O email das configurações não pode ter mais que 255 caracteres.',
 
-            'configuracoes.facebook.url' => 'O link do Facebook deve ser uma URL válida.',
             'configuracoes.facebook.max' => 'O link do Facebook não pode ter mais que 500 caracteres.',
 
-            'configuracoes.instagram.url' => 'O link do Instagram deve ser uma URL válida.',
-            'configuracoes.instagram.max' => 'O link do Instagram não pode ter mais que 500 caracteres.',
+            'configuracoes.instagram.max' => 'O Instagram não pode ter mais que 500 caracteres.',
 
             'configuracoes.linkedin.url' => 'O link do LinkedIn deve ser uma URL válida.',
             'configuracoes.linkedin.max' => 'O link do LinkedIn não pode ter mais que 500 caracteres.',
 
-            'configuracoes.youtube.url' => 'O link do YouTube deve ser uma URL válida.',
-            'configuracoes.youtube.max' => 'O link do YouTube não pode ter mais que 500 caracteres.',
+            'configuracoes.youtube.max' => 'O YouTube não pode ter mais que 500 caracteres.',
 
-            'configuracoes.tiktok.url' => 'O link do TikTok deve ser uma URL válida.',
-            'configuracoes.tiktok.max' => 'O link do TikTok não pode ter mais que 500 caracteres.',
+            'configuracoes.tiktok.max' => 'O TikTok não pode ter mais que 500 caracteres.',
 
             // Horários de funcionamento
             'horarios.array' => 'Os horários devem ser uma lista válida.',

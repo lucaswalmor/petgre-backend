@@ -15,15 +15,15 @@ class EmpresaFaturamentoRequest extends FormRequest
     {
         $store = $this->isMethod('post');
         $rules = [
-            'email' => 'required|email|max:255',
-            'telefone' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'telefone' => 'nullable|string|max:20',
             'chave_pix' => 'nullable|string|max:255',
             'tipo_chave_pix' => 'nullable|in:cpf,cnpj,email,telefone,aleatoria',
         ];
         if ($store) {
-            $rules['nome_titular'] = 'required|string|max:255';
-            $rules['tipo_documento_titular'] = 'required|in:cpf,cnpj';
-            $rules['cpf_cnpj'] = 'required|string|max:20';
+            $rules['nome_titular'] = 'nullable|string|max:255';
+            $rules['tipo_documento_titular'] = 'nullable|in:cpf,cnpj';
+            $rules['cpf_cnpj'] = 'nullable|string|max:20';
         }
         return $rules;
     }
