@@ -36,17 +36,17 @@ class EmpresaUploadImageRequest extends FormRequest
 
         if ($tipo === 'banner') {
             return [
-                'banner' => 'required|image|mimes:jpeg,png,jpg,gif|max:15360',
+                'banner' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             ];
         } elseif ($tipo === 'logo') {
             return [
-                'logo' => 'required|image|mimes:jpeg,png,jpg,gif|max:15360',
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             ];
         }
 
         return [
-            'banner' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:15360',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:15360',
+            'banner' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ];
     }
 
@@ -60,13 +60,13 @@ class EmpresaUploadImageRequest extends FormRequest
         return [
             'banner.required' => 'O banner é obrigatório.',
             'banner.image' => 'O banner deve ser uma imagem válida.',
-            'banner.mimes' => 'O banner deve ser um arquivo do tipo: jpeg, png, jpg, gif.',
-            'banner.max' => 'O banner não pode ter mais que 15MB.',
+            'banner.mimes' => 'O banner deve ser um arquivo do tipo: jpeg, png, jpg, gif, webp.',
+            'banner.max' => 'O banner não pode ter mais que 5MB. Reduza o tamanho da imagem.',
 
             'logo.required' => 'A logo é obrigatória.',
             'logo.image' => 'A logo deve ser uma imagem válida.',
-            'logo.mimes' => 'A logo deve ser um arquivo do tipo: jpeg, png, jpg, gif.',
-            'logo.max' => 'A logo não pode ter mais que 15MB.',
+            'logo.mimes' => 'A logo deve ser um arquivo do tipo: jpeg, png, jpg, gif, webp.',
+            'logo.max' => 'A logo não pode ter mais que 5MB. Reduza o tamanho da imagem.',
         ];
     }
 

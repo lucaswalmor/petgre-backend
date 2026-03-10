@@ -15,9 +15,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Middleware global para CORS - deve ser executado primeiro
+        $middleware->prepend(\App\Http\Middleware\CorsMiddleware::class);
+
         $middleware->alias([
             'check.permission' => \App\Http\Middleware\CheckPermission::class,
             'empresa.context' => \App\Http\Middleware\EnsureEmpresaContext::class,
+            'cors' => \App\Http\Middleware\CorsMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

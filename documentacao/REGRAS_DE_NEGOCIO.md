@@ -236,7 +236,38 @@ Permite ao lojista acompanhar em tempo real o volume de pedidos e projeção de 
 
 ---
 
-## 14. Validações de Campos de Redes Sociais
+## 14. CORS e Upload de Imagens
+
+### 14.1 CORS (Cross-Origin Resource Sharing)
+
+**Middleware:** `App\Http\Middleware\CorsMiddleware` - aplicado globalmente em todas as requisições via `bootstrap/app.php`.
+
+**Headers configurados:**
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS`
+- `Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Empresa-Id, Accept`
+- `Access-Control-Allow-Credentials: true`
+- `Access-Control-Max-Age: 86400`
+
+**Objetivo:** Garantir que requisições cross-origin funcionem corretamente, especialmente para uploads de arquivos e requisições autenticadas do painel lojista.
+
+### 14.2 Limites de Upload
+
+**Tamanho máximo:** 5MB (5120 KB) para todas as imagens
+- Logo da empresa: 5MB
+- Banner da empresa: 5MB
+- Imagens de produtos: 5MB
+- Imagens de kits: 5MB
+
+**Formatos aceitos:** jpeg, png, jpg, gif, webp
+
+**Razão:** O limite de 5MB é definido para compatibilidade com a configuração padrão do nginx (client_max_body_size). Uploads maiores resultam em erro 413 (Content Too Large) do servidor.
+
+**Mensagem de erro:** "A imagem não pode ter mais que 5MB. Reduza o tamanho da imagem."
+
+---
+
+## 15. Validações de Campos de Redes Sociais
 
 ### 14.1 Instagram e TikTok
 

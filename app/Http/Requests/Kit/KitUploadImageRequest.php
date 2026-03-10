@@ -25,7 +25,7 @@ class KitUploadImageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'imagem' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:15360',
+            'imagem' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ];
     }
 
@@ -35,7 +35,7 @@ class KitUploadImageRequest extends FormRequest
             'imagem.required' => 'A imagem é obrigatória.',
             'imagem.image' => 'O arquivo deve ser uma imagem válida.',
             'imagem.mimes' => 'A imagem deve ser jpeg, png, jpg, gif ou webp.',
-            'imagem.max' => 'A imagem não pode ter mais que 15MB.',
+            'imagem.max' => 'A imagem não pode ter mais que 5MB. Reduza o tamanho da imagem.',
         ];
     }
 
