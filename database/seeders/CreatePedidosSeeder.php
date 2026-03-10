@@ -16,7 +16,7 @@ class CreatePedidosSeeder extends Seeder
     public function run(): void
     {
         // Dados fixos conforme solicitado
-        $usuarioId = 3; // ID do cliente
+        $usuarioId = 6; // ID do cliente
         $empresaId = 1; // ID da empresa
         $produtoId = 1; // ID do produto
 
