@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Faturamento\EmpresaFaturamentoRequest;
 use App\Http\Resources\EmpresaFaturamentoResource;
+use App\Models\Empresa;
 use App\Models\EmpresaFatura;
 use App\Models\EmpresaFaturamento;
 use App\Models\Pedido;
+use App\Models\Plano;
 use App\Services\AsaasService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -91,7 +93,7 @@ class EmpresaFaturamentoController extends Controller
         }
 
         // Buscar empresa matriz do usuário
-        $matriz = \App\Models\Empresa::whereHas('usuarioEmpresas', fn ($q) => $q->where('usuario_id', $user->id))
+        $matriz = Empresa::whereHas('usuarios', fn ($q) => $q->where('usuario_id', $user->id))
             ->where('is_matriz', true)
             ->first();
 
@@ -104,7 +106,7 @@ class EmpresaFaturamentoController extends Controller
         $fimMes = Carbon::now()->endOfMonth();
 
         // Contar pedidos do mês atual (matriz + filiais ativas)
-        $idsEmpresas = \App\Models\Empresa::where('id', $matriz->id)
+        $idsEmpresas = Empresa::where('id', $matriz->id)
             ->orWhere(function ($query) use ($matriz) {
                 $query->where('empresa_matriz_id', $matriz->id)
                     ->where('ativo', true);
@@ -116,22 +118,21 @@ class EmpresaFaturamentoController extends Controller
             ->count();
 
         // Contar filiais ativas
-        $quantidadeFiliais = \App\Models\Empresa::where('empresa_matriz_id', $matriz->id)
+        $quantidadeFiliais = Empresa::where('empresa_matriz_id', $matriz->id)
             ->where('ativo', true)
             ->where('is_matriz', false)
             ->count();
 
         // Calcular valor estimado da próxima cobrança
-        $faturamentoService = app(\App\Services\FaturamentoService::class);
-        $calculo = $faturamentoService->calcularValorCobranca($matriz->id);
-        $valorEstimado = $calculo['valor_total'];
-        $valorBase = $calculo['valor_base'];
+        $plano = Plano::withoutTrashed()->where('ativo', true)->first();
+        $valorBase = $plano ? (float) $plano->valor : 39.90;
+        $valorEstimado = $valorBase * (1 + ($quantidadeFiliais * 0.5));
 
         // Status do plano
         $faturamento = EmpresaFaturamento::where('usuario_id', $user->id)->first();
         $assinaturaAtiva = $faturamento && $faturamento->assinatura_ativa;
 
-        // Verificar se há fatura em aberto (pendente ou vencida)
+        // Verificar se há fatura em aberto
         $faturaEmAberto = EmpresaFatura::where('empresa_id', $matriz->id)
             ->whereIn('status', ['pendente', 'vencido'])
             ->first();
