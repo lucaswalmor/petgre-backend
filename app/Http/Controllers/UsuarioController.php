@@ -338,7 +338,16 @@ class UsuarioController extends Controller
             ], 403);
         }
 
-        // Soft delete
+        // Para clientes (tipo_cadastro = 1): fake delete (marca como inativo)
+        // Para funcionários/lojistas (tipo_cadastro = 0): hard delete normal
+        if ($usuario->tipo_cadastro === 1) {
+            $usuario->update(['ativo' => false]);
+            return response()->json([
+                'message' => 'Conta desativada com sucesso. Você pode reativá-la futuramente fazendo login.'
+            ]);
+        }
+
+        // Hard delete para funcionários
         $usuario->delete();
 
         return response()->json([

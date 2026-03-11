@@ -38,6 +38,7 @@ Route::post('/webhooks/asaas', [AsaasWebhookController::class, 'handle']);
 // Rotas de autenticação (não precisam de middleware)
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/reativar-conta', [AuthController::class, 'reativarConta']);
 
 // Rota para obter informações do usuário autenticado
 Route::get('/user', [AuthController::class, 'user'])->middleware('auth:sanctum');

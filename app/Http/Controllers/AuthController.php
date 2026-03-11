@@ -44,7 +44,9 @@ class AuthController extends Controller
             if (!$user->ativo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Sua conta está desativada. Entre em contato com o administrador.',
+                    'conta_inativa' => true,
+                    'email' => $user->email,
+                    'message' => 'Sua conta está desativada. Deseja reativá-la?',
                 ], 403);
             }
 
@@ -134,6 +136,63 @@ class AuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erro ao obter informações do usuário',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reativar conta de cliente inativa
+     */
+    public function reativarConta(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required|string',
+            ]);
+
+            // Buscar usuário inativo do tipo cliente (tipo_cadastro = 1)
+            $user = User::where('email', $request->email)
+                       ->where('tipo_cadastro', 1)
+                       ->where('ativo', false)
+                       ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Conta não encontrada ou já está ativa.',
+                ], 404);
+            }
+
+            // Verificar senha
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Senha incorreta.',
+                ], 401);
+            }
+
+            // Reativar conta
+            $user->update(['ativo' => true]);
+
+            // Carregar dados do usuário
+            $user->load(['enderecos']);
+
+            // Criar token
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Conta reativada com sucesso!',
+                'user' => new UsuarioLoginResource($user),
+                'token' => $token,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao reativar conta',
                 'error' => $e->getMessage()
             ], 500);
         }

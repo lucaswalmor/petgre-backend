@@ -69,29 +69,53 @@
 				{
 					"name": "Privado",
 					"item": [
-						{
-							"name": "Meu Perfil",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Authorization",
-										"value": "Bearer {{token_cliente}}"
-									}
-								],
-								"url": {
-									"raw": "{{base_url}}/api/site/perfil",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"site",
-										"perfil"
-									]
+					{
+						"name": "Meu Perfil",
+						"request": {
+							"method": "GET",
+							"header": [
+								{
+									"key": "Authorization",
+									"value": "Bearer {{token_cliente}}"
 								}
+							],
+							"url": {
+								"raw": "{{base_url}}/api/site/perfil",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"api",
+									"site",
+									"perfil"
+								]
 							}
-						},
+						}
+					},
+					{
+						"name": "Excluir Conta (Fake Delete)",
+						"request": {
+							"method": "DELETE",
+							"header": [
+								{
+									"key": "Authorization",
+									"value": "Bearer {{token_cliente}}"
+								}
+							],
+							"url": {
+								"raw": "{{base_url}}/api/usuarios/{{usuario_id}}",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"api",
+									"usuarios",
+									"{{usuario_id}}"
+								]
+							},
+							"description": "Desativa (fake delete) a conta do cliente logado.\n\n## 📝 Funcionamento:\n- Para **clientes** (tipo_cadastro = 1): Marca `ativo = false` (fake delete)\n- Para **funcionários** (tipo_cadastro = 0): Hard delete normal\n\n## ⚠️ IMPORTANTE - Fake Delete:\n- O usuário permanece no banco mas fica inativo\n- Histórico de pedidos é preservado\n- Usuário pode reativar a conta futuramente\n\n## 📄 Resposta de Sucesso (Cliente):\n```json\n{\n  \"message\": \"Conta desativada com sucesso. Você pode reativá-la futuramente fazendo login.\"\n}\n```\n\n## 📄 Resposta de Sucesso (Funcionário):\n```json\n{\n  \"message\": \"Usuário deletado com sucesso\"\n}\n```\n\n## 🔒 Validações:\n- Não pode deletar próprio usuário (retorna 403)\n- Não pode deletar usuário master (retorna 403)\n\n## 🔑 Permissões Necessárias:\n- `usuarios.destroy`\n- **OU** ser o próprio dono da conta (cliente deletando sua própria conta)"
+						}
+					},
 						{
 							"name": "Meus Pedidos",
 							"request": {
@@ -383,30 +407,57 @@
 						"description": "Exemplo de login para aplicação do lojista. Retorna dados da empresa, permissões e produtos."
 					}
 				},
-				{
-					"name": "Logout",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token_cliente}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/logout",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"logout"
-							]
+			{
+				"name": "Logout",
+				"request": {
+					"method": "POST",
+					"header": [
+						{
+							"key": "Authorization",
+							"value": "Bearer {{token_cliente}}"
 						}
+					],
+					"url": {
+						"raw": "{{base_url}}/api/logout",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"api",
+							"logout"
+						]
 					}
-				},
-				{
-					"name": "Obter Usuário Autenticado",
+				}
+			},
+			{
+				"name": "Reativar Conta (Cliente)",
+				"request": {
+					"method": "POST",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"body": {
+						"mode": "raw",
+						"raw": "{\n  \"email\": \"cliente@exemplo.com\",\n  \"password\": \"senha123\"\n}"
+					},
+					"url": {
+						"raw": "{{base_url}}/api/reativar-conta",
+						"host": [
+							"{{base_url}}"
+						],
+						"path": [
+							"api",
+							"reativar-conta"
+						]
+					},
+					"description": "Reativa conta de cliente que foi desativada (fake delete).\n\n## 📝 Funcionamento:\n- Clientes que 'deletam' a conta ficam marcados como `ativo = false`\n- Esta rota permite reativar a conta mantendo todos os dados (pedidos, endereços, etc.)\n\n## 📝 Body:\n- `email`: Email da conta desativada\n- `password`: Senha da conta\n\n## 📄 Resposta de Sucesso:\n```json\n{\n  \"success\": true,\n  \"message\": \"Conta reativada com sucesso!\",\n  \"user\": { ... },\n  \"token\": \"token_aqui\"\n}\n```\n\n## ⚠️ Respostas de Erro:\n- **404**: Conta não encontrada ou já está ativa\n- **401**: Senha incorreta\n\n## 🔓 Acesso:\n- **Público** - Não requer autenticação"
+				}
+			},
+			{
+				"name": "Obter Usuário Autenticado",
 					"request": {
 						"method": "GET",
 						"header": [

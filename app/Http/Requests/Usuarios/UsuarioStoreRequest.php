@@ -47,9 +47,18 @@ class UsuarioStoreRequest extends FormRequest
                 'email',
                 'max:255',
                 function ($attribute, $value, $fail) {
-                    // Verificar se já existe usuário com este email e tipo_cadastro = 1 (Cliente)
-                    if (\App\Models\User::where('email', $value)->where('tipo_cadastro', 1)->exists()) {
-                        $fail('Este email já está sendo usado por outro usuário.');
+                    // Verificar se já existe usuário ATIVO com este email e tipo_cadastro = 1 (Cliente)
+                    $usuarioExistente = \App\Models\User::where('email', $value)
+                        ->where('tipo_cadastro', 1)
+                        ->first();
+
+                    if ($usuarioExistente) {
+                        if ($usuarioExistente->ativo) {
+                            $fail('Este email já está sendo usado por outro usuário.');
+                        } else {
+                            // Usuário existe mas está inativo - retornar flag para reativação
+                            $fail('conta_inativa_por_email')->translate('conta_inativa_por_email', ['email' => $value]);
+                        }
                     }
                 },
             ],
@@ -62,12 +71,17 @@ class UsuarioStoreRequest extends FormRequest
                 function ($attribute, $value, $fail) use ($isFuncionario) {
                     // Verificar se já existe CLIENTE (tipo_cadastro = 1) com este telefone
                     // Lojistas podem ter telefones iguais, mas clientes não podem repetir
-                    $exists = \App\Models\User::where('telefone', $value)
+                    $usuarioExistente = \App\Models\User::where('telefone', $value)
                         ->where('tipo_cadastro', 1)
-                        ->exists();
+                        ->first();
 
-                    if ($exists) {
-                        $fail('Este telefone já está sendo usado por outro cliente.');
+                    if ($usuarioExistente) {
+                        if ($usuarioExistente->ativo) {
+                            $fail('Este telefone já está sendo usado por outro cliente.');
+                        } else {
+                            // Usuário existe mas está inativo
+                            $fail('conta_inativa_por_telefone');
+                        }
                     }
                 },
             ],
