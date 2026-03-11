@@ -23,33 +23,18 @@ class BackupDatabase extends Command
         $fileName = "backups/{$projectSlug}/{$database}_{$date}.sql";
         $localPath = storage_path("app/{$database}_{$date}.sql");
 
-        // Arquivo temporário com senha (evita senha no comando / process list)
-        $configFile = storage_path('app/.my_backup_' . uniqid() . '.cnf');
-        $configContent = "[client]\nuser={$username}\npassword=" . addcslashes($password, '"\\') . "\nhost={$host}\n";
-        file_put_contents($configFile, $configContent);
-        @chmod($configFile, 0600);
-
-        $mysqldump = $this->getMysqldumpPath();
-        if (!$mysqldump) {
-            $this->error('mysqldump não encontrado. No Laragon/Windows, verifique se MySQL está em C:\laragon\bin\mysql.');
-            return Command::FAILURE;
-        }
-
         try {
-            // Gerar dump (--defaults-extra-file evita senha na linha de comando)
-            $cmd = sprintf(
-                '%s --defaults-extra-file=%s %s > %s',
-                $mysqldump,
-                escapeshellarg($configFile),
-                escapeshellarg($database),
-                escapeshellarg($localPath)
-            );
-            exec($cmd, $output, $returnCode);
-
-            @unlink($configFile);
+            // Verificar se está rodando dentro de Docker (sem mysqldump local)
+            if ($this->isRunningInDocker() && !$this->hasLocalMysqldump()) {
+                $this->info('Detectado ambiente Docker, usando container MySQL...');
+                $returnCode = $this->dumpUsingDocker($database, $username, $password, $localPath);
+            } else {
+                // Ambiente local (Windows/Laragon) ou com mysqldump disponível
+                $returnCode = $this->dumpUsingLocal($database, $username, $password, $host, $localPath);
+            }
 
             if ($returnCode !== 0) {
-                $this->error('mysqldump falhou. Verifique credenciais e se o MySQL do Laragon está ativo.');
+                $this->error('mysqldump falhou.');
                 return Command::FAILURE;
             }
 
@@ -67,25 +52,129 @@ class BackupDatabase extends Command
             $this->error('Erro no backup: ' . $e->getMessage());
             return Command::FAILURE;
         } finally {
-            if (file_exists($configFile)) {
-                @unlink($configFile);
-            }
             if (file_exists($localPath)) {
                 @unlink($localPath);
             }
         }
     }
 
+    /** Verifica se está rodando dentro de um container Docker */
+    private function isRunningInDocker(): bool
+    {
+        return file_exists('/.dockerenv') || (
+            is_file('/proc/1/cgroup') &&
+            strpos(file_get_contents('/proc/1/cgroup'), 'docker') !== false
+        );
+    }
+
+    /** Verifica se mysqldump está disponível localmente */
+    private function hasLocalMysqldump(): bool
+    {
+        exec('which mysqldump 2>/dev/null', $output, $returnCode);
+        return $returnCode === 0;
+    }
+
+    /** Faz dump usando mysqldump local */
+    private function dumpUsingLocal(string $database, string $username, string $password, string $host, string $localPath): int
+    {
+        $mysqldump = $this->getMysqldumpPath();
+
+        // Arquivo temporário com senha (evita senha no comando / process list)
+        $configFile = storage_path('app/.my_backup_' . uniqid() . '.cnf');
+        $configContent = "[client]\nuser={$username}\npassword=" . addcslashes($password, '"\\') . "\nhost={$host}\n";
+        file_put_contents($configFile, $configContent);
+        @chmod($configFile, 0600);
+
+        $cmd = sprintf(
+            '%s --defaults-extra-file=%s --skip-lock-tables %s > %s 2>&1',
+            $mysqldump,
+            escapeshellarg($configFile),
+            escapeshellarg($database),
+            escapeshellarg($localPath)
+        );
+
+        exec($cmd, $output, $returnCode);
+
+        @unlink($configFile);
+
+        return $returnCode;
+    }
+
+    /** Faz dump usando container MySQL via Docker */
+    private function dumpUsingDocker(string $database, string $username, string $password, string $localPath): int
+    {
+        // Encontrar o container MySQL
+        $mysqlContainer = $this->findMysqlContainer();
+
+        if (!$mysqlContainer) {
+            $this->error('Container MySQL não encontrado.');
+            return 1;
+        }
+
+        $this->info("Usando container MySQL: {$mysqlContainer}");
+
+        // Usar docker exec para rodar mysqldump dentro do container MySQL
+        $cmd = sprintf(
+            'docker exec %s mysqldump -u %s -p%s --skip-lock-tables %s > %s 2>&1',
+            escapeshellarg($mysqlContainer),
+            escapeshellarg($username),
+            escapeshellarg($password),
+            escapeshellarg($database),
+            escapeshellarg($localPath)
+        );
+
+        exec($cmd, $output, $returnCode);
+
+        if ($returnCode !== 0 && !empty($output)) {
+            $this->error('Erro do mysqldump: ' . implode("\n", $output));
+        }
+
+        return $returnCode;
+    }
+
+    /** Encontra o nome do container MySQL */
+    private function findMysqlContainer(): ?string
+    {
+        // Tentar encontrar container com nome típico de MySQL
+        $possibleNames = [
+            'petgre_petgre-mysql',
+            'petgre-mysql',
+            'mysql',
+            'db'
+        ];
+
+        foreach ($possibleNames as $name) {
+            exec('docker ps --format "{{.Names}}" | grep ' . escapeshellarg($name) . ' 2>/dev/null', $output, $returnCode);
+            if ($returnCode === 0 && !empty($output)) {
+                return trim($output[0]);
+            }
+        }
+
+        // Tentar listar todos os containers e encontrar um com "mysql" no nome
+        exec('docker ps --format "{{.Names}}" 2>/dev/null', $output, $returnCode);
+        if ($returnCode === 0) {
+            foreach ($output as $container) {
+                if (stripos($container, 'mysql') !== false) {
+                    return trim($container);
+                }
+            }
+        }
+
+        return null;
+    }
+
     /** Retorna o executável mysqldump (PATH ou Laragon no Windows). */
-    private function getMysqldumpPath(): ?string
+    private function getMysqldumpPath(): string
     {
         if (PHP_OS_FAMILY !== 'Windows') {
             return 'mysqldump';
         }
+
         $laragonBase = 'C:\\laragon\\bin\\mysql';
         if (!is_dir($laragonBase)) {
             return 'mysqldump';
         }
+
         $dirs = @scandir($laragonBase) ?: [];
         foreach ($dirs as $dir) {
             if ($dir === '.' || $dir === '..') {
@@ -96,6 +185,7 @@ class BackupDatabase extends Command
                 return '"' . $exe . '"';
             }
         }
+
         return 'mysqldump';
     }
 }
