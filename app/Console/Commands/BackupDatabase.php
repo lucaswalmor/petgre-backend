@@ -100,9 +100,19 @@ class BackupDatabase extends Command
         return $returnCode;
     }
 
-    /** Faz dump usando container MySQL via Docker */
+    /** Faz dump usando container MySQL via Docker ou conexão direta */
     private function dumpUsingDocker(string $database, string $username, string $password, string $localPath): int
     {
+        // Verificar se docker está disponível (pode não estar dentro do container)
+        exec('which docker 2>/dev/null', $dockerCheck, $dockerCheckCode);
+
+        if ($dockerCheckCode !== 0) {
+            // Docker não disponível - estamos provavelmente dentro do container
+            // Tentar conexão direta ao MySQL usando as credenciais do Laravel
+            $this->info('Docker não disponível, usando conexão direta ao MySQL...');
+            return $this->dumpUsingDirectConnection($database, $username, $password, $localPath);
+        }
+
         // Encontrar o container MySQL
         $mysqlContainer = $this->findMysqlContainer();
 
@@ -130,6 +140,97 @@ class BackupDatabase extends Command
         }
 
         return $returnCode;
+    }
+
+    /** Faz dump usando conexão direta PDO (quando docker não está disponível) */
+    private function dumpUsingDirectConnection(string $database, string $username, string $password, string $localPath): int
+    {
+        $host = config('database.connections.mysql.host', 'mysql');
+        $port = config('database.connections.mysql.port', 3306);
+
+        try {
+            $this->info("Conectando ao MySQL em {$host}:{$port}...");
+
+            // Criar conexão PDO
+            $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
+            $pdo = new \PDO($dsn, $username, $password, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
+            ]);
+
+            // Abrir arquivo para escrita
+            $fp = fopen($localPath, 'w');
+            if (!$fp) {
+                $this->error('Não foi possível criar arquivo de backup.');
+                return 1;
+            }
+
+            // Escrever header
+            fwrite($fp, "-- Backup gerado em " . date('Y-m-d H:i:s') . "\n");
+            fwrite($fp, "-- Database: {$database}\n\n");
+            fwrite($fp, "SET FOREIGN_KEY_CHECKS=0;\n\n");
+
+            // Pegar todas as tabelas
+            $tables = $pdo->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN);
+
+            foreach ($tables as $table) {
+                $this->line("Exportando tabela: {$table}");
+
+                // Estrutura da tabela
+                $createTable = $pdo->query("SHOW CREATE TABLE `{$table}`")->fetch(\PDO::FETCH_ASSOC);
+                fwrite($fp, "\n-- Estrutura da tabela `{$table}`\n");
+                fwrite($fp, "DROP TABLE IF EXISTS `{$table}`;\n");
+                fwrite($fp, $createTable['Create Table'] . ";\n\n");
+
+                // Dados da tabela
+                $rows = $pdo->query("SELECT * FROM `{$table}`", \PDO::FETCH_ASSOC);
+                $rowCount = 0;
+
+                foreach ($rows as $row) {
+                    if ($rowCount === 0) {
+                        fwrite($fp, "-- Dados da tabela `{$table}`\n");
+                        fwrite($fp, "INSERT INTO `{$table}` VALUES\n");
+                    } else {
+                        fwrite($fp, ",\n");
+                    }
+
+                    $values = array_map(function ($value) {
+                        if ($value === null) {
+                            return 'NULL';
+                        }
+                        return "'" . addslashes($value) . "'";
+                    }, array_values($row));
+
+                    fwrite($fp, "(" . implode(", ", $values) . ")");
+                    $rowCount++;
+
+                    // A cada 1000 registros, fecha o INSERT e abre novo
+                    if ($rowCount % 1000 === 0) {
+                        fwrite($fp, ";\n");
+                        fwrite($fp, "INSERT INTO `{$table}` VALUES\n");
+                        $rowCount = 0;
+                    }
+                }
+
+                if ($rowCount > 0) {
+                    fwrite($fp, ";\n");
+                }
+            }
+
+            // Footer
+            fwrite($fp, "\nSET FOREIGN_KEY_CHECKS=1;\n");
+            fclose($fp);
+
+            $this->info("Backup concluído via PHP PDO.");
+            return 0;
+
+        } catch (\PDOException $e) {
+            $this->error('Erro de conexão MySQL: ' . $e->getMessage());
+            $this->error('Verifique se o host ' . $host . ' está acessível do container.');
+            return 1;
+        } catch (\Exception $e) {
+            $this->error('Erro: ' . $e->getMessage());
+            return 1;
+        }
     }
 
     /** Encontra o nome do container MySQL */
