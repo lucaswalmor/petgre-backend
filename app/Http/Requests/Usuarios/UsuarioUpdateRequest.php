@@ -72,7 +72,30 @@ class UsuarioUpdateRequest extends FormRequest
                 },
             ],
             'password' => 'sometimes|nullable|string|min:8',
-            'telefone' => 'sometimes|required|string|max:20',
+            'telefone' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:20',
+                function ($attribute, $value, $fail) {
+                    $usuarioId = $this->route('id');
+                    $usuario = User::find($usuarioId);
+
+                    // Verificar se já existe outro CLIENTE (tipo_cadastro = 1) com este telefone
+                    // Lojistas podem ter telefones iguais, mas clientes não podem repetir
+                    $query = \App\Models\User::where('telefone', $value)
+                        ->where('tipo_cadastro', 1)
+                        ->where('id', '!=', $usuarioId);
+
+                    // Se o usuário atual for lojista (tipo_cadastro != 1), verifica se existe cliente com esse telefone
+                    // Se o usuário atual for cliente, verifica se existe outro cliente com esse telefone
+                    $exists = $query->exists();
+
+                    if ($exists) {
+                        $fail('Este telefone já está sendo usado por outro cliente.');
+                    }
+                },
+            ],
             'permissoes' => 'sometimes|nullable|array',
             'permissoes.*' => 'exists:permissoes,id',
             'ativo' => 'sometimes|boolean',

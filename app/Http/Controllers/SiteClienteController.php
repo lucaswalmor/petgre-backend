@@ -498,7 +498,26 @@ class SiteClienteController extends Controller
 
         $request->validate([
             'nome' => 'required|string|min:3|max:255',
-            'telefone' => 'nullable|string|max:20',
+            'telefone' => [
+                'nullable',
+                'string',
+                'max:20',
+                function ($attribute, $value, $fail) use ($usuario) {
+                    if (empty($value)) {
+                        return;
+                    }
+
+                    // Verificar se já existe outro CLIENTE (tipo_cadastro = 1) com este telefone
+                    $exists = \App\Models\User::where('telefone', $value)
+                        ->where('tipo_cadastro', 1)
+                        ->where('id', '!=', $usuario->id)
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Este telefone já está sendo usado por outro cliente.');
+                    }
+                },
+            ],
         ]);
 
         $usuario->update([

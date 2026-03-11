@@ -55,7 +55,22 @@ class UsuarioStoreRequest extends FormRequest
             ],
             // Senha obrigatória apenas para clientes, funcionários recebem senha automática
             'password' => $isFuncionario ? 'nullable|string|min:8' : 'required|string|min:8',
-            'telefone' => 'required|string|max:20',
+            'telefone' => [
+                'required',
+                'string',
+                'max:20',
+                function ($attribute, $value, $fail) use ($isFuncionario) {
+                    // Verificar se já existe CLIENTE (tipo_cadastro = 1) com este telefone
+                    // Lojistas podem ter telefones iguais, mas clientes não podem repetir
+                    $exists = \App\Models\User::where('telefone', $value)
+                        ->where('tipo_cadastro', 1)
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Este telefone já está sendo usado por outro cliente.');
+                    }
+                },
+            ],
             'permissoes' => 'sometimes|nullable|array',
             'permissoes.*' => 'exists:permissoes,id',
             'empresa_id' => 'sometimes|nullable|exists:empresas,id',
