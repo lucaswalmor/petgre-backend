@@ -572,6 +572,31 @@ class SiteClienteController extends Controller
     }
 
     /**
+     * Excluir conta do usuário logado - Fake Delete (Privado)
+     */
+    public function excluirConta()
+    {
+        $usuario = Auth::user();
+
+        // Apenas clientes (tipo_cadastro = 1) podem usar este endpoint
+        if ($usuario->tipo_cadastro !== 1) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Acesso negado',
+                'message' => 'Esta rota é exclusiva para clientes.'
+            ], 403);
+        }
+
+        // Fake delete: marca como inativo em vez de deletar
+        $usuario->update(['ativo' => false]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conta desativada com sucesso. Você pode reativá-la futuramente fazendo login.'
+        ]);
+    }
+
+    /**
      * Listar produtos de empresas que atendem o bairro (Público)
      */
     public function getProdutos(Request $request)

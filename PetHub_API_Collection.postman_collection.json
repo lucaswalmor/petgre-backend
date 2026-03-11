@@ -103,17 +103,17 @@
 								}
 							],
 							"url": {
-								"raw": "{{base_url}}/api/usuarios/{{usuario_id}}",
+								"raw": "{{base_url}}/api/site/excluir-conta",
 								"host": [
 									"{{base_url}}"
 								],
 								"path": [
 									"api",
-									"usuarios",
-									"{{usuario_id}}"
+									"site",
+									"excluir-conta"
 								]
 							},
-							"description": "Desativa (fake delete) a conta do cliente logado.\n\n## 📝 Funcionamento:\n- Para **clientes** (tipo_cadastro = 1): Marca `ativo = false` (fake delete)\n- Para **funcionários** (tipo_cadastro = 0): Hard delete normal\n\n## ⚠️ IMPORTANTE - Fake Delete:\n- O usuário permanece no banco mas fica inativo\n- Histórico de pedidos é preservado\n- Usuário pode reativar a conta futuramente\n\n## 📄 Resposta de Sucesso (Cliente):\n```json\n{\n  \"message\": \"Conta desativada com sucesso. Você pode reativá-la futuramente fazendo login.\"\n}\n```\n\n## 📄 Resposta de Sucesso (Funcionário):\n```json\n{\n  \"message\": \"Usuário deletado com sucesso\"\n}\n```\n\n## 🔒 Validações:\n- Não pode deletar próprio usuário (retorna 403)\n- Não pode deletar usuário master (retorna 403)\n\n## 🔑 Permissões Necessárias:\n- `usuarios.destroy`\n- **OU** ser o próprio dono da conta (cliente deletando sua própria conta)"
+							"description": "Desativa (fake delete) a conta do cliente logado.\n\n## 📝 Funcionamento:\n- Apenas para **clientes** (tipo_cadastro = 1)\n- Marca `ativo = false` (fake delete)\n- Funcionários devem usar a rota de deletar usuário do painel lojista\n\n## ⚠️ IMPORTANTE - Fake Delete:\n- O usuário permanece no banco mas fica inativo\n- Histórico de pedidos é preservado\n- Endereços são mantidos\n- Usuário pode reativar a conta futuramente fazendo login\n\n## 📄 Resposta de Sucesso:\n```json\n{\n  \"success\": true,\n  \"message\": \"Conta desativada com sucesso. Você pode reativá-la futuramente fazendo login.\"\n}\n```\n\n## 🔒 Validações:\n- Apenas clientes podem usar esta rota (retorna 403 para lojistas)\n- Requer autenticação com token de cliente\n\n## 🔑 Permissões:\n- Requer apenas autenticação (qualquer cliente logado pode excluir sua própria conta)"
 						}
 					},
 						{

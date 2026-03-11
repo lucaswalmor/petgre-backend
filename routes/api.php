@@ -128,6 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/perfil', 'getPerfil');
         Route::put('/atualizar-perfil', 'atualizarPerfil');
         Route::put('/alterar-senha', 'alterarSenha');
+        Route::delete('/excluir-conta', 'excluirConta');
         Route::get('/meus-pedidos', 'getPedidos');
         Route::get('/meu-pedido/{id}', 'getPedido');
         Route::get('/meus-enderecos', 'getEnderecos');
