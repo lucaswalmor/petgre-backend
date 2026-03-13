@@ -27,6 +27,7 @@ use App\Http\Controllers\EmpresaFaturasController;
 use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\KitController;
 use App\Http\Controllers\EmpresaEvolutionWhatsappController;
+use App\Http\Controllers\LeadController;
 
 Route::get('/', function () {
     return response()->json(['message' => 'Hello World']);
@@ -57,6 +58,9 @@ Route::controller(SiteClienteController::class)->prefix('site')->group(function 
     Route::get('/empresa/{slug}', 'getEmpresa');
     Route::get('/produtos', 'getProdutos');
 });
+
+// Rota pública para captura de leads (landing page)
+Route::post('/leads', [LeadController::class, 'store']);
 
 // Rotas públicas de FAQ
 Route::controller(FaqController::class)->prefix('faqs')->group(function () {
