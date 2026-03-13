@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\NovoLeadMail;
+use App\Mail\NovaMensagemContatoMail;
 use App\Models\Lead;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -128,5 +129,39 @@ class LeadController extends Controller
         return response()->json([
             'message' => 'Lead excluído com sucesso!',
         ]);
+    }
+
+    /**
+     * Store a contact message from the contact page.
+     */
+    public function contato(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'nome' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'assunto' => 'required|string|max:255',
+            'mensagem' => 'required|string|min:10|max:5000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Dados inválidos',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $data = $validator->validated();
+        $data['ip_address'] = $request->ip();
+        $data['user_agent'] = $request->userAgent();
+
+        try {
+            Mail::to('lucaswsb52@gmail.com')->send(new NovaMensagemContatoMail($data));
+        } catch (\Exception $e) {
+            \Log::error('Erro ao enviar email de contato: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Mensagem enviada com sucesso! Em breve entraremos em contato.',
+        ], 201);
     }
 }

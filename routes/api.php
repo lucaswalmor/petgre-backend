@@ -61,6 +61,7 @@ Route::controller(SiteClienteController::class)->prefix('site')->group(function 
 
 // Rota pública para captura de leads (landing page)
 Route::post('/leads', [LeadController::class, 'store']);
+Route::post('/contato', [LeadController::class, 'contato']);
 
 // Rotas públicas de FAQ
 Route::controller(FaqController::class)->prefix('faqs')->group(function () {
