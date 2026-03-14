@@ -117,10 +117,8 @@ class SiteEmpresaResource extends JsonResource
 
         $dados['produtos'] = $this->whenLoaded('produtos', function () {
             $produtosAtivos = $this->produtos->where('ativo', true)
+                ->where('tipo', '!=', 'servico') // Apenas produtos físicos (excluir serviços)
                 ->filter(function ($produto) {
-                    if ($produto->tipo === 'servico') {
-                        return true;
-                    }
                     return $produto->estoque !== null && (float) $produto->estoque > 0;
                 });
 
@@ -135,6 +133,39 @@ class SiteEmpresaResource extends JsonResource
             })->values();
 
             return $produtosPorCategoria;
+        });
+
+        // Serviços separados (banho, tosa, etc.)
+        $dados['servicos'] = $this->whenLoaded('produtos', function () {
+            $servicosAtivos = $this->produtos->where('ativo', true)
+                ->where('tipo', 'servico')
+                ->values();
+
+            return $servicosAtivos->map(function ($servico) {
+                return [
+                    'id' => $servico->id,
+                    'nome' => $servico->nome,
+                    'descricao' => $servico->descricao,
+                    'tipo' => 'servico',
+                    'tipo_porte' => $servico->tipo_porte,
+                    'preco' => $servico->preco,
+                    'preco_pequeno' => $servico->preco_pequeno,
+                    'preco_medio' => $servico->preco_medio,
+                    'preco_grande' => $servico->preco_grande,
+                    'porte_descricao_pequeno' => $servico->porte_descricao_pequeno,
+                    'porte_descricao_medio' => $servico->porte_descricao_medio,
+                    'porte_descricao_grande' => $servico->porte_descricao_grande,
+                    'duracao_estimada' => $servico->duracao_estimada,
+                    'inclui_servico' => $servico->inclui_servico,
+                    'preco_atual' => $servico->tipo_porte === 'todos' ? $servico->preco_pequeno : $servico->preco,
+                    'preco_formatado' => 'R$ ' . number_format($servico->preco, 2, ',', '.'),
+                    'url_imagem' => $servico->url_imagem,
+                    'categoria' => $servico->categoria ? [
+                        'id' => $servico->categoria->id,
+                        'nome' => $servico->categoria->nome
+                    ] : null,
+                ];
+            });
         });
 
         // Produtos em destaque (para carrossel no app cliente), limitado a 12 — apenas com estoque

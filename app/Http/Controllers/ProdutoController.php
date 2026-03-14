@@ -203,7 +203,17 @@ class ProdutoController extends Controller
                 'promocao_ate',
                 'tem_promocao',
                 'vende_granel',
+                'tipo_porte',
+                'preco_pequeno',
+                'preco_medio',
+                'preco_grande',
+                'porte_descricao_pequeno',
+                'porte_descricao_medio',
+                'porte_descricao_grande',
+                'duracao_estimada',
+                'inclui_servico',
             ]);
+
             $dados['empresa_id'] = $request->empresa_id;
 
             // Ajustes de defaults
@@ -300,6 +310,15 @@ class ProdutoController extends Controller
                 'promocao_ate',
                 'tem_promocao',
                 'vende_granel',
+                'tipo_porte',
+                'preco_pequeno',
+                'preco_medio',
+                'preco_grande',
+                'porte_descricao_pequeno',
+                'porte_descricao_medio',
+                'porte_descricao_grande',
+                'duracao_estimada',
+                'inclui_servico',
             ]);
 
             if ($request->filled('nome') && (!$request->has('slug') || empty($request->slug))) {

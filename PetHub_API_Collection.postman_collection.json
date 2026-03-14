@@ -45,27 +45,48 @@
 							}
 						},
 						{
-							"name": "Exibir Empresa (Slug)",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/site/empresa/{{empresa_slug}}",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"site",
-										"empresa",
-										"{{empresa_slug}}"
-									]
-								},
-								"description": "Retorna detalhes completos de uma empresa para o site do cliente."
-							}
+						"name": "Exibir Empresa (Slug)",
+						"request": {
+							"method": "GET",
+							"header": [],
+							"url": {
+								"raw": "{{base_url}}/api/site/empresa/{{empresa_slug}}",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"api",
+									"site",
+									"empresa",
+									"{{empresa_slug}}"
+								]
+							},
+							"description": "Retorna detalhes completos de uma empresa para o site do cliente."
 						}
-					]
-				},
+					},
+					{
+						"name": "Ordenação da Loja (Pública)",
+						"request": {
+							"method": "GET",
+							"header": [],
+							"url": {
+								"raw": "{{base_url}}/api/site/empresa/{{empresa_id}}/ordenacao",
+								"host": [
+									"{{base_url}}"
+								],
+								"path": [
+									"api",
+									"site",
+									"empresa",
+									"{{empresa_id}}",
+									"ordenacao"
+								]
+							},
+							"description": "Retorna a ordenação configurada das seções (servicos, produtos, kits) para a loja."
+						}
+					}
+				]
+			},
 				{
 					"name": "Privado",
 					"item": [
@@ -2316,6 +2337,152 @@
 			]
 		},
 		{
+			"name": "Ficha do Pet",
+			"item": [
+				{
+					"name": "Listar Fichas do Pet",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_cliente}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/ficha-pets?empresa_id={{empresa_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"ficha-pets"
+							],
+							"query": [
+								{
+									"key": "empresa_id",
+									"value": "{{empresa_id}}",
+									"description": "Filtrar fichas por empresa (opcional)"
+								}
+							]
+						}
+					},
+					"description": "Lista todas as fichas de pet do usuário logado. Requer autenticação."
+				},
+				{
+					"name": "Criar Ficha do Pet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_cliente}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"empresa_id\": {{empresa_id}},\n  \"nome\": \"Bolt\",\n  \"raca\": \"Golden Retriever\",\n  \"porte\": \"medio\",\n  \"tamanho_pelagem\": \"media\",\n  \"idade\": 3,\n  \"unidade_idade\": \"anos\",\n  \"comportamento\": \"Muito dócil, gosta de crianças\",\n  \"alergias\": \"Nenhuma conhecida\",\n  \"foto_url\": \"https://exemplo.com/foto-bolt.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ficha-pets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"ficha-pets"
+							]
+						}
+					},
+					"description": "Cria uma nova ficha de pet vinculada ao usuário logado e à empresa."
+				},
+				{
+					"name": "Ver Ficha do Pet",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_cliente}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/ficha-pets/{{ficha_pet_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"ficha-pets",
+								"{{ficha_pet_id}}"
+							]
+						}
+					},
+					"description": "Retorna os detalhes de uma ficha específica do usuário logado."
+				},
+				{
+					"name": "Atualizar Ficha do Pet",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_cliente}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Bolt Atualizado\",\n  \"idade\": 4\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ficha-pets/{{ficha_pet_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"ficha-pets",
+								"{{ficha_pet_id}}"
+							]
+						}
+					},
+					"description": "Atualiza dados de uma ficha existente. Apenas do usuário logado."
+				},
+				{
+					"name": "Excluir Ficha do Pet",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token_cliente}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/ficha-pets/{{ficha_pet_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"ficha-pets",
+								"{{ficha_pet_id}}"
+							]
+						}
+					},
+					"description": "Remove uma ficha do pet do usuário logado."
+				}
+			]
+		},
+		{
 			"name": "Pausas Agendadas",
 			"item": [
 				{
@@ -3158,6 +3325,12 @@
 			"value": "",
 			"type": "string",
 			"description": "Mês de referência para testes de faturamento (formato: YYYY-MM)"
+		},
+		{
+			"key": "ficha_pet_id",
+			"value": "",
+			"type": "string",
+			"description": "ID da ficha do pet (para GET/PUT/DELETE)"
 		}
 	]
 }

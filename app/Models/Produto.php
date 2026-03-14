@@ -41,6 +41,17 @@ class Produto extends Model
         'promocao_ate',
         'tem_promocao',
         'vende_granel',
+
+        // Campos de serviço
+        'tipo_porte',
+        'preco_pequeno',
+        'preco_medio',
+        'preco_grande',
+        'porte_descricao_pequeno',
+        'porte_descricao_medio',
+        'porte_descricao_grande',
+        'duracao_estimada',
+        'inclui_servico',
     ];
 
     protected $casts = [
@@ -57,6 +68,12 @@ class Produto extends Model
         'comprimento' => 'decimal:2',
         'ordem' => 'integer',
         'preco_promocional' => 'decimal:2',
+
+        // Campos de serviço
+        'preco_pequeno' => 'decimal:2',
+        'preco_medio' => 'decimal:2',
+        'preco_grande' => 'decimal:2',
+        'duracao_estimada' => 'integer',
         'preco_promocional_percentual' => 'decimal:2',
         'promocao_ate' => 'date',
         'tem_promocao' => 'boolean',

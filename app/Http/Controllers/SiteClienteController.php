@@ -210,10 +210,45 @@ class SiteClienteController extends Controller
             ]);
         }
 
+        // Buscar ordenação das seções
+        $ordenacao = \App\Models\EmpresaOrdenacaoListaLoja::where('empresa_id', $empresa->id)
+            ->where('ativo', true)
+            ->orderBy('ordem')
+            ->pluck('secao')
+            ->toArray();
+
+        // Se não tiver ordenação configurada, padrão: servicos, produtos, kits
+        if (empty($ordenacao)) {
+            $ordenacao = ['servicos', 'produtos', 'kits'];
+        }
+
         return response()->json([
             'success' => true,
             'empresa' => new SiteEmpresaResource($empresa),
-            'categorias' => $categorias
+            'categorias' => $categorias,
+            'ordenacao_secoes' => $ordenacao
+        ]);
+    }
+
+    /**
+     * Obter ordenação pública da loja (para site cliente)
+     */
+    public function getOrdenacaoPublica($empresaId)
+    {
+        $ordenacao = \App\Models\EmpresaOrdenacaoListaLoja::where('empresa_id', $empresaId)
+            ->where('ativo', true)
+            ->orderBy('ordem')
+            ->pluck('secao')
+            ->toArray();
+
+        // Se não tiver ordenação configurada, padrão: servicos, produtos, kits
+        if (empty($ordenacao)) {
+            $ordenacao = ['servicos', 'produtos', 'kits'];
+        }
+
+        return response()->json([
+            'success' => true,
+            'ordenacao' => $ordenacao
         ]);
     }
 

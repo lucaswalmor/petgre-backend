@@ -135,6 +135,17 @@ class ProdutoStoreRequest extends FormRequest
             ],
             'tem_promocao' => 'nullable|boolean',
             'vende_granel' => 'nullable|boolean',
+
+            // Campos de serviço
+            'tipo_porte' => 'nullable|in:unico,todos',
+            'preco_pequeno' => 'nullable|numeric|min:0|max:999999.99',
+            'preco_medio' => 'nullable|numeric|min:0|max:999999.99',
+            'preco_grande' => 'nullable|numeric|min:0|max:999999.99',
+            'porte_descricao_pequeno' => 'nullable|string|max:50',
+            'porte_descricao_medio' => 'nullable|string|max:50',
+            'porte_descricao_grande' => 'nullable|string|max:50',
+            'duracao_estimada' => 'nullable|integer|min:1|max:999',
+            'inclui_servico' => 'nullable|string|max:1000',
         ];
     }
 
@@ -236,6 +247,24 @@ class ProdutoStoreRequest extends FormRequest
 
             'tem_promocao.boolean' => 'O campo promoção deve ser verdadeiro ou falso.',
             'vende_granel.boolean' => 'O campo vende a granel deve ser verdadeiro ou falso.',
+
+            // Campos de serviço
+            'tipo_porte.in' => 'O tipo de porte deve ser "unico" ou "todos".',
+            'preco_pequeno.numeric' => 'O preço para porte pequeno deve ser um valor numérico.',
+            'preco_pequeno.min' => 'O preço para porte pequeno não pode ser negativo.',
+            'preco_pequeno.max' => 'O preço para porte pequeno não pode ser maior que 999.999,99.',
+            'preco_medio.numeric' => 'O preço para porte médio deve ser um valor numérico.',
+            'preco_medio.min' => 'O preço para porte médio não pode ser negativo.',
+            'preco_medio.max' => 'O preço para porte médio não pode ser maior que 999.999,99.',
+            'preco_grande.numeric' => 'O preço para porte grande deve ser um valor numérico.',
+            'preco_grande.min' => 'O preço para porte grande não pode ser negativo.',
+            'preco_grande.max' => 'O preço para porte grande não pode ser maior que 999.999,99.',
+            'porte_descricao_pequeno.max' => 'A descrição do porte pequeno não pode ter mais que 50 caracteres.',
+            'porte_descricao_medio.max' => 'A descrição do porte médio não pode ter mais que 50 caracteres.',
+            'porte_descricao_grande.max' => 'A descrição do porte grande não pode ter mais que 50 caracteres.',
+            'duracao_estimada.integer' => 'A duração estimada deve ser um número inteiro.',
+            'duracao_estimada.min' => 'A duração estimada deve ser de pelo menos 1 minuto.',
+            'duracao_estimada.max' => 'A duração estimada não pode ser maior que 999 minutos.',
         ];
     }
 

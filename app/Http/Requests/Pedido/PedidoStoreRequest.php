@@ -189,9 +189,12 @@ class PedidoStoreRequest extends FormRequest
                         $validator->errors()->add("itens.{$index}.produto_id", 'Este produto não pertence à empresa selecionada.');
                     }
 
-                    $quantidadeParaValidar = $produto->vende_granel ? $item['quantidade'] / 1000 : $item['quantidade'];
-                    if (isset($produto->estoque) && $produto->estoque < $quantidadeParaValidar) {
-                        $validator->errors()->add("itens.{$index}.quantidade", "Estoque insuficiente. Disponível: {$produto->estoque}");
+                    // Validar estoque apenas para produtos (não para serviços)
+                    if ($produto->tipo !== 'servico') {
+                        $quantidadeParaValidar = $produto->vende_granel ? $item['quantidade'] / 1000 : $item['quantidade'];
+                        if (isset($produto->estoque) && $produto->estoque < $quantidadeParaValidar) {
+                            $validator->errors()->add("itens.{$index}.quantidade", "Estoque insuficiente. Disponível: {$produto->estoque}");
+                        }
                     }
                 }
             }

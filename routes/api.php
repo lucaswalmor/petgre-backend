@@ -28,6 +28,8 @@ use App\Http\Controllers\AsaasWebhookController;
 use App\Http\Controllers\KitController;
 use App\Http\Controllers\EmpresaEvolutionWhatsappController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\EmpresaOrdenacaoController;
+use App\Http\Controllers\FichaPetController;
 
 Route::get('/', function () {
     return response()->json(['message' => 'Hello World']);
@@ -223,6 +225,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', 'destroy');
     });
 
+    // Rotas de ordenação da loja — exige x-empresa-id
+    Route::controller(EmpresaOrdenacaoController::class)->prefix('empresa/{empresaId}/ordenacao')->middleware('empresa.context')->group(function () {
+        Route::get('/', 'getOrdenacao')->middleware('check.permission:empresas.show');
+        Route::post('/', 'salvarOrdenacao')->middleware('check.permission:empresas.update');
+        Route::delete('/', 'resetarOrdenacao')->middleware('check.permission:empresas.update');
+    });
+
     // Rotas de produtos — exige x-empresa-id
     Route::controller(ProdutoController::class)->prefix('produtos')->middleware('empresa.context')->group(function () {
         Route::get('/', 'index')->middleware('check.permission:produtos.index');
@@ -294,6 +303,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/remover-produto-carrinho', 'salvarLogRemoverProdutoCarrinho');
         Route::post('/trocar-loja', 'salvarLogTrocarLoja');
     });
+
+    // Fichas de Pet (Autenticação via Sanctum)
+    Route::controller(FichaPetController::class)->prefix('ficha-pets')->group(function () {
+        Route::get('/', 'index');
+        Route::post('/', 'store');
+        Route::get('/{id}', 'show');
+        Route::put('/{id}', 'update');
+        Route::delete('/{id}', 'destroy');
+    });
 });
 
 // Rotas Públicas (sem autenticação)
@@ -308,5 +326,12 @@ Route::middleware([])->group(function () {
         Route::get('/test-bem-vindo', 'testBemVindo');
         Route::get('/test-bem-vindo-funcionario', 'testBemVindoFuncionario');
         Route::get('/test-bem-vindo-cliente', 'testBemVindoCliente');
+    });
+
+    // Rotas do Site Cliente (públicas)
+    Route::controller(SiteClienteController::class)->prefix('site')->group(function () {
+        Route::get('/empresa/{slug}', 'getEmpresa');
+        Route::get('/empresa/{empresaId}/ordenacao', 'getOrdenacaoPublica');
+        Route::get('/empresas', 'getEmpresas');
     });
 });

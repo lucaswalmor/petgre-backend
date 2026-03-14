@@ -46,6 +46,17 @@ class ProdutoResource extends JsonResource
             'tem_promocao' => $this->tem_promocao,
             'vende_granel' => $this->vende_granel,
 
+            // Campos de serviço
+            'tipo_porte' => $this->tipo_porte,
+            'preco_pequeno' => $this->preco_pequeno,
+            'preco_medio' => $this->preco_medio,
+            'preco_grande' => $this->preco_grande,
+            'porte_descricao_pequeno' => $this->porte_descricao_pequeno,
+            'porte_descricao_medio' => $this->porte_descricao_medio,
+            'porte_descricao_grande' => $this->porte_descricao_grande,
+            'duracao_estimada' => $this->duracao_estimada,
+            'inclui_servico' => $this->inclui_servico,
+
             // Relacionamentos
             'empresa' => $this->whenLoaded('empresa', function () {
                 return [
