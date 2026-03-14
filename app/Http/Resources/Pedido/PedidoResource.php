@@ -16,7 +16,7 @@ class PedidoResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'codigo' => $this->codigo ?? 'PED-' . str_pad($this->id, 6, '0', STR_PAD_LEFT),
+            'codigo' => $this->codigo ?? ($this->tipo_pedido === 'servico' ? 'SER-' : 'PED-') . str_pad($this->id, 6, '0', STR_PAD_LEFT),
             'usuario_id' => $this->usuario_id,
             'empresa_id' => $this->empresa_id,
             'tipo_pedido' => $this->tipo_pedido,
