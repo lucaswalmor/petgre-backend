@@ -12,6 +12,8 @@ class Pedido extends Model
         'usuario_id',
         'empresa_id',
         'status_pedido_id',
+        'tipo_pedido',
+        'data_agendamento',
         'pagamento_id',
         'subtotal',
         'desconto',

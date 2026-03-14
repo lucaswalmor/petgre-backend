@@ -112,6 +112,11 @@ class PedidoController extends Controller
             $query->where('created_at', '<=', $request->data_fim . ' 23:59:59');
         }
 
+        // Filtro por tipo de pedido (produto, servico, misto)
+        if ($request->has('tipo') && $request->tipo) {
+            $query->where('tipo_pedido', $request->tipo);
+        }
+
         // Ordenação
         $orderBy = $request->get('order_by', 'created_at');
         $orderDirection = $request->get('order_direction', 'desc');
@@ -167,6 +172,20 @@ class PedidoController extends Controller
                     ]);
                 }
             }
+
+            // Determinar tipo do pedido (produto, servico, misto) com base nos itens
+            $tipoPedido = $this->determinarTipoPedido($request->itens);
+            $pedido->tipo_pedido = $tipoPedido;
+
+            // Se for serviço, extrair data de agendamento das observações
+            if ($tipoPedido === 'servico' || $tipoPedido === 'misto') {
+                $dataAgendamento = $this->extrairDataAgendamento($request->observacoes);
+                if ($dataAgendamento) {
+                    $pedido->data_agendamento = $dataAgendamento;
+                }
+            }
+
+            $pedido->save();
 
             // Criar itens do pedido (produto direto ou expansão de kit)
             if ($request->has('itens') && is_array($request->itens)) {
@@ -497,6 +516,71 @@ class PedidoController extends Controller
             'success' => true,
             'message' => 'Pedido excluído com sucesso'
         ]);
+    }
+
+    /**
+     * Determinar o tipo do pedido (produto, servico, misto) baseado nos itens
+     */
+    private function determinarTipoPedido(array $itens): string
+    {
+        $temProduto = false;
+        $temServico = false;
+
+        foreach ($itens as $item) {
+            if (!empty($item['kit_id'])) {
+                // Kits são considerados produtos
+                $temProduto = true;
+            } else {
+                $produto = Produto::find($item['produto_id'] ?? null);
+                if ($produto) {
+                    if ($produto->tipo === 'servico') {
+                        $temServico = true;
+                    } else {
+                        $temProduto = true;
+                    }
+                }
+            }
+        }
+
+        if ($temProduto && $temServico) {
+            return 'misto';
+        } elseif ($temServico) {
+            return 'servico';
+        } else {
+            return 'produto';
+        }
+    }
+
+    /**
+     * Extrair data de agendamento das observações do pedido
+     * Formato esperado: "Data Preferencial: 15/03/2026 às 11:00" ou similar
+     */
+    private function extrairDataAgendamento(?string $observacoes): ?string
+    {
+        if (!$observacoes) {
+            return null;
+        }
+
+        // Procurar por padrões de data nas observações
+        // Padrões: "Data Preferencial: DD/MM/YYYY", "Data: DD/MM/YYYY", "Agendado para: DD/MM/YYYY"
+        $padroes = [
+            '/Data Preferencial:\s*(\d{2}\/\d{2}\/\d{4})/i',
+            '/Data:\s*(\d{2}\/\d{2}\/\d{4})/i',
+            '/Agendado para:\s*(\d{2}\/\d{2}\/\d{4})/i',
+        ];
+
+        foreach ($padroes as $padrao) {
+            if (preg_match($padrao, $observacoes, $matches)) {
+                $dataBr = $matches[1];
+                // Converter de DD/MM/YYYY para YYYY-MM-DD
+                $partes = explode('/', $dataBr);
+                if (count($partes) === 3) {
+                    return $partes[2] . '-' . $partes[1] . '-' . $partes[0];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
