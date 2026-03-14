@@ -19,6 +19,8 @@ class PedidoResource extends JsonResource
             'codigo' => $this->codigo ?? 'PED-' . str_pad($this->id, 6, '0', STR_PAD_LEFT),
             'usuario_id' => $this->usuario_id,
             'empresa_id' => $this->empresa_id,
+            'tipo_pedido' => $this->tipo_pedido,
+            'data_agendamento' => $this->data_agendamento,
             'status_pedido_id' => $this->status_pedido_id,
             'pagamento_id' => $this->pagamento_id,
             'subtotal' => $this->subtotal,
