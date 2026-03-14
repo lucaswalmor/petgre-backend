@@ -162,6 +162,9 @@ class PedidoResource extends JsonResource
             'frete_formatado' => 'R$ ' . number_format($this->frete, 2, ',', '.'),
             'total_formatado' => 'R$ ' . number_format($this->total, 2, ',', '.'),
 
+            // Dados do pet extraídos das observações (para serviços)
+            'nome_pet' => $this->extrairNomePetDasObservacoes(),
+
             'quantidade_itens' => $this->whenLoaded('itens', function () {
                 return $this->itens->sum('quantidade');
             }),
@@ -172,5 +175,24 @@ class PedidoResource extends JsonResource
 
             'tempo_decorrido' => $this->created_at->diffForHumans(),
         ];
+    }
+
+    /**
+     * Extrair nome do pet das observações do pedido
+     * Formato esperado: "DADOS DO PET:\nNome: NomeDoPet"
+     */
+    private function extrairNomePetDasObservacoes(): ?string
+    {
+        $observacoes = $this->observacoes;
+        if (!$observacoes) {
+            return null;
+        }
+
+        // Procura por "Nome: X" após "DADOS DO PET:"
+        if (preg_match('/DADOS DO PET:[\s\S]*?Nome:\s*([^\n]+)/i', $observacoes, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return null;
     }
 }

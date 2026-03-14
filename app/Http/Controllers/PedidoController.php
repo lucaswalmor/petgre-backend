@@ -552,8 +552,9 @@ class PedidoController extends Controller
     }
 
     /**
-     * Extrair data de agendamento das observações do pedido
+     * Extrair data e hora de agendamento das observações do pedido
      * Formato esperado: "Data Preferencial: 15/03/2026 às 11:00" ou similar
+     * Retorna: YYYY-MM-DD HH:MM:SS ou YYYY-MM-DD (se não tiver hora)
      */
     private function extrairDataAgendamento(?string $observacoes): ?string
     {
@@ -561,21 +562,31 @@ class PedidoController extends Controller
             return null;
         }
 
-        // Procurar por padrões de data nas observações
-        // Padrões: "Data Preferencial: DD/MM/YYYY", "Data: DD/MM/YYYY", "Agendado para: DD/MM/YYYY"
+        // Procurar por padrões de data e hora nas observações
+        // Padrões: "Data Preferencial: DD/MM/YYYY às HH:MM", "Data: DD/MM/YYYY às HH:MM"
         $padroes = [
-            '/Data Preferencial:\s*(\d{2}\/\d{2}\/\d{4})/i',
-            '/Data:\s*(\d{2}\/\d{2}\/\d{4})/i',
-            '/Agendado para:\s*(\d{2}\/\d{2}\/\d{4})/i',
+            // Com hora: "Data Preferencial: 15/03/2026 às 11:00"
+            '/Data Preferencial:\s*(\d{2}\/\d{2}\/\d{4})(?:\s*às\s*(\d{2}:\d{2}))?/i',
+            '/Data:\s*(\d{2}\/\d{2}\/\d{4})(?:\s*às\s*(\d{2}:\d{2}))?/i',
+            '/Agendado para:\s*(\d{2}\/\d{2}\/\d{4})(?:\s*às\s*(\d{2}:\d{2}))?/i',
         ];
 
         foreach ($padroes as $padrao) {
             if (preg_match($padrao, $observacoes, $matches)) {
                 $dataBr = $matches[1];
+                $hora = $matches[2] ?? null; // Hora é opcional (grupo 2)
+
                 // Converter de DD/MM/YYYY para YYYY-MM-DD
                 $partes = explode('/', $dataBr);
                 if (count($partes) === 3) {
-                    return $partes[2] . '-' . $partes[1] . '-' . $partes[0];
+                    $dataFormatada = $partes[2] . '-' . $partes[1] . '-' . $partes[0];
+
+                    // Se tiver hora, adicionar ao resultado
+                    if ($hora) {
+                        return $dataFormatada . ' ' . $hora . ':00';
+                    }
+
+                    return $dataFormatada;
                 }
             }
         }
