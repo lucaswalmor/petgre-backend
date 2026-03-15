@@ -73,6 +73,10 @@ class ProdutoController extends Controller
             $query->where('ativo', $request->boolean('ativo'));
         }
 
+        if ($request->filled('tipo_porte') && in_array($request->tipo_porte, ['unico', 'todos'])) {
+            $query->where('tipo_porte', $request->tipo_porte);
+        }
+
         // Só filtra por destaque se o valor for explicitamente "true" (não filtra quando "false")
         if ($request->filled('destaque') && $request->boolean('destaque') === true) {
             $query->where('destaque', true);
@@ -215,6 +219,11 @@ class ProdutoController extends Controller
             ]);
 
             $dados['empresa_id'] = $request->empresa_id;
+
+            // Serviço com variação por porte: preco pode vir null; coluna exige valor — usa preco_pequeno como referência
+            if ($request->tipo === 'servico' && $request->tipo_porte === 'todos' && ($dados['preco'] === null || $dados['preco'] === '')) {
+                $dados['preco'] = $request->preco_pequeno ?? 0;
+            }
 
             // Ajustes de defaults
             $dados['estoque'] = $request->tipo === 'servico' ? 0 : ($request->estoque ?? 0);

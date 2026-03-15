@@ -15,16 +15,16 @@ class EmpresaOrdenacaoController extends Controller
     public function getOrdenacao($empresaId)
     {
         $ordenacao = EmpresaOrdenacaoListaLoja::where('empresa_id', $empresaId)
-            ->where('ativo', true)
             ->orderBy('ordem')
             ->get(['secao', 'ordem', 'ativo']);
 
-        // Se não tiver configuração, retorna padrão
+        // Se não tiver configuração, retorna padrão (3 seções)
         if ($ordenacao->isEmpty()) {
             return response()->json([
                 'data' => [
-                    ['secao' => 'produtos', 'ordem' => 1, 'ativo' => true],
-                    ['secao' => 'kits', 'ordem' => 2, 'ativo' => true]
+                    ['secao' => 'servicos', 'ordem' => 1, 'ativo' => true],
+                    ['secao' => 'produtos', 'ordem' => 2, 'ativo' => true],
+                    ['secao' => 'kits', 'ordem' => 3, 'ativo' => true]
                 ]
             ]);
         }

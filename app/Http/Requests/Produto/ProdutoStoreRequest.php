@@ -55,7 +55,7 @@ class ProdutoStoreRequest extends FormRequest
                     }
                 },
             ],
-            'preco' => 'required|numeric|min:0|max:999999.99',
+            'preco' => 'required_unless:tipo_porte,todos|nullable|numeric|min:0|max:999999.99',
             'estoque' => 'nullable|numeric|min:0|max:999999.999',
             'destaque' => 'nullable|boolean',
             'ativo' => 'nullable|boolean',
@@ -138,9 +138,9 @@ class ProdutoStoreRequest extends FormRequest
 
             // Campos de serviço
             'tipo_porte' => 'nullable|in:unico,todos',
-            'preco_pequeno' => 'nullable|numeric|min:0|max:999999.99',
-            'preco_medio' => 'nullable|numeric|min:0|max:999999.99',
-            'preco_grande' => 'nullable|numeric|min:0|max:999999.99',
+            'preco_pequeno' => 'required_if:tipo_porte,todos|nullable|numeric|min:0|max:999999.99',
+            'preco_medio' => 'required_if:tipo_porte,todos|nullable|numeric|min:0|max:999999.99',
+            'preco_grande' => 'required_if:tipo_porte,todos|nullable|numeric|min:0|max:999999.99',
             'porte_descricao_pequeno' => 'nullable|string|max:50',
             'porte_descricao_medio' => 'nullable|string|max:50',
             'porte_descricao_grande' => 'nullable|string|max:50',
@@ -185,6 +185,7 @@ class ProdutoStoreRequest extends FormRequest
             'descricao.max' => 'A descrição não pode ter mais que 1000 caracteres.',
 
             'preco.required' => 'O preço é obrigatório.',
+            'preco.required_unless' => 'O preço é obrigatório quando o tipo de preço é único.',
             'preco.numeric' => 'O preço deve ser um valor numérico.',
             'preco.min' => 'O preço não pode ser negativo.',
             'preco.max' => 'O preço não pode ser maior que 999.999,99.',
