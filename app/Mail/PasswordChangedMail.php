@@ -14,13 +14,15 @@ class PasswordChangedMail extends Mailable
     use Queueable, SerializesModels;
 
     public $usuario;
+    public $loginUrl;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($usuario)
+    public function __construct($usuario, string $loginUrl)
     {
         $this->usuario = $usuario;
+        $this->loginUrl = $loginUrl;
     }
 
     /**
@@ -42,6 +44,7 @@ class PasswordChangedMail extends Mailable
             view: 'emails.password-changed',
             with: [
                 'usuario' => $this->usuario,
+                'loginUrl' => $this->loginUrl,
             ],
         );
     }

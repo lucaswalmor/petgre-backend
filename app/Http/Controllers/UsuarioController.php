@@ -465,7 +465,10 @@ class UsuarioController extends Controller
         // Enviar email de confirmação
         try {
             $emailService = app(EmailService::class);
-            $emailService->sendMailable($usuario->email, new PasswordChangedMail($usuario));
+            $loginUrl = ((int) $usuario->tipo_cadastro === 1)
+                ? 'https://app.petgre.com.br/'
+                : 'https://painel.petgre.com.br/';
+            $emailService->sendMailable($usuario->email, new PasswordChangedMail($usuario, $loginUrl));
         } catch (\Exception $e) {
             // Não falhar a operação se o email der erro
             \Log::error('Erro ao enviar email de confirmação de senha: ' . $e->getMessage());
@@ -503,7 +506,10 @@ class UsuarioController extends Controller
             'primeiro_login' => false,
         ]);
 
-        app(EmailService::class)->sendMailable($usuario->email, new PasswordChangedMail($usuario));
+        $loginUrl = ((int) $usuario->tipo_cadastro === 1)
+            ? 'https://app.petgre.com.br/'
+            : 'https://painel.petgre.com.br/';
+        app(EmailService::class)->sendMailable($usuario->email, new PasswordChangedMail($usuario, $loginUrl));
 
         $usuario->load(['permissoes', 'empresas', 'enderecos']);
 
