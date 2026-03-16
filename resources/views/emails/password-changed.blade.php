@@ -61,20 +61,6 @@
                         </td>
                     </tr>
 
-                    <!-- Botão de Login -->
-                    <tr>
-                        <td align="center" style="padding:10px 40px 30px 40px;">
-                            <a href="{{ $loginUrl }}"
-                               style="display:inline-block; background-color:#3b82f6; color:#ffffff; text-decoration:none; padding:14px 32px; border-radius:8px; font-weight:600; font-size:15px;">
-                                Fazer Login
-                            </a>
-                            <p style="margin:16px 0 0 0; color:#6b7280; font-size:13px; line-height:1.5; text-align:center;">
-                                Problemas para acessar? Entre em contato com nosso suporte<br>
-                                Email: suporte@petgre.com | WhatsApp: (34) 99999-9999
-                            </p>
-                        </td>
-                    </tr>
-
                     <!-- Footer -->
                     <tr>
                         <td align="center" style="padding:20px 40px 30px 40px; border-top:1px solid #e5e7eb;">
