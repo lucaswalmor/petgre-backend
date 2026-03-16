@@ -64,7 +64,12 @@
                     <!-- Botão de Login -->
                     <tr>
                         <td align="center" style="padding:10px 40px 30px 40px;">
-                            <a href="https://painel.petgre.com.br/"
+                            @php
+                                // tipo_cadastro: 0 = lojista/funcionário, 1 = cliente
+                                $isCliente = isset($usuario->tipo_cadastro) && (int) $usuario->tipo_cadastro === 1;
+                                $loginUrl = $isCliente ? 'https://app.petgre.com.br/' : 'https://painel.petgre.com.br/';
+                            @endphp
+                            <a href="{{ $loginUrl }}"
                                style="display:inline-block; background-color:#3b82f6; color:#ffffff; text-decoration:none; padding:14px 32px; border-radius:8px; font-weight:600; font-size:15px;">
                                 Fazer Login
                             </a>
