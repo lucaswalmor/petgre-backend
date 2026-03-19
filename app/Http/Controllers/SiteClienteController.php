@@ -43,7 +43,7 @@ class SiteClienteController extends Controller
         $query = Empresa::where('ativo', true)
             ->where('cadastro_completo', true)
             ->with(['nicho', 'horarios', 'pausasAgendadas', 'avaliacoes', 'bairrosEntregas.bairro', 'configuracoes'])
-            ->withCount('avaliacoes')
+            ->withCount(['avaliacoes', 'empresaFavoritos'])
             ->withAvg('avaliacoes', 'nota');
 
         // Filtro por nicho
@@ -59,8 +59,15 @@ class SiteClienteController extends Controller
             });
         }
 
-        // Filtro por bairro
-        if ($request->has('bairro') && !empty(trim($request->bairro))) {
+        // Filtro por cidade
+        if ($request->has('cidade') && !empty(trim($request->cidade))) {
+            $query->whereHas('endereco', function($q) use ($request) {
+                $q->where('cidade', $request->cidade);
+            });
+        }
+
+        // Compatibilidade com filtro antigo por bairro
+        if (!$request->has('cidade') && $request->has('bairro') && !empty(trim($request->bairro))) {
             $query->whereHas('bairrosEntregas', function($q) use ($request) {
                 $q->whereHas('bairro', function($qb) use ($request) {
                     $qb->where('nome', $request->bairro)
@@ -70,15 +77,17 @@ class SiteClienteController extends Controller
             });
         }
 
-        // Filtro por status (abertas agora)
+        // Filtro por status (abertas agora) — dia_semana no banco é texto (segunda, terca, ...)
         if ($request->has('abertas') && $request->abertas == 'true') {
-            $query->whereHas('horarios', function($q) {
-                $diaSemana = now()->dayOfWeek;
-                $horaAtual = now()->format('H:i:s');
-                
-                $q->where('dia_semana', $diaSemana)
-                  ->where('horario_inicio', '<=', $horaAtual)
-                  ->where('horario_fim', '>=', $horaAtual);
+            $agoraFiltro = now('America/Sao_Paulo');
+            $mapaDia = [0 => 'domingo', 1 => 'segunda', 2 => 'terca', 3 => 'quarta', 4 => 'quinta', 5 => 'sexta', 6 => 'sabado'];
+            $diaSemanaTexto = $mapaDia[$agoraFiltro->dayOfWeek] ?? 'segunda';
+            $horaAtualFiltro = $agoraFiltro->format('H:i:s');
+
+            $query->whereHas('horarios', function ($q) use ($diaSemanaTexto, $horaAtualFiltro) {
+                $q->where('dia_semana', $diaSemanaTexto)
+                  ->where('horario_inicio', '<=', $horaAtualFiltro)
+                  ->where('horario_fim', '>=', $horaAtualFiltro);
             });
         }
 
@@ -119,27 +128,24 @@ class SiteClienteController extends Controller
             }
         }
 
-        // Ordenação
-        if ($request->has('ordenacao') && !empty($request->ordenacao)) {
-            switch ($request->ordenacao) {
-                case 'avaliacao':
-                    $query->orderByDesc('avaliacoes_avg_nota');
-                    break;
-                case 'nome_asc':
-                    $query->orderBy('nome_fantasia', 'asc');
-                    break;
-                case 'nome_desc':
-                    $query->orderBy('nome_fantasia', 'desc');
-                    break;
-                default:
-                    // Relevância (padrão)
-                    $query->orderByDesc('avaliacoes_count')
-                          ->orderByDesc('avaliacoes_avg_nota');
-            }
-        } else {
-            // Ordenação padrão por relevância
-            $query->orderByDesc('avaliacoes_count')
-                  ->orderByDesc('avaliacoes_avg_nota');
+        // Ordenação: 1) abertas 2) nota 3) favoritos 4) created_at (+ variação por filtro de nome)
+        $ordenacao = $request->input('ordenacao', 'relevancia');
+        if ($ordenacao === null || $ordenacao === '') {
+            $ordenacao = 'relevancia';
+        }
+        switch ($ordenacao) {
+            case 'avaliacao':
+                $this->ordenarQueryEmpresasSiteCliente($query, 'avaliacao');
+                break;
+            case 'nome_asc':
+                $this->ordenarQueryEmpresasSiteCliente($query, 'nome_asc');
+                break;
+            case 'nome_desc':
+                $this->ordenarQueryEmpresasSiteCliente($query, 'nome_desc');
+                break;
+            default:
+                $this->ordenarQueryEmpresasSiteCliente($query, 'relevancia');
+                break;
         }
 
         $empresas = $query->paginate(20);
@@ -758,5 +764,56 @@ class SiteClienteController extends Controller
                 'has_more_pages' => $produtos->hasMorePages(),
             ]
         ]);
+    }
+
+    /**
+     * Ordenação da listagem pública de empresas:
+     * 1) Abertas primeiro (fechada_manual + horário de hoje em America/Sao_Paulo; não considera pausas agendadas)
+     * 2) Melhor avaliação (nota média DESC) — em modo nome, ordena por nome e usa nota como desempate
+     * 3) Mais favoritadas (contagem em empresa_favoritos DESC)
+     * 4) Cadastro mais antigo (created_at ASC)
+     */
+    private function ordenarQueryEmpresasSiteCliente($query, string $modoSecundario): void
+    {
+        $agora = now('America/Sao_Paulo');
+        $mapaDia = [0 => 'domingo', 1 => 'segunda', 2 => 'terca', 3 => 'quarta', 4 => 'quinta', 5 => 'sexta', 6 => 'sabado'];
+        $hojeTexto = $mapaDia[$agora->dayOfWeek] ?? 'segunda';
+        $horaAtual = $agora->format('H:i:s');
+
+        $sqlPrioridadeAberta = '(CASE
+            WHEN empresas.fechada_manual = 1 THEN 0
+            WHEN empresas.fechada_manual = 0 THEN 2
+            WHEN EXISTS (
+                SELECT 1 FROM empresa_horarios eh
+                WHERE eh.empresa_id = empresas.id
+                AND eh.dia_semana = ?
+                AND eh.deleted_at IS NULL
+                AND ? >= eh.horario_inicio
+                AND ? <= eh.horario_fim
+            ) THEN 1
+            ELSE 0
+        END)';
+
+        $query->orderByRaw($sqlPrioridadeAberta.' DESC', [$hojeTexto, $horaAtual, $horaAtual]);
+
+        switch ($modoSecundario) {
+            case 'avaliacao':
+                $query->orderByDesc('avaliacoes_avg_nota');
+                break;
+            case 'nome_asc':
+                $query->orderBy('empresas.nome_fantasia', 'asc')
+                    ->orderByDesc('avaliacoes_avg_nota');
+                break;
+            case 'nome_desc':
+                $query->orderBy('empresas.nome_fantasia', 'desc')
+                    ->orderByDesc('avaliacoes_avg_nota');
+                break;
+            default:
+                $query->orderByDesc('avaliacoes_avg_nota');
+                break;
+        }
+
+        $query->orderByDesc('empresa_favoritos_count')
+            ->orderBy('empresas.created_at', 'asc');
     }
 }
