@@ -2,150 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Produto\ProdutoLoteRequest;
 use App\Http\Requests\Produto\ProdutoStoreRequest;
 use App\Http\Requests\Produto\ProdutoUpdateRequest;
-use App\Http\Resources\Produto\ProdutoResource;
-use App\Models\Produto;
-use App\Models\Categorias;
-use App\Models\UnidadeMedida;
-use App\Http\Requests\Produto\ProdutoLoteRequest;
-use Illuminate\Support\Facades\Auth;
-use App\Helpers\VerificaEmpresa;
 use App\Http\Requests\Produto\ProdutoUploadImageRequest;
-use App\Models\Empresa;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Rap2hpoutre\FastExcel\FastExcel;
-use Illuminate\Support\Facades\Log;
-use OpenSpout\Common\Entity\Style\Style;
-use OpenSpout\Common\Entity\Style\Color;
-use App\Models\PlanilhaTerceiros;
-use App\Services\CalculosService;
+use App\Http\Resources\Produto\ProdutoResource;
+use App\Services\Produto\ProdutoCatalogoAuxiliarService;
+use App\Services\Produto\ProdutoCrudService;
+use App\Services\Produto\ProdutoImagemService;
+use App\Services\Produto\ProdutoImportacaoPlanilhaService;
+use App\Services\Produto\ProdutoListagemService;
+use App\Services\Produto\ProdutoLoteService;
+use App\Services\Produto\ProdutoOperacoesRapidasService;
+use App\Services\Produto\ProdutoPromocaoService;
+use Illuminate\Http\Request;
 
 class ProdutoController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct(
+        private ProdutoListagemService $listagemService,
+        private ProdutoPromocaoService $promocaoService,
+        private ProdutoCrudService $crudService,
+        private ProdutoOperacoesRapidasService $operacoesRapidasService,
+        private ProdutoImagemService $imagemService,
+        private ProdutoLoteService $loteService,
+        private ProdutoCatalogoAuxiliarService $catalogoAuxiliarService,
+        private ProdutoImportacaoPlanilhaService $importacaoPlanilhaService,
+    ) {}
+
     public function index(Request $request)
     {
-        $empresaId = $request->empresa_id;
+        $payload = $this->listagemService->listarPaginado($request, (int) $request->empresa_id);
 
-        Log::info('[ProdutoController@index] Parâmetros recebidos', [
-            'empresa_id'      => $empresaId,
-            'q'               => $request->get('q'),
-            'categoria_id'    => $request->get('categoria_id'),
-            'destaque'        => $request->get('destaque'),
-            'somente_promocao'=> $request->get('somente_promocao'),
-            'todos_params'    => $request->all(),
-        ]);
-
-        $query = Produto::where('empresa_id', $empresaId)
-            ->whereNull('deleted_at')
-            ->with(['categoria', 'unidadeMedida', 'empresa']);
-
-        // BUG-002: Busca por texto (nome, descrição, SKU, marca)
-        if ($request->filled('q')) {
-            $busca = '%' . $request->get('q') . '%';
-            Log::info('[ProdutoController@index] Aplicando filtro q', ['busca' => $busca]);
-            $query->where(function ($subQuery) use ($busca) {
-                $subQuery
-                    ->where('nome', 'like', $busca)
-                    ->orWhere('descricao', 'like', $busca)
-                    ->orWhere('sku', 'like', $busca)
-                    ->orWhere('marca', 'like', $busca);
-            });
-        }
-
-        // BUG-013: Filtro por categoria_id
-        if ($request->filled('categoria_id') && is_numeric($request->categoria_id)) {
-            Log::info('[ProdutoController@index] Aplicando filtro categoria_id', ['categoria_id' => (int) $request->categoria_id]);
-            $query->where('categoria_id', (int) $request->categoria_id);
-        }
-
-        if ($request->has('tipo') && $request->tipo) {
-            $query->where('tipo', $request->tipo);
-        }
-
-        if ($request->has('ativo') && $request->ativo !== null) {
-            $query->where('ativo', $request->boolean('ativo'));
-        }
-
-        if ($request->filled('tipo_porte') && in_array($request->tipo_porte, ['unico', 'todos'])) {
-            $query->where('tipo_porte', $request->tipo_porte);
-        }
-
-        // Só filtra por destaque se o valor for explicitamente "true" (não filtra quando "false")
-        if ($request->filled('destaque') && $request->boolean('destaque') === true) {
-            $query->where('destaque', true);
-        }
-
-        if ($request->has('somente_promocao') && $request->boolean('somente_promocao')) {
-            $query->where('tem_promocao', true);
-        }
-
-        if ($request->has('vende_granel') && $request->vende_granel !== null) {
-            $query->where('vende_granel', $request->boolean('vende_granel'));
-        }
-
-        // Estoque: baixo (<= estoque_minimo), zerado (<=0)
-        if ($request->has('estoque_status') && $request->estoque_status) {
-            $status = $request->estoque_status;
-            $query->where(function ($q) use ($status) {
-                if ($status === 'baixo') {
-                    $q->whereColumn('estoque', '<=', 'estoque_minimo');
-                }
-                if ($status === 'zerado') {
-                    $q->where('estoque', '<=', 0);
-                }
-            });
-        }
-
-        // Ordenação
-        $orderBy = $request->get('order_by', 'created_at');
-        $orderDirection = $request->get('order_direction', 'desc');
-        $query->orderBy($orderBy, $orderDirection);
-
-        // Paginação
-        $perPage = $request->get('per_page', 15);
-
-        Log::info('[ProdutoController@index] SQL gerado', [
-            'sql'      => $query->toSql(),
-            'bindings' => $query->getBindings(),
-        ]);
-
-        $produtos = $query->paginate($perPage);
-
-        Log::info('[ProdutoController@index] Total de resultados', ['total' => $produtos->total()]);
-
-        return response()->json([
-            'produtos' => ProdutoResource::collection($produtos),
-            'paginacao' => [
-                'total' => $produtos->total(),
-                'per_page' => $produtos->perPage(),
-                'current_page' => $produtos->currentPage(),
-                'last_page' => $produtos->lastPage(),
-                'from' => $produtos->firstItem(),
-                'to' => $produtos->lastItem(),
-                'has_more_pages' => $produtos->hasMorePages(),
-            ]
-        ]);
+        return response()->json($payload);
     }
 
-    /**
-     * Calcula preço promocional ou percentual de desconto (para uso no frontend ao configurar promoção).
-     * POST /api/produtos/calcular-promocao
-     * Body: { preco_original, preco_promocional?, percentual? }
-     * Retorna: { preco_promocional, percentual }
-     */
     public function calcularPromocao(Request $request)
     {
         $request->validate([
-            'preco_original' => 'required|numeric|min:0',
-            'preco_promocional' => 'nullable|numeric|min:0',
-            'percentual' => 'nullable|numeric|min:0|max:100',
+            'preco_original'     => 'required|numeric|min:0',
+            'preco_promocional'   => 'nullable|numeric|min:0',
+            'percentual'          => 'nullable|numeric|min:0|max:100',
         ]);
 
         $precoOriginal = (float) $request->preco_original;
@@ -156,831 +53,273 @@ class ProdutoController extends Controller
             ? (float) $request->percentual
             : null;
 
-        if ($percentual !== null) {
-            $precoPromocional = CalculosService::calcularPrecoPromocionalPorPercentual($precoOriginal, $percentual);
-        } elseif ($precoPromocional !== null) {
-            $percentual = CalculosService::calcularPercentualDesconto($precoOriginal, $precoPromocional);
-        } else {
-            return response()->json([
-                'preco_promocional' => $precoOriginal,
-                'percentual' => 0,
-            ]);
-        }
+        $resultado = $this->promocaoService->calcular($precoOriginal, $precoPromocional, $percentual);
 
-        return response()->json([
-            'preco_promocional' => round($precoPromocional, 2),
-            'percentual' => round($percentual, 2),
-        ]);
+        return response()->json($resultado);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(ProdutoStoreRequest $request)
     {
-        DB::beginTransaction();
         try {
-            $dados = $request->only([
-                'categoria_id',
-                'unidade_medida_id',
-                'tipo',
-                'nome',
-                'imagem',
-                'slug',
-                'descricao',
-                'preco',
-                'estoque',
-                'destaque',
-                'ativo',
-                'marca',
-                'sku',
-                'preco_custo',
-                'estoque_minimo',
-                'ativar_estoque_minimo',
-                'peso',
-                'altura',
-                'largura',
-                'comprimento',
-                'ordem',
-                'preco_promocional',
-                'preco_promocional_percentual',
-                'promocao_ate',
-                'tem_promocao',
-                'vende_granel',
-                'tipo_porte',
-                'preco_pequeno',
-                'preco_medio',
-                'preco_grande',
-                'porte_descricao_pequeno',
-                'porte_descricao_medio',
-                'porte_descricao_grande',
-                'duracao_estimada',
-                'inclui_servico',
-            ]);
-
-            $dados['empresa_id'] = $request->empresa_id;
-
-            // Serviço com variação por porte: preco pode vir null; coluna exige valor — usa preco_pequeno como referência
-            if ($request->tipo === 'servico' && $request->tipo_porte === 'todos' && ($dados['preco'] === null || $dados['preco'] === '')) {
-                $dados['preco'] = $request->preco_pequeno ?? 0;
-            }
-
-            // Ajustes de defaults
-            $dados['estoque'] = $request->tipo === 'servico' ? 0 : ($request->estoque ?? 0);
-            $dados['destaque'] = $request->boolean('destaque', false);
-            $dados['ativo'] = $request->boolean('ativo', true);
-            // BUG-003: Manter promoção ativa se tem percentual OU preço promocional
-            $temPrecoPromocional = $request->filled('preco_promocional') && $request->preco_promocional > 0;
-            $temPercentual = $request->filled('preco_promocional_percentual') && $request->preco_promocional_percentual > 0;
-            $dados['tem_promocao'] = $request->boolean('tem_promocao', false) && ($temPrecoPromocional || $temPercentual);
-            $dados['slug'] = $request->slug ?: Str::slug($request->nome);
-
-            $produto = Produto::create($dados);
-
-            DB::commit();
-
-            // Carregar relacionamentos
-            $produto->load(['categoria', 'unidadeMedida', 'empresa']);
+            $produto = $this->crudService->criar($request);
 
             return response()->json([
                 'message' => 'Produto criado com sucesso',
-                'produto' => new ProdutoResource($produto)
+                'produto' => new ProdutoResource($produto),
             ], 201);
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
-                'error' => 'Não foi possível criar o produto',
-                'message' => 'Verifique os dados e tente novamente.'
+                'error'   => 'Não foi possível criar o produto',
+                'message' => 'Verifique os dados e tente novamente.',
             ], 500);
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
-        $produto = Produto::with(['categoria', 'unidadeMedida', 'empresa'])->findOrFail($id);
+        $produto = $this->crudService->obterDetalhe($id);
 
-        // Verificar se o usuário tem acesso ao produto (mesma empresa)
-        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
+        if ($produto === null) {
             return response()->json([
-                'error' => 'Acesso não permitido',
-                'message' => 'Você não tem acesso a este produto.'
+                'error'   => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.',
             ], 403);
         }
 
         return response()->json([
-            'produto' => new ProdutoResource($produto)
+            'produto' => new ProdutoResource($produto),
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(ProdutoUpdateRequest $request, string $id)
     {
-        $produto = Produto::findOrFail($id);
-
-        // Verificar se o usuário tem acesso ao produto (mesma empresa)
-        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
-            return response()->json([
-                'error' => 'Acesso não permitido',
-                'message' => 'Você não tem acesso a este produto.'
-            ], 403);
-        }
-
-        DB::beginTransaction();
         try {
-            $updateData = $request->only([
-                'categoria_id',
-                'unidade_medida_id',
-                'tipo',
-                'nome',
-                'imagem',
-                'slug',
-                'descricao',
-                'preco',
-                'estoque',
-                'destaque',
-                'ativo',
-                'marca',
-                'sku',
-                'preco_custo',
-                'estoque_minimo',
-                'ativar_estoque_minimo',
-                'peso',
-                'altura',
-                'largura',
-                'comprimento',
-                'ordem',
-                'preco_promocional',
-                'preco_promocional_percentual',
-                'promocao_ate',
-                'tem_promocao',
-                'vende_granel',
-                'tipo_porte',
-                'preco_pequeno',
-                'preco_medio',
-                'preco_grande',
-                'porte_descricao_pequeno',
-                'porte_descricao_medio',
-                'porte_descricao_grande',
-                'duracao_estimada',
-                'inclui_servico',
-            ]);
-
-            if ($request->filled('nome') && (!$request->has('slug') || empty($request->slug))) {
-                $updateData['slug'] = Str::slug($request->nome);
-            }
-
-            if ($request->has('tipo') && $request->tipo === 'servico') {
-                $updateData['estoque'] = 0;
-            }
-
-            if ($request->has('tem_promocao')) {
-                // BUG-003: Manter promoção ativa se tem percentual OU preço promocional
-                $temPrecoPromocional = $request->filled('preco_promocional') && $request->preco_promocional > 0;
-                $temPercentual = $request->filled('preco_promocional_percentual') && $request->preco_promocional_percentual > 0;
-                $updateData['tem_promocao'] = $request->boolean('tem_promocao', false) && ($temPrecoPromocional || $temPercentual);
-            }
-
-            $produto->update($updateData);
-
-            DB::commit();
-
-            // Recarregar relacionamentos
-            $produto->load(['categoria', 'unidadeMedida', 'empresa']);
+            $produto = $this->crudService->atualizar($request, $id);
 
             return response()->json([
                 'message' => 'Produto atualizado com sucesso',
-                'produto' => new ProdutoResource($produto)
+                'produto' => new ProdutoResource($produto),
             ]);
+        } catch (\InvalidArgumentException $e) {
+            if ($e->getMessage() === 'acesso_negado') {
+                return response()->json([
+                    'error'   => 'Acesso não permitido',
+                    'message' => 'Você não tem acesso a este produto.',
+                ], 403);
+            }
+            throw $e;
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
-                'error' => 'Não foi possível atualizar o produto',
-                'message' => 'Verifique os dados e tente novamente.'
+                'error'   => 'Não foi possível atualizar o produto',
+                'message' => 'Verifique os dados e tente novamente.',
             ], 500);
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
-        $produto = Produto::findOrFail($id);
+        $resultado = $this->crudService->excluir($id);
 
-        // Verificar se o usuário tem acesso ao produto (mesma empresa)
-        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
-            return response()->json([
-                'error' => 'Acesso não permitido',
-                'message' => 'Você não tem acesso a este produto.'
-            ], 403);
-        }
-
-        // Verificar se o produto está sendo usado em pedidos
-        if ($produto->itens()->exists()) {
-            return response()->json([
-                'error' => 'Não foi possível excluir',
-                'message' => 'Este produto está sendo usado em pedidos e não pode ser removido.'
-            ], 400);
-        }
-
-        // Soft delete
-        $produto->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Produto deletado com sucesso',
-            'produto_id' => $id
-        ]);
-    }
-
-    /**
-     * Toggle destaque do produto
-     */
-    public function toggleDestaque(string $id)
-    {
-        $produto = Produto::findOrFail($id);
-
-        // Verificar se o usuário tem acesso ao produto (mesma empresa)
-        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
-            return response()->json([
-                'error' => 'Acesso não permitido',
-                'message' => 'Você não tem acesso a este produto.'
-            ], 403);
-        }
-
-        $produto->destaque = !$produto->destaque;
-        $produto->save();
-
-        return response()->json([
-            'message' => 'Status de destaque alterado com sucesso',
-            'produto' => new ProdutoResource($produto->load(['categoria', 'unidadeMedida', 'empresa']))
-        ]);
-    }
-
-    /**
-     * Toggle status ativo do produto
-     */
-    public function toggleAtivo(string $id)
-    {
-        $produto = Produto::findOrFail($id);
-
-        // Verificar se o usuário tem acesso ao produto (mesma empresa)
-        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
-            return response()->json([
-                'error' => 'Acesso não permitido',
-                'message' => 'Você não tem acesso a este produto.'
-            ], 403);
-        }
-
-        $produto->ativo = !$produto->ativo;
-        $produto->save();
-
-        return response()->json([
-            'message' => 'Status do produto alterado com sucesso',
-            'produto' => new ProdutoResource($produto->load(['categoria', 'unidadeMedida', 'empresa']))
-        ]);
-    }
-
-    /**
-     * Buscar produtos por nome ou categoria
-     */
-    public function search(Request $request)
-    {
-        $empresaId = $request->empresa_id;
-        $query = $request->get('q', '');
-        $categoriaId = $request->get('categoria_id');
-        $tipo = $request->get('tipo');
-
-        $produtos = Produto::where('empresa_id', $empresaId)
-            ->where('ativo', true)
-            ->when($query, function ($q) use ($query) {
-                $q->where('nome', 'like', "%{$query}%")
-                  ->orWhere('descricao', 'like', "%{$query}%");
-            })
-            ->when($categoriaId, function ($q) use ($categoriaId) {
-                $q->where('categoria_id', $categoriaId);
-            })
-            ->when($tipo, function ($q) use ($tipo) {
-                $q->where('tipo', $tipo);
-            })
-            ->with(['categoria', 'unidadeMedida', 'empresa'])
-            ->orderBy('nome')
-            ->get();
-
-        return response()->json([
-            'produtos' => ProdutoResource::collection($produtos)
-        ]);
-    }
-
-
-    /**
-     * Upload ou atualização de imagem do produto
-     */
-    public function uploadImage(ProdutoUploadImageRequest $request, string $id)
-    {
-        try {
-            $produto = Produto::findOrFail($id);
-
-            // Verificar se o usuário tem acesso ao produto (mesma empresa)
-            if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
+        if (! $resultado['ok']) {
+            if ($resultado['codigo'] === 'acesso') {
                 return response()->json([
-                    'success' => false,
-                    'error' => 'Acesso não permitido',
-                    'message' => 'Você não tem acesso a este produto.'
+                    'error'   => 'Acesso não permitido',
+                    'message' => 'Você não tem acesso a este produto.',
                 ], 403);
             }
 
-            $dadosAtualizacao = [];
-
-            if ($request->hasFile('imagem')) {
-                // Remove imagem anterior se existir
-                if ($produto->imagem) {
-                    $imagemPathRelativo = str_replace(env('CLOUDFLARE_R2_PUBLIC_URL') . '/', '', $produto->imagem);
-                    Storage::disk('r2')->delete($imagemPathRelativo);
-                }
-
-                $imagemPath = $request->file('imagem')->store("empresas/produtos/{$produto->empresa_id}/{$produto->id}/produto", 'r2');
-                $dadosAtualizacao['imagem'] = env('CLOUDFLARE_R2_PUBLIC_URL') . '/' . $imagemPath;
-            }
-
-            if (!empty($dadosAtualizacao)) {
-                $produto->update($dadosAtualizacao);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Imagem do produto atualizada com sucesso',
-                    'produto' => new ProdutoResource($produto->load(['categoria', 'unidadeMedida', 'empresa']))
-                ]);
-            }
-
             return response()->json([
-                'success' => false,
-                'message' => 'Nenhuma imagem foi enviada'
+                'error'   => 'Não foi possível excluir',
+                'message' => 'Este produto está sendo usado em pedidos e não pode ser removido.',
             ], 400);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Produto não encontrado'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Não foi possível processar',
-                'message' => 'Tente novamente em alguns instantes.'
-            ], 500);
         }
+
+        return response()->json([
+            'success'    => true,
+            'message'    => 'Produto deletado com sucesso',
+            'produto_id' => $resultado['produto_id'],
+        ]);
     }
 
-    /**
-     * Duplicar produto
-     */
-    public function duplicar(string $id)
+    public function toggleDestaque(string $id)
     {
-        $produto = Produto::findOrFail($id);
+        $produto = $this->operacoesRapidasService->alternarDestaque($id);
 
-        if (!VerificaEmpresa::verificaEmpresaPertenceAoUsuario($produto->empresa_id)) {
+        if ($produto === null) {
             return response()->json([
-                'success' => false,
-                'message' => 'Você não tem acesso a este produto.'
+                'error'   => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.',
             ], 403);
         }
 
-        DB::beginTransaction();
-        try {
-            $novoNome = $produto->nome . ' - Cópia';
-            $contador = 1;
-            while (Produto::where('empresa_id', $produto->empresa_id)->where('nome', $novoNome)->exists()) {
-                $contador++;
-                $novoNome = $produto->nome . " - Cópia {$contador}";
+        return response()->json([
+            'message' => 'Status de destaque alterado com sucesso',
+            'produto' => new ProdutoResource($produto),
+        ]);
+    }
+
+    public function toggleAtivo(string $id)
+    {
+        $produto = $this->operacoesRapidasService->alternarAtivo($id);
+
+        if ($produto === null) {
+            return response()->json([
+                'error'   => 'Acesso não permitido',
+                'message' => 'Você não tem acesso a este produto.',
+            ], 403);
+        }
+
+        return response()->json([
+            'message' => 'Status do produto alterado com sucesso',
+            'produto' => new ProdutoResource($produto),
+        ]);
+    }
+
+    public function search(Request $request)
+    {
+        $payload = $this->listagemService->buscar($request, (int) $request->empresa_id);
+
+        return response()->json($payload);
+    }
+
+    public function uploadImage(ProdutoUploadImageRequest $request, string $id)
+    {
+        $resultado = $this->imagemService->atualizar($request, $id);
+
+        if (! $resultado['ok']) {
+            $body = ['message' => $resultado['message']];
+            if (isset($resultado['success'])) {
+                $body['success'] = $resultado['success'];
+            }
+            if (isset($resultado['error'])) {
+                $body['error'] = $resultado['error'];
             }
 
-            $novoProduto = $produto->replicate(['imagem', 'sku', 'slug']);
-            $novoProduto->nome = $novoNome;
-            $novoProduto->slug = Str::slug($novoNome) . '-' . uniqid();
-            $novoProduto->sku = null;
-            $novoProduto->imagem = null;
-            $novoProduto->tem_promocao = $produto->tem_promocao && $produto->preco_promocional ? true : false;
-            $novoProduto->save();
+            return response()->json($body, $resultado['http']);
+        }
 
-            DB::commit();
+        return response()->json([
+            'success' => true,
+            'message' => 'Imagem do produto atualizada com sucesso',
+            'produto' => $resultado['produto'],
+        ]);
+    }
 
-            $novoProduto->load(['categoria', 'unidadeMedida', 'empresa']);
+    public function duplicar(string $id)
+    {
+        try {
+            $novoProduto = $this->operacoesRapidasService->duplicar($id);
+
+            if ($novoProduto === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Você não tem acesso a este produto.',
+                ], 403);
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Produto duplicado com sucesso',
-                'produto' => new ProdutoResource($novoProduto)
+                'produto' => new ProdutoResource($novoProduto),
             ], 201);
         } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Não foi possível duplicar o produto. Tente novamente.'
+                'message' => 'Não foi possível duplicar o produto. Tente novamente.',
             ], 500);
         }
     }
 
-    /**
-     * Cadastro em lote de produtos
-     */
-    public function storeLote(\App\Http\Requests\Produto\ProdutoLoteRequest $request)
+    public function storeLote(ProdutoLoteRequest $request)
     {
-        $usuarioAutenticado = Auth::user();
-        $empresasIds = $usuarioAutenticado->empresas->pluck('id')->toArray();
+        $resultado = $this->loteService->cadastrarLote($request);
 
-        $produtosPayload = $request->input('produtos', []);
-        $criados = [];
-        $erros = [];
-
-        DB::beginTransaction();
-        try {
-            foreach ($produtosPayload as $index => $produtoDados) {
-                $empresaId = $produtoDados['empresa_id'] ?? null;
-
-                if (!$empresaId || !in_array($empresaId, $empresasIds)) {
-                    $erros[] = [
-                        'index' => $index,
-                        'message' => 'Empresa não reconhecida para este usuário'
-                    ];
-                    continue;
-                }
-
-                try {
-                    $dados = [
-                        'empresa_id' => $empresaId,
-                        'categoria_id' => $produtoDados['categoria_id'],
-                        'unidade_medida_id' => $produtoDados['unidade_medida_id'],
-                        'tipo' => $produtoDados['tipo'] ?? 'produto',
-                        'nome' => $produtoDados['nome'],
-                        'slug' => Str::slug($produtoDados['nome']),
-                        'descricao' => $produtoDados['descricao'] ?? null,
-                        'preco' => $produtoDados['preco'],
-                        'estoque' => ($produtoDados['tipo'] ?? 'produto') === 'servico' ? 0 : ($produtoDados['estoque'] ?? 0),
-                        'destaque' => $produtoDados['destaque'] ?? false,
-                        'ativo' => $produtoDados['ativo'] ?? true,
-                        'marca' => $produtoDados['marca'] ?? null,
-                        'sku' => $produtoDados['sku'] ?? null,
-                        'preco_custo' => $produtoDados['preco_custo'] ?? null,
-                        'estoque_minimo' => $produtoDados['estoque_minimo'] ?? 0,
-                        'ativar_estoque_minimo' => $produtoDados['ativar_estoque_minimo'] ?? false,
-                        'peso' => $produtoDados['peso'] ?? null,
-                        'altura' => $produtoDados['altura'] ?? null,
-                        'largura' => $produtoDados['largura'] ?? null,
-                        'comprimento' => $produtoDados['comprimento'] ?? null,
-                        'ordem' => $produtoDados['ordem'] ?? 0,
-                        'preco_promocional' => $produtoDados['preco_promocional'] ?? null,
-                        'preco_promocional_percentual' => $produtoDados['preco_promocional_percentual'] ?? null,
-                        'promocao_ate' => $produtoDados['promocao_ate'] ?? null,
-                        // BUG-003: Manter promoção ativa se tem percentual OU preço promocional
-                        'tem_promocao' => ($produtoDados['tem_promocao'] ?? false)
-                            && (!empty($produtoDados['preco_promocional']) || !empty($produtoDados['preco_promocional_percentual'])),
-                        'vende_granel' => $produtoDados['vende_granel'] ?? false,
-                    ];
-
-                    $produtoCriado = Produto::create($dados);
-                    $criados[] = new ProdutoResource($produtoCriado->load(['categoria', 'unidadeMedida', 'empresa']));
-                } catch (\Exception $e) {
-                    $erros[] = [
-                        'index' => $index,
-                        'message' => $e->getMessage(),
-                    ];
-                }
+        if (! $resultado['ok']) {
+            $body = ['success' => false, 'message' => $resultado['message']];
+            if (isset($resultado['criados'])) {
+                $body['criados'] = $resultado['criados'];
+            }
+            if (isset($resultado['erros'])) {
+                $body['erros'] = $resultado['erros'];
             }
 
-            if (!empty($erros)) {
-                DB::rollBack();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Alguns produtos não puderam ser cadastrados.',
-                    'criados' => $criados,
-                    'erros' => $erros,
-                ], 422);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Produtos cadastrados com sucesso.',
-                'produtos' => $criados,
-            ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Não foi possível cadastrar os produtos. Verifique os dados e tente novamente.',
-            ], 500);
+            return response()->json($body, $resultado['http']);
         }
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Produtos cadastrados com sucesso.',
+            'produtos' => $resultado['produtos'],
+        ], 201);
     }
 
-    /**
-     * Listar categorias
-     */
     public function listarCategorias()
     {
-        $categorias = Categorias::orderBy('nome')->get();
-
-        return response()->json([
-            'success' => true,
-            'categorias' => $categorias,
-        ]);
+        return response()->json($this->catalogoAuxiliarService->listarCategorias());
     }
 
-    /**
-     * Deletar produtos em lote
-     */
     public function destroyLote(Request $request)
     {
-        $usuarioAutenticado = Auth::user();
-        $empresasIds = $usuarioAutenticado->empresas->pluck('id')->toArray();
+        $resultado = $this->loteService->excluirEmLote($request);
 
-        $ids = $request->input('ids', []);
-
-        if (empty($ids)) {
-            return response()->json([
-                'error' => 'Dados inválidos',
-                'message' => 'Selecione pelo menos um produto para remover.'
-            ], 400);
-        }
-
-        // Verificar se todos os produtos pertencem às empresas do usuário
-        $produtos = Produto::whereIn('id', $ids)->get();
-
-        foreach ($produtos as $produto) {
-            if (!in_array($produto->empresa_id, $empresasIds)) {
-                return response()->json([
-                    'error' => 'Acesso não permitido',
-                    'message' => 'Você não tem acesso a alguns dos produtos selecionados.'
-                ], 403);
+        if (! $resultado['ok']) {
+            $body = ['message' => $resultado['message']];
+            if (isset($resultado['error'])) {
+                $body['error'] = $resultado['error'];
             }
 
-            // Verificar se o produto está sendo usado em pedidos
-            if ($produto->itens()->exists()) {
-                return response()->json([
-                    'error' => 'Não foi possível remover',
-                    'message' => "O produto '{$produto->nome}' está sendo usado em pedidos."
-                ], 400);
-            }
+            return response()->json($body, $resultado['http']);
         }
 
-        DB::beginTransaction();
-        try {
-            // Soft delete dos produtos
-            Produto::whereIn('id', $ids)->delete();
-
-            DB::commit();
-
-            return response()->json([
-                'message' => count($ids) . ' produto(s) deletado(s) com sucesso'
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'error' => 'Não foi possível remover',
-                'message' => 'Tente novamente em alguns instantes.'
-            ], 500);
-        }
+        return response()->json([
+            'message' => $resultado['message'],
+        ]);
     }
 
-    /**
-     * Listar unidades de medida
-     */
     public function listarUnidadesMedidas()
     {
-        $unidades = UnidadeMedida::orderBy('nome')->get();
-
-        return response()->json([
-            'success' => true,
-            'unidades' => $unidades,
-        ]);
+        return response()->json($this->catalogoAuxiliarService->listarUnidadesMedidas());
     }
 
-    /**
-     * Listar ERPs de terceiros disponíveis para importação
-     */
     public function listarTerceiros()
     {
-        $planilhasTerceiros = PlanilhaTerceiros::all();
-
-        return response()->json([
-            'success' => true,
-            'planilhas_terceiros' => $planilhasTerceiros,
-        ]);
+        return response()->json($this->catalogoAuxiliarService->listarTerceiros());
     }
 
-    /**
-     * Importar produtos via planilha
-     */
     public function importar(Request $request)
     {
-        $arquivo = $request->file('arquivo');
-        $tipo = $request->input('tipo', 'petgre'); // Default para 'petgre' para manter compatibilidade
+        $resultado = $this->importacaoPlanilhaService->importar($request);
 
-        $request->validate([
-            'arquivo' => 'required|file|mimes:xlsx,xls|max:5120',
-            'tipo' => 'required|string',
-        ]);
+        if (! $resultado['ok']) {
+            $body = ['message' => $resultado['message']];
+            if (isset($resultado['error'])) {
+                $body['error'] = $resultado['error'];
+            }
 
-        $extensao = strtolower($arquivo->getClientOriginalExtension());
-        if (!in_array($extensao, ['xlsx', 'xls'])) {
-            return response()->json([
-                'error' => 'Formato não suportado',
-                'message' => 'Envie um arquivo Excel (.xlsx ou .xls).'
-            ], 400);
+            return response()->json($body, $resultado['http']);
         }
 
-        try {
-            $arquivo = $request->file('arquivo');
-
-            // Validar tamanho máximo de arquivo (5MB)
-            if ($arquivo->getSize() > 5242880) {
-                return response()->json([
-                    'error' => 'Arquivo muito grande',
-                    'message' => 'O arquivo deve ter no máximo 5MB.'
-                ], 400);
-            }
-
-            // Resolver dinamicamente o service baseado no tipo
-            if ($tipo === 'petgre') {
-                $serviceClass = \App\Services\Importacao\PetgreImportacaoService::class;
-            } else {
-                // Resolver service de terceiro dinamicamente
-                $serviceClass = 'App\\Services\\Importacao\\Terceiros\\' . Str::studly($tipo) . 'ImportacaoService';
-
-                if (!class_exists($serviceClass)) {
-                    return response()->json([
-                        'error' => 'Importação não disponível',
-                        'message' => 'Este tipo de importação ainda não está disponível. Entre em contato com o suporte.'
-                    ], 422);
-                }
-            }
-
-            $service = new $serviceClass();
-
-            // Validar estrutura da planilha apenas para tipo petgre
-            if ($tipo === 'petgre') {
-                $cabecalho = $this->lerCabecalhoPlanilha($arquivo);
-                if (!$service->validarEstrutura($cabecalho)) {
-                    return response()->json([
-                        'error' => 'Formato incorreto',
-                        'message' => 'A planilha não está no formato esperado. Baixe o modelo e tente novamente.'
-                    ], 400);
-                }
-            }
-
-            // Processar importação
-            $resultado = $service->importar($arquivo);
-
-            return response()->json([
-                'message'            => 'Importação concluída',
-                'total'              => $resultado['total'],
-                'importados'         => $resultado['importados'],
-                'erros'              => $resultado['erros'],
-                'planilha_erros_url' => $resultado['planilha_erros_url'],
-                'linhas_com_erro'    => $resultado['linhas_com_erro'],
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Não foi possível importar',
-                'message' => 'Verifique o arquivo e tente novamente.'
-            ], 500);
-        }
+        return response()->json($resultado['payload']);
     }
 
-    /**
-     * Download do modelo de planilha
-     */
-    public function downloadModelo(Request $request)
+    public function downloadModelo()
     {
-        try {
-            // FastExcel usa as CHAVES do array associativo como cabeçalho
-            $linhas = collect([
-                [
-                    'Nome*'                     => 'Produto Exemplo',
-                    'Descrição'                  => 'Descrição do produto exemplo',
-                    'Categoria'                  => 'Rações',
-                    'Unidade de Medida'          => 'Unidade',
-                    'Preço*'                     => '29.90',
-                    'Estoque'                    => '100',
-                    'Marca'                      => 'Marca Exemplo',
-                    'SKU'                        => 'PROD001',
-                    'Preço de Custo'             => '20.00',
-                    'Estoque Mínimo'             => '10',
-                    'Peso (kg)'                  => '1.5',
-                    'Altura (cm)'                => '10',
-                    'Largura (cm)'               => '20',
-                    'Comprimento (cm)'           => '30',
-                    'Ordem'                      => '1',
-                    'Preço Promocional'          => '25.90',
-                    'Promoção Até (YYYY-MM-DD)'  => '2024-12-31',
-                    'Vende a Granel (S/N)'       => 'N',
-                    'Tipo (produto/serviço)'     => 'produto',
-                    'Ativo (S/N)'                => 'S',
-                    'Destaque (S/N)'             => 'N',
-                ],
-            ]);
-
-            $headerStyle = (new Style())
-                ->setFontBold()
-                ->setFontSize(14)
-                ->setFontColor(Color::WHITE)
-                ->setBackgroundColor('3B82F6');
-
-            $tempFile = tempnam(sys_get_temp_dir(), 'modelo_') . '.xlsx';
-            (new FastExcel($linhas))->headerStyle($headerStyle)->export($tempFile);
-
-            return response()->download($tempFile, 'modelo_produtos_petgre.xlsx', [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            ])->deleteFileAfterSend();
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Não foi possível gerar o modelo',
-                'message' => 'Tente novamente em alguns instantes.'
-            ], 500);
-        }
+        return $this->importacaoPlanilhaService->downloadModelo();
     }
 
-
-
-
-    /**
-     * Lê o cabeçalho da planilha
-     */
-    private function lerCabecalhoPlanilha($arquivo): array
+    public function downloadPlanilhaErros()
     {
-        $extensao = strtolower($arquivo->getClientOriginalExtension());
+        $resultado = $this->importacaoPlanilhaService->resolverDownloadPlanilhaErros();
 
-        Log::info('Tentando ler cabeçalho Excel', [
-            'extensao' => $extensao,
-            'tamanho_arquivo' => filesize($arquivo->getPathname())
-        ]);
-
-        try {
-            $linhas = (new FastExcel)->import($arquivo->getPathname());
-
-            if ($linhas->isNotEmpty()) {
-                $primeiraLinha = $linhas->first();
-                $cabecalho = array_keys($primeiraLinha);
-
-                // Limpar e normalizar o cabeçalho
-                $cabecalho = array_map('trim', $cabecalho);
-                $cabecalho = array_filter($cabecalho, function($item) {
-                    return $item !== null && $item !== '';
-                });
-
-                Log::info('Cabeçalho lido com FastExcel', ['cabecalho' => $cabecalho, 'quantidade' => count($cabecalho)]);
-                return array_values($cabecalho);
+        if (! $resultado['ok']) {
+            $body = ['message' => $resultado['message']];
+            if (isset($resultado['error'])) {
+                $body['error'] = $resultado['error'];
             }
 
-            return [];
-        } catch (\Exception $e) {
-            Log::error('Erro ao ler cabeçalho com FastExcel', ['erro' => $e->getMessage()]);
-            throw new \Exception('Não foi possível ler o arquivo. Verifique se é um Excel válido.');
+            return response()->json($body, $resultado['http']);
         }
-    }
 
-
-    /**
-     * Download da planilha de erros de importação
-     */
-    public function downloadPlanilhaErros(Request $request)
-    {
-        try {
-            $usuarioAutenticado = Auth::user();
-            $empresaId = $usuarioAutenticado->empresas->first()->id ?? null;
-
-            if (!$empresaId) {
-                return response()->json([
-                    'error' => 'Empresa não encontrada',
-                    'message' => 'Selecione uma empresa para continuar.'
-                ], 403);
-            }
-
-            $path = "planilhas/empresa/{$empresaId}/importacao_produto_empresa_{$empresaId}.xlsx";
-
-            if (!Storage::disk('local')->exists($path)) {
-                return response()->json([
-                    'error' => 'Arquivo não encontrado',
-                    'message' => 'Não há relatório de erros disponível no momento.'
-                ], 404);
-            }
-
-            // Retornar arquivo para download
-            $fullPath = Storage::disk('local')->path($path);
-            return response()->download($fullPath, 'erros_importacao_produtos.xlsx');
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Não foi possível baixar',
-                'message' => 'Tente novamente em alguns instantes.'
-            ], 500);
-        }
+        return response()->download($resultado['path'], $resultado['filename']);
     }
 }

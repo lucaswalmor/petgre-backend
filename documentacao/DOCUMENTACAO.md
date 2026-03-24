@@ -35,6 +35,10 @@ Pagamento e entrega ficam entre **cliente e empresa**; o backend só registra e 
 
 ## 2. Estrutura da API
 
+### Padrão: novos controllers e services
+
+Sempre que for criado um **novo controller** HTTP, criar também os **services** em `app/Services/{Dominio}/`, no mesmo estilo do projeto: **várias classes por tema** (listagem, CRUD, integrações, etc.), controller fino que só delega e responde em JSON. Exemplos de referência: `app/Services/Produto/`, `Empresa/`, `Pedido/`, `Usuario/`, `SiteCliente/`. Novas rotas devem entrar na coleção Postman do repositório quando fizer parte do escopo.
+
 ### 2.1. Controllers e funções
 
 #### AuthController
@@ -59,19 +63,24 @@ Pagamento e entrega ficam entre **cliente e empresa**; o backend só registra e 
 | `verificarCodigoRecuperacao` | POST /api/change-password/verify-code | Valida o código antes de permitir alterar senha. |
 | `alterarSenhaPublico` | POST /api/change-password | Altera senha usando e-mail + token de recuperação. |
 
+A lógica deste controller está em `app/Services/Usuario/`: `UsuarioListagemPainelService` (listagem com `order_by` em whitelist e `per_page` 1–100), `UsuarioCadastroService` (cadastro cliente ou funcionário, vínculo empresa, endereço, e-mails de boas-vindas), `UsuarioPermissoesService` (sincronização de permissões e regra do dashboard para funcionários), `UsuarioConsultaPainelService`, `UsuarioAtualizacaoPainelService`, `UsuarioRemocaoPainelService`, `UsuarioRecuperacaoSenhaService` (envio/verificação de código e alteração de senha pública), `UsuarioSenhaPrimeiroLoginService` (troca no primeiro login e e-mail de confirmação com URL de login por `tipo_cadastro`).
+
 #### EmpresaController
 
 | Método | Função | Descrição |
 |--------|--------|-----------|
+| `index` | GET /api/empresa | Lista empresas vinculadas ao usuário autenticado (com filiais quando aplicável). Auth. |
 | `store` | POST /api/empresa | Cria empresa: se body `is_filial` = true, exige auth + header x-empresa-id (matriz), permissão empresas.criar_filial ou master; cria só empresa (sem usuário), seta empresa_matriz_id e is_matriz=false, vincula master da matriz e usuário atual à filial. Após criar filial, chama FaturamentoService::recalcularValorAssinatura(master_id). Se is_filial = false (cadastro público), cria empresa matriz + usuário admin + endereço + configurações + horário padrão. |
 | `show` | GET /api/empresa/{id} | Dados completos da empresa (com relacionamentos). Query `?basic=true` retorna só dados básicos. Permissão: empresas.show. |
 | `update` | PUT /api/empresa/{id} | Atualiza empresa, configurações, horários, endereço, formas de pagamento, bairros. Permissão: empresas.update. |
 | `destroy` | DELETE /api/empresa/{id} | Remove empresa. Permissão: empresas.destroy. |
 | `uploadImage` | POST /api/empresa/{id}/upload-image | Upload de logo e/ou banner (query `tipo`: logo ou banner). Permissão: empresas.upload_image. |
-| `verificarCadastro` | GET /api/empresa/{id}/verificar-cadastro | Retorna se cadastro está completo, percentual, itens_completos, total_itens e itens_pendentes. Cada item pendente inclui `titulo`, `navegacao` (caminho no menu) e `campo` (descrição do que preencher). Permissão: empresas.verificar_cadastro. |
+| `verificarCadastro` | GET /api/empresa/{id}/verificar-cadastro | Retorna `cadastro_completo`, `percentual`, `itens_pendentes` (labels dos itens ainda não ok), `empresa_id`, `empresa_nome`. Permissão: empresas.verificar_cadastro. |
 | `status` | GET /api/empresa/{id}/status | Retorna empresa_aberta, fechado_ate e fechada_manual (indicador no painel). Permissão: empresas.show. |
 | `statusManual` | PUT /api/empresa/{id}/status-manual | Fecha ou abre loja manualmente (body: fechada_manual boolean). Permissão: empresas.update. |
 | `bairrosDisponiveis` | GET /api/empresa/{empresaId}/bairros-disponiveis | Bairros da cidade da empresa para entrega. Permissão: empresas.show. |
+
+A lógica de negócio deste controller está em `app/Services/Empresa/` (listagem, criação matriz/filial, imagens, consulta/atualização, progresso de cadastro, status da loja, verificação de cadastro e bairros).
 
 - **Slug da empresa:** gerado automaticamente a partir do nome fantasia (ou razão social) em `store` e `update`. Se já existir empresa com o mesmo slug, é adicionado um sufixo aleatório de 8 caracteres (ex.: `lucas-steinbach` → `lucas-steinbach-a1b2c3d4`) para garantir unicidade.
 
@@ -127,24 +136,30 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 | `downloadModelo` | GET /api/produtos/importar/modelo | Download do modelo de planilha PetGre. Permissão: produtos.store. |
 | `downloadPlanilhaErros` | GET /api/produtos/importar/erros/download | Download da planilha de erros da última importação. Permissão: produtos.store. |
 
+A lógica de negócio deste controller está em `app/Services/Produto/`: `ProdutoListagemService`, `ProdutoPromocaoService`, `ProdutoCrudService`, `ProdutoOperacoesRapidasService`, `ProdutoImagemService`, `ProdutoLoteService`, `ProdutoCatalogoAuxiliarService`, `ProdutoImportacaoPlanilhaService` (o controller apenas delega e formata a resposta HTTP).
+
 #### PedidoController
 
 | Método | Função | Descrição |
 |--------|--------|-----------|
 | `estatisticas` | GET /api/pedidos/estatisticas | KPIs para cards (pedidos hoje, faturamento mês, pendentes, avaliação média). Permissão: pedidos.index. |
-| `index` | GET /api/pedidos | Lista pedidos (filtros: empresa_id, status_id, usuario_id, data_inicio, data_fim). Permissão: pedidos.index. |
-| `store` | POST /api/pedidos | Cliente cria pedido (itens, endereço, cupom, frete). Rota pública para clientes (não exige x-empresa-id). Dispara push para empresa. Após salvar, chama FaturamentoService::contabilizarPedido(empresa_id) para contagem de pedidos e eventual disparo de assinatura (30 pedidos no mês). |
+| `index` | GET /api/pedidos | Lista pedidos (filtros: status_id, usuario_id, data_inicio, data_fim, tipo produto/serviço/misto). Ordenação: `order_by` apenas em colunas permitidas; `per_page` limitado (1–100). Permissão: pedidos.index. |
+| `store` | POST /api/pedidos | Cliente cria pedido (itens, endereço opcional se retirada, cupom, frete). Define `tipo_pedido` e `data_agendamento` (regex nas observações) quando aplicável. Baixa estoque, push para empresa, notificação de estoque mínimo. |
 | `show` | GET /api/pedidos/{id} | Detalhes do pedido (quem criou ou empresa do pedido). |
-| `update` | PUT /api/pedidos/{id} | Atualiza status e observações; ao confirmar/entregar/cancelar trata cupons. Permissão: pedidos.update. |
+| `update` | PUT /api/pedidos/{id} | Atualiza status e observações; ao confirmar/entregar/cancelar trata cupons e estoque. Permissão: pedidos.update. |
 | `destroy` | DELETE /api/pedidos/{id} | Exclui apenas pedidos pendentes. Permissão: pedidos.destroy. |
 | `validarCupom` | POST /api/pedidos/validar-cupom | Valida cupom (código, empresa_id, valor_compra); retorna desconto e total. |
+
+A lógica de negócio está em `app/Services/Pedido/` (`PedidoEstatisticasService`, `PedidoListagemPainelService`, `PedidoCriacaoClienteService`, `PedidoConsultaService`, `PedidoAtualizacaoPainelService`, `PedidoExclusaoService`, `PedidoCupomValidacaoService`, `PedidoDominioAuxiliarService`).
 
 #### SiteClienteController
 
 | Método | Função | Descrição |
 |--------|--------|-----------|
-| `getEmpresas` | GET /api/site/empresas | Público. Lista empresas ativas com cadastro completo (filtros: nicho, busca, bairro, abertas, avaliação, entrega/retirada, favoritos). |
+| `getEmpresas` | GET /api/site/empresas | Público. Lista empresas ativas com cadastro completo (filtros: nicho, busca, cidade, bairro legado, abertas, avaliação, entrega/retirada, favoritos, ordenação). |
 | `getEmpresa` | GET /api/site/empresa/{slug} | Público. Detalhes da empresa (produtos, kits, destaques, horários, avaliações, etc.). O array `destaques` contém até 12 produtos ativos com destaque=true (mesmo formato de ProdutoResource). Registra log de acesso se usuário logado. |
+| `getProdutos` | GET /api/site/produtos | Público. Catálogo multi-loja com filtros (bairro, busca, categoria, promoção, ordenação). |
+| `getOrdenacaoPublica` | GET /api/site/empresa/{empresaId}/ordenacao | Público. Ordem das seções da página da loja (serviços/produtos/kits). |
 | `getPerfil` | GET /api/site/perfil | Perfil do cliente (auth). |
 | `atualizarPerfil` | PUT /api/site/atualizar-perfil | Atualiza nome e telefone (auth). |
 | `alterarSenha` | PUT /api/site/alterar-senha | Altera senha (senha_atual, senha_nova, confirmação) (auth). |
@@ -152,6 +167,8 @@ Rota **pública** (sem auth). Validação pelo header `asaas-access-token` compa
 | `getPedido` | GET /api/site/meu-pedido/{id} | Detalhes de um pedido do cliente (auth). |
 | `getEnderecos` | GET /api/site/meus-enderecos | Endereços do cliente (auth). |
 | `meusCupons` | GET /api/site/meus-cupons | Cupons do sistema atribuídos ao usuário não utilizados (auth). |
+
+A lógica está em `app/Services/SiteCliente/` (`SiteClienteListagemEmpresasService`, `SiteClienteEmpresaPublicaService`, `SiteClientePedidoClienteService`, `SiteClientePerfilContaService`, `SiteClienteCatalogoProdutosService`).
 
 #### UsuarioEnderecosController
 

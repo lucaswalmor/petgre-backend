@@ -2,521 +2,88 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Http\Requests\Usuarios\UsuarioStoreRequest;
 use App\Http\Requests\Usuarios\UsuarioUpdateRequest;
-use App\Http\Resources\Usuario\UsuarioResource;
-use App\Models\User;
-use App\Models\UsuarioEnderecos;
-use App\Models\Permissao;
-use App\Models\Empresa;
-use App\Models\EmpresaEndereco;
-use App\Models\UsuarioEmpresas;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
-use App\Helpers\VerificaEmpresa;
+use App\Services\Usuario\UsuarioAtualizacaoPainelService;
+use App\Services\Usuario\UsuarioCadastroService;
+use App\Services\Usuario\UsuarioConsultaPainelService;
+use App\Services\Usuario\UsuarioListagemPainelService;
+use App\Services\Usuario\UsuarioRecuperacaoSenhaService;
+use App\Services\Usuario\UsuarioRemocaoPainelService;
+use App\Services\Usuario\UsuarioSenhaPrimeiroLoginService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\PasswordReset;
-use App\Mail\PasswordResetMail;
-use App\Mail\PasswordChangedMail;
-use App\Mail\NovoFuncionarioMail;
-use App\Mail\NovoClienteMail;
-use App\Services\EmailService;
 
 class UsuarioController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    public function __construct(
+        private UsuarioListagemPainelService $listagemPainelService,
+        private UsuarioCadastroService $cadastroService,
+        private UsuarioConsultaPainelService $consultaPainelService,
+        private UsuarioAtualizacaoPainelService $atualizacaoPainelService,
+        private UsuarioRemocaoPainelService $remocaoPainelService,
+        private UsuarioRecuperacaoSenhaService $recuperacaoSenhaService,
+        private UsuarioSenhaPrimeiroLoginService $senhaPrimeiroLoginService,
+    ) {}
+
     public function index(Request $request)
     {
-        $empresaId = $request->empresa_id;
-        $query = User::whereHas('empresas', function ($q) use ($empresaId) {
-            $q->where('empresas.id', $empresaId);
-        })->with(['permissoes', 'enderecos', 'empresas']);
-
-        if ($request->has('ativo') && $request->ativo !== null) {
-            $query->where('ativo', $request->boolean('ativo'));
-        }
-
-        if ($request->has('is_master') && $request->is_master !== null) {
-            $query->where('is_master', $request->boolean('is_master'));
-        }
-
-        if ($request->has('nome') && $request->nome) {
-            $query->where('nome', 'like', '%' . $request->nome . '%');
-        }
-
-        if ($request->has('email') && $request->email) {
-            $query->where('email', 'like', '%' . $request->email . '%');
-        }
-
-        // Ordenação
-        $orderBy = $request->get('order_by', 'created_at');
-        $orderDirection = $request->get('order_direction', 'desc');
-        $query->orderBy($orderBy, $orderDirection);
-
-        // Paginação
-        $perPage = $request->get('per_page', 15);
-        $usuarios = $query->paginate($perPage);
-
-        return response()->json([
-            'usuarios' => UsuarioResource::collection($usuarios),
-            'paginacao' => [
-                'total' => $usuarios->total(),
-                'per_page' => $usuarios->perPage(),
-                'current_page' => $usuarios->currentPage(),
-                'last_page' => $usuarios->lastPage(),
-                'from' => $usuarios->firstItem(),
-                'to' => $usuarios->lastItem(),
-            ]
-        ]);
+        return response()->json($this->listagemPainelService->listarPaginado($request));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(UsuarioStoreRequest $request)
     {
-        if ($request->has('empresa_id') && $request->empresa_id && Auth::check() && !VerificaEmpresa::verificaEmpresaPertenceAoUsuario((int) $request->empresa_id)) {
-            return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para criar funcionários nesta empresa.',
-            ], 403);
-        }
+        $resultado = $this->cadastroService->criar($request);
 
-        DB::beginTransaction();
-        try {
-            $isFuncionario = $request->has('empresa_id') && $request->empresa_id && $request->has('permissoes') && is_array($request->permissoes);
-            $tipoCadastro = $isFuncionario ? 0 : 1; // 0 = Funcionário, 1 = Cliente
-
-            // Para funcionários, gerar senha aleatória; para clientes, usar a senha enviada
-            $senha = $isFuncionario ? \Illuminate\Support\Str::random(12) : $request->password;
-
-            $usuario = User::create([
-                'nome' => $request->nome,
-                'email' => $request->email,
-                'password' => Hash::make($senha),
-                'telefone' => $request->telefone,
-                'ativo' => true,
-                'is_master' => false,
-                'tipo_cadastro' => $tipoCadastro,
-                'primeiro_login' => $isFuncionario,
-            ]);
-
-            if ($request->has('empresa_id') && $request->empresa_id) {
-                UsuarioEmpresas::create([
-                    'usuario_id' => $usuario->id,
-                    'empresa_id' => $request->empresa_id,
-                ]);
-            }
-
-            // Sincronizar permissões se foram enviadas (para funcionários)
-            if ($request->has('permissoes') && is_array($request->permissoes)) {
-                // Garantir que apenas IDs sejam passados para o sync
-                $permissoes = $request->permissoes;
-
-                // Verificar se é array de objetos com permissao_id ou apenas array de IDs
-                if (count($permissoes) > 0 && is_array($permissoes[0])) {
-                    // É array de objetos, extrair os permissao_id
-                    $permissoesIds = array_map(function ($permissao) {
-                        return isset($permissao['permissao_id']) ? intval($permissao['permissao_id']) : intval($permissao);
-                    }, $permissoes);
-                } else {
-                    // É array simples de IDs
-                    $permissoesIds = array_map('intval', $permissoes);
-                }
-
-                if ($isFuncionario) {
-                    $dashboardPerm = Permissao::where('slug', 'dashboard.index')->first();
-                    if ($dashboardPerm && !in_array($dashboardPerm->id, $permissoesIds)) {
-                        $permissoesIds[] = $dashboardPerm->id;
-                    }
-                }
-
-                $usuario->permissoes()->sync($permissoesIds);
-            }
-            // Funcionário sem permissões enviadas: garantir ao menos dashboard para primeiro login
-            elseif ($isFuncionario) {
-                $dashboardPerm = Permissao::where('slug', 'dashboard.index')->first();
-                if ($dashboardPerm) {
-                    $usuario->permissoes()->sync([$dashboardPerm->id]);
-                }
-            }
-
-            if ($isFuncionario) {
-                // Para funcionários: usar endereço da empresa, ignorar endereço enviado no body
-                $empresa = Empresa::with('endereco')->find($request->empresa_id);
-                if ($empresa && $empresa->endereco) {
-                    UsuarioEnderecos::create([
-                        'usuario_id' => $usuario->id,
-                        'cep' => $empresa->endereco->cep,
-                        'rua' => $empresa->endereco->logradouro,
-                        'numero' => $empresa->endereco->numero,
-                        'complemento' => $empresa->endereco->complemento,
-                        'bairro' => $empresa->endereco->bairro,
-                        'cidade' => $empresa->endereco->cidade,
-                        'estado' => $empresa->endereco->estado,
-                        'ponto_referencia' => $empresa->endereco->ponto_referencia,
-                        'observacoes' => $empresa->endereco->observacoes,
-                        'ativo' => true,
-                        'endereco_padrao' => true,
-                    ]);
-                }
-            } elseif ($request->has('endereco')) {
-                // Para clientes: usar endereço enviado no body
-                $enderecoData = $request->endereco;
-                UsuarioEnderecos::create([
-                    'usuario_id' => $usuario->id,
-                    'cep' => $enderecoData['cep'] ?? null,
-                    'rua' => $enderecoData['rua'],
-                    'numero' => $enderecoData['numero'],
-                    'complemento' => $enderecoData['complemento'] ?? null,
-                    'bairro' => $enderecoData['bairro'] ?? null,
-                    'cidade' => $enderecoData['cidade'] ?? null,
-                    'estado' => $enderecoData['estado'] ?? null,
-                    'ponto_referencia' => $enderecoData['ponto_referencia'] ?? null,
-                    'observacoes' => $enderecoData['observacoes'] ?? null,
-                    'ativo' => true,
-                    'endereco_padrao' => true,
-                ]);
-            }
-
-            DB::commit();
-
-            // Enviar email de boas-vindas
-            try {
-                $emailService = app(EmailService::class);
-
-                if ($isFuncionario) {
-                    // Email para funcionário com senha gerada
-                    $empresa = Empresa::find($request->empresa_id);
-                    $emailService->sendMailable($usuario->email, new NovoFuncionarioMail($usuario, $empresa, $senha));
-                } else {
-                    // Email para cliente
-                    $emailService->sendMailable($usuario->email, new NovoClienteMail($usuario));
-                }
-            } catch (\Exception $emailException) {
-                // Log do erro mas não falha a criação do usuário
-                \Log::error('Erro ao enviar email de boas-vindas: ' . $emailException->getMessage());
-            }
-
-            // Retornar usuário criado com relações
-            $usuario->load(['permissoes', 'enderecos', 'empresas']);
-
-            return response()->json([
-                'message' => 'Usuário criado com sucesso',
-                'usuario' => new UsuarioResource($usuario)
-            ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'error' => 'Erro ao criar usuário',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json($resultado['body'], $resultado['http']);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id)
     {
-        $usuarioAutenticado = Auth::user();
-        $usuarioAutenticado->load('empresas');
-        $usuario = User::with(['permissoes', 'enderecos', 'empresas'])->findOrFail($id);
+        $resultado = $this->consultaPainelService->obter($id, Auth::user());
 
-        // Verificar se o usuário autenticado e o usuário sendo buscado pertencem à mesma empresa
-        $empresasUsuarioAutenticado = $usuarioAutenticado->empresas->pluck('id');
-        $empresasUsuarioBuscado = $usuario->empresas->pluck('id');
-
-        // Verificar se há interseção entre as empresas (pertencem à mesma empresa)
-        $temEmpresaComum = $empresasUsuarioAutenticado->intersect($empresasUsuarioBuscado)->isNotEmpty();
-
-        // Se não há empresa em comum, não pode visualizar
-        if (!$temEmpresaComum) {
-            return response()->json([
-                'error' => 'Você não tem permissão para visualizar este usuário.',
-                'message' => 'O usuário não pertence à mesma empresa que você.'
-            ], 403);
-        }
-
-        // Se ambos não têm empresas associadas (clientes), não podem se ver
-        if ($empresasUsuarioAutenticado->isEmpty() && $empresasUsuarioBuscado->isEmpty()) {
-            return response()->json([
-                'error' => 'Você não tem permissão para visualizar este usuário.',
-                'message' => 'Clientes não podem visualizar outros clientes.'
-            ], 403);
-        }
-
-        return response()->json([
-            'usuario' => new UsuarioResource($usuario)
-        ]);
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(UsuarioUpdateRequest $request, string $id)
     {
-        $usuario = User::findOrFail($id);
+        $resultado = $this->atualizacaoPainelService->atualizar($request, $id);
 
-        // Verificar se o usuário autenticado e o usuário sendo editado pertencem à mesma empresa
-        if (!VerificaEmpresa::verificaUsuariosMesmaEmpresa((int)$id)) {
-            return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para editar este usuário.'
-            ], 403);
-        }
-
-        // Preparar dados para atualização
-        $updateData = $request->only(['nome', 'email', 'telefone', 'ativo']);
-
-        // Se senha foi fornecida, fazer hash
-        if ($request->has('password') && $request->password) {
-            $updateData['password'] = Hash::make($request->password);
-        }
-
-        // Atualizar usuário
-        $usuario->update($updateData);
-
-        // Sincronizar permissões se foram enviadas (para funcionários)
-        if ($request->has('permissoes') && is_array($request->permissoes)) {
-            // Garantir que apenas IDs sejam passados para o sync
-            $permissoes = $request->permissoes;
-
-            // Verificar se é array de objetos com permissao_id ou apenas array de IDs
-            if (count($permissoes) > 0 && is_array($permissoes[0])) {
-                // É array de objetos, extrair os permissao_id
-                $permissoesIds = array_map(function ($permissao) {
-                    return isset($permissao['permissao_id']) ? intval($permissao['permissao_id']) : intval($permissao);
-                }, $permissoes);
-            } else {
-                // É array simples de IDs
-                $permissoesIds = array_map('intval', $permissoes);
-            }
-
-            $usuario->permissoes()->sync($permissoesIds);
-        }
-
-        // Recarregar com relacionamentos
-        $usuario->load(['permissoes', 'enderecos', 'empresas']);
-
-        return response()->json([
-            'message' => 'Usuário atualizado com sucesso',
-            'usuario' => new UsuarioResource($usuario)
-        ]);
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
-        $usuario = User::findOrFail($id);
-        $usuarioAutenticado = Auth::user();
+        $resultado = $this->remocaoPainelService->remover($id, Auth::user());
 
-        // Verificar se o usuário está tentando deletar a si mesmo
-        if ($usuarioAutenticado->id === (int)$id) {
-            return response()->json([
-                'error' => 'Não é possível deletar seu próprio usuário.'
-            ], 403);
-        }
-
-        // Verificar se é usuário master
-        if ($usuario->isMaster()) {
-            return response()->json([
-                'error' => 'Não é possível deletar um usuário master.'
-            ], 403);
-        }
-
-        // Verificar se o usuário autenticado e o usuário sendo deletado pertencem à mesma empresa
-        if (!VerificaEmpresa::verificaUsuariosMesmaEmpresa((int)$id)) {
-            return response()->json([
-                'error' => 'Acesso negado',
-                'message' => 'Você não tem permissão para deletar este usuário.'
-            ], 403);
-        }
-
-        // Para clientes (tipo_cadastro = 1): fake delete (marca como inativo)
-        // Para funcionários/lojistas (tipo_cadastro = 0): hard delete normal
-        if ($usuario->tipo_cadastro === 1) {
-            $usuario->update(['ativo' => false]);
-            return response()->json([
-                'message' => 'Conta desativada com sucesso. Você pode reativá-la futuramente fazendo login.'
-            ]);
-        }
-
-        // Hard delete para funcionários
-        $usuario->delete();
-
-        return response()->json([
-            'message' => 'Usuário deletado com sucesso'
-        ]);
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 
-    /**
-     * Enviar código de recuperação de senha
-     */
     public function enviarCodigoRecuperacao(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email|exists:usuarios,email'
-        ]);
+        $resultado = $this->recuperacaoSenhaService->enviarCodigo($request);
 
-        $usuario = User::where('email', $request->email)->first();
-
-        // Gerar código único de 6 dígitos
-        $token = PasswordReset::generateUniqueToken($request->email);
-
-        // Criar ou atualizar registro de reset
-        PasswordReset::updateOrCreate(
-            ['email' => $request->email],
-            [
-                'token' => $token,
-                'expires_at' => now()->addMinutes(15),
-                'used_at' => null,
-            ]
-        );
-
-        // Enviar email com código
-        try {
-            $emailService = app(EmailService::class);
-            $emailService->sendMailable($usuario->email, new PasswordResetMail($usuario, $token));
-
-            return response()->json([
-                'message' => 'Código de recuperação enviado para seu email'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Erro ao enviar email',
-                'message' => 'Não foi possível enviar o código de recuperação. Tente novamente.'
-            ], 500);
-        }
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 
-    /**
-     * Verificar código de recuperação
-     */
     public function verificarCodigoRecuperacao(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'token' => 'required|string|size:6'
-        ]);
+        $resultado = $this->recuperacaoSenhaService->verificarCodigo($request);
 
-        $reset = PasswordReset::where('email', $request->email)
-                             ->where('token', $request->token)
-                             ->valid()
-                             ->first();
-
-        if (!$reset) {
-            return response()->json([
-                'error' => 'Código inválido ou expirado',
-                'message' => 'Verifique o código ou solicite um novo.'
-            ], 400);
-        }
-
-        return response()->json([
-            'message' => 'Código verificado com sucesso',
-            'valid' => true
-        ]);
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 
-    /**
-     * Alterar senha usando código de recuperação
-     */
     public function alterarSenhaPublico(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'token' => 'required|string|size:6',
-            'senha' => 'required|string|min:8|confirmed',
-        ]);
+        $resultado = $this->recuperacaoSenhaService->alterarSenhaComToken($request);
 
-        $reset = PasswordReset::where('email', $request->email)
-                             ->where('token', $request->token)
-                             ->valid()
-                             ->first();
-
-        if (!$reset) {
-            return response()->json([
-                'error' => 'Código inválido ou expirado',
-                'message' => 'Solicite um novo código de recuperação.'
-            ], 400);
-        }
-
-        $usuario = User::where('email', $request->email)->first();
-
-        if (!$usuario) {
-            return response()->json([
-                'error' => 'Usuário não encontrado'
-            ], 404);
-        }
-
-        // Atualizar senha
-        $usuario->update([
-            'password' => Hash::make($request->senha)
-        ]);
-
-        // Marcar token como usado
-        $reset->markAsUsed();
-
-        // Enviar email de confirmação
-        try {
-            $emailService = app(EmailService::class);
-            $loginUrl = ((int) $usuario->tipo_cadastro === 1)
-                ? 'https://app.petgre.com.br/'
-                : 'https://painel.petgre.com.br/';
-            $emailService->sendMailable($usuario->email, new PasswordChangedMail($usuario, $loginUrl));
-        } catch (\Exception $e) {
-            // Não falhar a operação se o email der erro
-            \Log::error('Erro ao enviar email de confirmação de senha: ' . $e->getMessage());
-        }
-
-        return response()->json([
-            'message' => 'Senha alterada com sucesso'
-        ]);
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 
-    /**
-     * Alterar senha no primeiro login (painel lojista). Requer auth.
-     */
     public function alterarSenhaPrimeiroLogin(Request $request)
     {
-        $usuario = Auth::user();
+        $resultado = $this->senhaPrimeiroLoginService->alterar($request, Auth::user());
 
-        if (!$usuario->primeiro_login) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Esta ação é válida apenas no primeiro acesso.',
-            ], 403);
-        }
-
-        $request->validate([
-            'senha' => 'required|string|min:8|confirmed',
-        ], [
-            'senha.required' => 'A nova senha é obrigatória',
-            'senha.min' => 'A senha deve ter no mínimo 8 caracteres',
-            'senha.confirmed' => 'As senhas não conferem',
-        ]);
-
-        $usuario->update([
-            'password' => Hash::make($request->senha),
-            'primeiro_login' => false,
-        ]);
-
-        $loginUrl = ((int) $usuario->tipo_cadastro === 1)
-            ? 'https://app.petgre.com.br/'
-            : 'https://painel.petgre.com.br/';
-        app(EmailService::class)->sendMailable($usuario->email, new PasswordChangedMail($usuario, $loginUrl));
-
-        $usuario->load(['permissoes', 'empresas', 'enderecos']);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Senha alterada com sucesso',
-            'user' => new \App\Http\Resources\Usuario\UsuarioLoginResource($usuario),
-        ]);
+        return response()->json($resultado['body'], $resultado['http'] ?? 200);
     }
 }
